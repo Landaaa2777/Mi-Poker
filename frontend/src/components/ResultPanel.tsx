@@ -9,7 +9,7 @@ interface Props {
 }
 
 const BIG =
-  "h-14 rounded-xl px-5 text-base font-black uppercase tracking-wide shadow-md transition-colors disabled:opacity-40 sm:text-lg";
+  "h-14 rounded-xl px-5 text-base font-black uppercase tracking-wide shadow-md disabled:opacity-40 sm:text-lg";
 
 /** Resultado de la mano y qué se puede hacer después. */
 export function ResultPanel({ state, disabled, onNextHand, onRestart, onConfigure }: Props) {

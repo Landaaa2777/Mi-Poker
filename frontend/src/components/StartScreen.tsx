@@ -28,7 +28,7 @@ const BLIND_PRESETS: [number, number][] = [
 
 const INPUT =
   "w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 outline-none focus:border-amber-400";
-const CHOICE = "rounded-lg border px-3 py-2 text-sm font-semibold transition-colors";
+const CHOICE = "rounded-lg border px-3 py-2 text-sm font-semibold";
 const CHOSEN = "border-amber-400 bg-amber-400 text-slate-900";
 const NOT_CHOSEN = "border-white/15 bg-white/5 hover:bg-white/10";
 
@@ -101,13 +101,13 @@ export function StartScreen({ options, initial, onStart, onCancel }: Props) {
             aria-hidden
           >
             <span className="absolute left-0 top-3 -rotate-[16deg]">
-              <PlayingCard card={null} />
+              <PlayingCard card={null} float={0.8} />
             </span>
             <span className="absolute left-9 top-0 -rotate-3">
-              <PlayingCard card="As" />
+              <PlayingCard card="As" interactive="tilt" float={1} />
             </span>
             <span className="absolute left-[4.5rem] top-2 rotate-[12deg]">
-              <PlayingCard card="Kh" />
+              <PlayingCard card="Kh" interactive="tilt" float={1} />
             </span>
           </div>
         </header>
@@ -154,7 +154,7 @@ export function StartScreen({ options, initial, onStart, onCancel }: Props) {
                     key={level.id}
                     type="button"
                     aria-pressed={chosen}
-                    className={`rounded-xl border p-3 text-left transition-colors ${chosen ? "border-amber-400 bg-amber-400/15" : NOT_CHOSEN}`}
+                    className={`rounded-xl border p-3 text-left ${chosen ? "border-amber-400 bg-amber-400/15" : NOT_CHOSEN}`}
                     onClick={() => update({ difficulty: level.id })}
                   >
                     <div className={`font-bold ${chosen ? "text-amber-300" : ""}`}>{level.name}</div>
@@ -212,7 +212,7 @@ export function StartScreen({ options, initial, onStart, onCancel }: Props) {
             <button
               type="submit"
               disabled={problem !== null}
-              className="h-14 flex-1 rounded-xl bg-amber-400 px-6 text-lg font-black uppercase tracking-wide text-slate-900 shadow-md transition-colors hover:bg-amber-300 disabled:opacity-40"
+              className="h-14 flex-1 rounded-xl bg-amber-400 px-6 text-lg font-black uppercase tracking-wide text-slate-900 shadow-md hover:bg-amber-300 disabled:opacity-40"
             >
               Empezar partida
             </button>

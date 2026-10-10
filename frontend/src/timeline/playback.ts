@@ -14,23 +14,27 @@ export interface PlaybackState {
   busy: boolean; // quedan pasos por reproducir
 }
 
-/** Milisegundos que se muestra cada paso antes de pasar al siguiente. */
+/**
+ * Milisegundos que se muestra cada paso antes de pasar al siguiente. Cada uno
+ * deja tiempo a su animación (ver `motion/`), que dura entre 200 y 500 ms.
+ */
 export function stepDelay(step: Step, next: Step | undefined): number {
   switch (step.kind) {
     case "new_hand":
       return 250;
     case "deal":
-      // Las cartas salen seguidas; tras la última, una pausa para mirarlas.
-      return next?.kind === "deal" ? 80 : 330;
+      // Las cartas salen seguidas, solapándose en el aire; tras la última se
+      // espera a que aterrice y a que se volteen las mías.
+      return next?.kind === "deal" ? 90 : 560;
     case "board":
       // Dentro del flop van seguidas; al completar la calle, un respiro.
-      return next?.kind === "board" && next.street === step.street ? 220 : 520;
+      return next?.kind === "board" && next.street === step.street ? 230 : 580;
     case "event":
-      if (step.event.kind === "small_blind" || step.event.kind === "big_blind") return 200;
-      if (step.event.kind === "refund") return 300;
-      if (step.event.kind === "show") return 500;
-      if (step.event.kind === "win") return 800;
-      return step.event.action === "call" || step.event.action === "raise" ? 450 : 350;
+      if (step.event.kind === "small_blind" || step.event.kind === "big_blind") return 220;
+      if (step.event.kind === "refund") return 380;
+      if (step.event.kind === "show") return 520;
+      if (step.event.kind === "win") return 900;
+      return step.event.action === "call" || step.event.action === "raise" ? 480 : 380;
     case "settle":
       return 0;
   }
@@ -42,10 +46,16 @@ function catchUpSpeed(waitingBatches: number): number {
   return waitingBatches === 2 ? 1.5 : 2.5;
 }
 
-/** Quien quiera acompañar la reproducción (por ejemplo, con sonido). */
+/** Quien quiera acompañar la reproducción: las animaciones y el sonido. */
 export interface PlaybackListener {
-  /** Empieza a mostrarse un paso de la reproducción. */
-  onStep?: (step: Step) => void;
+  /**
+   * Va a mostrarse un paso. Se avisa justo antes de dibujarlo, para que quien
+   * escucha pueda mirar cómo estaba la mesa. `speed` es mayor que 1 cuando la
+   * cola va atrasada y hay que animar más deprisa.
+   */
+  onStep?: (step: Step, speed: number) => void;
+  /** La mesa va a saltar a otro estado sin reproducir pasos (reconexión, animaciones desactivadas...). */
+  onJump?: () => void;
   /** Estos pasos se han aplicado de golpe, sin reproducirlos (animaciones desactivadas). */
   onSkip?: (steps: Step[]) => void;
 }
@@ -82,15 +92,13 @@ export class Playback {
   push = (server: GameState | null, instant = false): void => {
     const previous = this.state.server;
     if (server === null || instant) {
-      this.clear();
-      this.emit({ frame: server && frameFromState(server), server, busy: false });
+      this.jump(server);
       return;
     }
 
     const steps = buildSteps(previous, server);
     if (!this.animated()) {
-      this.clear();
-      this.emit({ frame: frameFromState(server), server, busy: false });
+      this.jump(server);
       this.listener.onSkip?.(steps);
       return;
     }
@@ -105,11 +113,15 @@ export class Playback {
 
   /** Salta al último estado recibido sin reproducir lo pendiente. */
   flush = (): void => {
-    if (!this.state.busy) return;
-    const server = this.state.server;
-    this.clear();
-    this.emit({ frame: server && frameFromState(server), server, busy: false });
+    if (this.state.busy) this.jump(this.state.server);
   };
+
+  /** Muestra directamente un estado del servidor, descartando lo pendiente. */
+  private jump(server: GameState | null): void {
+    this.clear();
+    this.listener.onJump?.();
+    this.emit({ frame: server && frameFromState(server), server, busy: false });
+  }
 
   private clear(): void {
     if (this.timer !== null) clearTimeout(this.timer);
@@ -135,11 +147,11 @@ export class Playback {
     if (current === undefined) return;
 
     const busy = this.queue.length > 0;
-    this.emit({ ...this.state, frame: current.step.frame, busy });
-    this.listener.onStep?.(current.step);
-    if (!busy) return;
     const waiting = new Set(this.queue.map((queued) => queued.batch));
     waiting.delete(current.batch);
-    this.timer = setTimeout(this.advance, delay / catchUpSpeed(waiting.size));
+    const speed = catchUpSpeed(waiting.size);
+    this.listener.onStep?.(current.step, speed);
+    this.emit({ ...this.state, frame: current.step.frame, busy });
+    if (busy) this.timer = setTimeout(this.advance, delay / speed);
   };
 }

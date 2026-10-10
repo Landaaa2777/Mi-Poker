@@ -170,11 +170,15 @@ describe("Playback", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it("avisa de cada paso en el momento en que se muestra", () => {
+  it("avisa de cada paso justo antes de dibujarlo", () => {
     const shown: Step[] = [];
     const skipped: Step[][] = [];
-    const playback = new Playback(() => true, {
-      onStep: (step) => shown.push(step),
+    const drawnBefore: (Frame | null)[] = [];
+    const playback: Playback = new Playback(() => true, {
+      onStep: (step) => {
+        shown.push(step);
+        drawnBefore.push(playback.getState().frame);
+      },
       onSkip: (steps) => skipped.push(steps),
     });
     const [deal] = sixHanded;
@@ -190,6 +194,48 @@ describe("Playback", () => {
     expect(shown).toEqual([...drawn, steps.at(-1)]);
     expect(shown.at(-1)?.kind).toBe("settle");
     expect(skipped).toEqual([]);
+    // En el momento del aviso la mesa aún mostraba el paso anterior.
+    expect(drawnBefore[0]).toBeNull();
+    expect(drawnBefore.slice(1)).toEqual(shown.slice(0, -1).map((step) => step.frame));
+  });
+
+  it("dice a qué velocidad hay que animar: normal, o más deprisa si hay atasco", () => {
+    const speeds: number[] = [];
+    const playback = new Playback(() => true, { onStep: (_, speed) => speeds.push(speed) });
+    playback.push(sixHanded[0]);
+    vi.runAllTimers();
+    expect(new Set(speeds)).toEqual(new Set([1]));
+
+    speeds.length = 0;
+    for (const state of firstHand(shortStacks)) playback.push(state);
+    vi.runAllTimers();
+    expect(Math.max(...speeds)).toBeGreaterThan(1);
+    expect(speeds.at(-1)).toBe(1); // al ponerse al día vuelve a la velocidad normal
+  });
+
+  it("avisa cuando la mesa salta sin reproducir pasos", () => {
+    const calls: string[] = [];
+    let animated = true;
+    const playback = new Playback(() => animated, {
+      onStep: () => calls.push("step"),
+      onJump: () => calls.push("jump"),
+      onSkip: () => calls.push("skip"),
+    });
+    playback.push(sixHanded[0], true); // reconexión
+    expect(calls).toEqual(["jump"]);
+
+    playback.push(sixHanded[1]);
+    playback.flush(); // pestaña oculta a mitad de reproducción
+    expect(calls.at(-1)).toBe("jump");
+
+    animated = false;
+    calls.length = 0;
+    playback.push(sixHanded[2]); // animaciones desactivadas
+    expect(calls).toEqual(["jump", "skip"]);
+
+    calls.length = 0;
+    playback.push(null); // sin partida
+    expect(calls).toEqual(["jump"]);
   });
 
   it("con las animaciones desactivadas avisa una vez con todos los pasos saltados", () => {

@@ -167,10 +167,16 @@ Fuera del alcance (NO implementar):
    música de fondo tras la primera interacción, panel de audio con
    preferencias guardadas y tests con partidas grabadas del servidor real. El
    audio estaba previsto para más tarde y se adelantó a petición mía.
-2. Animaciones: cartas con el movimiento de Balatro (reparto desde el mazo,
-   flotación, inclinación, selección, entrada en la mesa con giro), fichas al
-   bote y al ganador, fold, resaltes y movimiento reducido.
-3. Cierre: repaso final y README.
+2. Animaciones (completado): cartas con el movimiento de Balatro (reparto
+   desde el mazo, flotación, inclinación, selección, entrada en la mesa con
+   giro), fichas al bote y al ganador, fold, resaltes y movimiento reducido.
+   El reparto me gusta como está: NO cambiarlo.
+3. Cartas con arte: diseño propio inspirado en la baraja clásica (índices en
+   las esquinas, palos repartidos como en una baraja real, as de picas
+   ornamentado, dorso con rombos) y figuras (J, Q, K) dibujadas que se mueven
+   un poco, como si estuvieran vivas: ojos y manos, sin exagerar. La
+   flotación de las cartas en reposo, al mínimo.
+4. Cierre: repaso final y README.
 
 ## Hitos de la etapa 1 (completada)
 1. Motor de poker + tests: las 10 categorías de mano, empates por kickers,

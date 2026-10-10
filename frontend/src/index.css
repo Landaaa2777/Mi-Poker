@@ -26,21 +26,14 @@ input[type="range"] {
   }
 
   /* Carta: todo su tamaño sale del ancho, que fija quien la contiene con --card-w. */
-  .card {
+  .card,
+  .card-slot {
     width: var(--card-w, 2.75rem);
     height: calc(var(--card-w, 2.75rem) * 1.4);
+  }
+  .card {
     border-radius: calc(var(--card-w, 2.75rem) * 0.12);
     font-size: calc(var(--card-w, 2.75rem) * 0.44);
-    box-shadow: 0 1px 3px rgb(0 0 0 / 0.5);
-  }
-  .card-face {
-    justify-content: center;
-    gap: 0.08em;
-  }
-  /* Cartas que asoman por detrás de la placa de un jugador: el dibujo va arriba. */
-  .peek .card-face {
-    justify-content: flex-start;
-    padding-top: 9%;
   }
   .card-back {
     background: repeating-linear-gradient(45deg, #1e3a8a 0 5px, #2548b0 5px 10px);
@@ -50,9 +43,131 @@ input[type="range"] {
       0 1px 3px rgb(0 0 0 / 0.5);
   }
 
+  /* Una carta de juego va en capas, una por movimiento, para que no se pisen:
+     hueco fijo > flotación > inclinación > vuelo > giro 3D con sus dos caras. */
+  .card-slot {
+    position: relative;
+    display: inline-block;
+  }
+  .card-layer {
+    display: block;
+    height: 100%;
+    width: 100%;
+  }
+  .card-3d {
+    position: relative;
+    display: block;
+    transform-style: preserve-3d;
+  }
+  .card-3d.face-down {
+    transform: rotateY(180deg);
+  }
+  .card-side {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    backface-visibility: hidden;
+  }
+  .card-face {
+    justify-content: center;
+    gap: 0.08em;
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.5);
+  }
+  .card-side.card-back {
+    transform: rotateY(180deg);
+  }
+  /* Cartas que asoman por detrás de la placa de un jugador: el dibujo va arriba. */
+  .peek .card-face {
+    justify-content: flex-start;
+    padding-top: 9%;
+  }
+
+  /* Inclinación con el ratón y levantada al seleccionar. Los valores los pone
+     la propia carta en variables; aquí solo se compone el transform. */
+  .card-tilt {
+    transform: translateY(var(--lift, 0%)) rotate(var(--fan, 0deg)) perspective(700px)
+      rotateX(calc(var(--tilt-y, 0) * -18deg)) rotateY(calc(var(--tilt-x, 0) * 20deg))
+      scale(var(--zoom, 1));
+  }
+  [data-motion="on"] .card-tilt {
+    transition: transform 260ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  /* Mientras el ratón se mueve por encima, sigue al cursor sin rebote. */
+  [data-motion="on"] .card-tilt.tracking {
+    transition: transform 90ms ease-out;
+  }
+  .card-slot:hover {
+    z-index: 5;
+  }
+
+  /* Flotación en reposo: un vaivén lento y muy leve, distinto en cada carta. */
+  [data-motion="on"] .card-float {
+    animation: card-float 4s ease-in-out infinite;
+    animation-delay: var(--float-delay, 0s);
+  }
+
+  /* Capa de efectos: fichas y cartas que cruzan la mesa. */
+  .fx-chip {
+    position: absolute;
+    left: -11px;
+    top: -11px;
+    height: 22px;
+    width: 22px;
+    border-radius: 50%;
+    border: 3px dashed #fff1f2;
+    background: #e11d48;
+    box-shadow: 0 2px 4px rgb(0 0 0 / 0.45);
+  }
+  .fx-ghost {
+    position: absolute;
+    pointer-events: none;
+  }
+
+  /* Resaltes: aparecen con suavidad; el del turno late despacio. */
+  [data-motion="on"] .glow-in {
+    animation: glow-in 320ms ease-out both;
+  }
+  [data-motion="on"] .glow-turn {
+    animation:
+      glow-in 320ms ease-out both,
+      glow-pulse 2.4s ease-in-out 320ms infinite;
+  }
+  [data-motion="on"] .pop-in {
+    animation: pop-in 320ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+
   /* Barra de desplazamiento discreta, a juego con el fondo oscuro. */
   .quiet-scroll {
     scrollbar-width: thin;
     scrollbar-color: #475569 transparent;
+  }
+}
+
+@keyframes card-float {
+  0%,
+  100% {
+    transform: translateY(calc(var(--float, 1) * 3px)) rotate(calc(var(--float, 1) * -1.1deg));
+  }
+  50% {
+    transform: translateY(calc(var(--float, 1) * -3px)) rotate(calc(var(--float, 1) * 1.1deg));
+  }
+}
+
+@keyframes glow-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes glow-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
   }
 }

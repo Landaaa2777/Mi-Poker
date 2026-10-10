@@ -8,7 +8,7 @@ interface Props {
 }
 
 const BIG =
-  "flex h-16 flex-col items-center justify-center rounded-xl px-2 text-base font-black uppercase leading-tight tracking-wide shadow-md transition-colors disabled:opacity-40 sm:text-lg";
+  "flex h-16 flex-col items-center justify-center rounded-xl px-2 text-base font-black uppercase leading-tight tracking-wide shadow-md disabled:opacity-40 sm:text-lg";
 
 /** Botones de acción. Solo envían la intención; el servidor decide si es legal. */
 export function Controls({ state, disabled, onAction }: Props) {

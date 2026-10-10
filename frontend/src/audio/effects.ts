@@ -14,7 +14,8 @@ export type EffectName =
   | "allIn"
   | "win" // gano yo el bote
   | "winOther" // lo gana otro jugador
-  | "turn"; // aviso suave: me toca
+  | "turn" // aviso suave: me toca
+  | "select"; // levantar o bajar una de mis cartas
 
 interface Target {
   ctx: BaseAudioContext;
@@ -150,6 +151,10 @@ const EFFECTS: Record<EffectName, (target: Target, at: number) => void> = {
   turn: (target, at) => {
     chime(target, at, 659.25, 0.16, 0.35);
     chime(target, at + 0.13, 880, 0.14, 0.45);
+  },
+  select: (target, at) => {
+    hiss(target, at, { duration: 0.03, peak: 0.22, type: "highpass", from: 3200, attack: 0.001 });
+    tone(target, at, { from: 520, to: 760, duration: 0.07, peak: 0.14, attack: 0.002 });
   },
 };
 

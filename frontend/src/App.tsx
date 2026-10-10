@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { audio } from "./audio/engine";
 import { tableSounds, useAudio } from "./audio/useAudio";
 import { Controls } from "./components/Controls";
@@ -9,11 +9,24 @@ import { SettingsMenu } from "./components/SettingsMenu";
 import { StartScreen } from "./components/StartScreen";
 import { Table } from "./components/Table";
 import { streetName } from "./format";
+import { tableMotion } from "./motion/director";
+import { motion } from "./motion/motion";
+import type { PlaybackListener } from "./timeline/playback";
 import { useGame } from "./useGame";
 import { usePlayback } from "./usePlayback";
 import { usePrefersReducedMotion, useSettings } from "./useSettings";
 
 const NOTICE = "Solo para entretenimiento. Sin dinero real.";
+
+// Lo que acompaña a cada paso de la mano: primero el movimiento y después su sonido.
+const tableEffects: PlaybackListener = {
+  onStep(step, speed) {
+    tableMotion.onStep?.(step, speed);
+    tableSounds.onStep?.(step, speed);
+  },
+  onJump: tableMotion.onJump,
+  onSkip: tableSounds.onSkip,
+};
 
 export default function App() {
   const [settings, updateSettings] = useSettings();
@@ -21,9 +34,15 @@ export default function App() {
   const animations = settings.animations ?? !reducedMotion;
   useAudio(settings);
 
+  // Las piezas de la mesa y las hojas de estilo miran aquí si deben moverse.
+  useLayoutEffect(() => {
+    motion.enabled = animations;
+    document.documentElement.dataset.motion = animations ? "on" : "off";
+  }, [animations]);
+
   // `frame` es lo que se dibuja; `server`, lo último que dijo el servidor. Mientras
   // `busy`, la mesa todavía está reproduciendo pasos y no se puede actuar.
-  const { frame, server, busy, push } = usePlayback(animations, tableSounds);
+  const { frame, server, busy, push } = usePlayback(animations, tableEffects);
   const { connected, options, error, waiting, send } = useGame(push);
   const [configuring, setConfiguring] = useState(false);
   const showStart = options !== null && (server === null || configuring);

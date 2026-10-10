@@ -1,14 +1,14 @@
 import { useEffect } from "react";
 import type { Settings } from "../settings";
 import type { PlaybackListener } from "../timeline/playback";
-import { cueForSkipped, cueForStep } from "./cues";
+import { cueForSkipped, cuesForStep } from "./cues";
 import { audio } from "./engine";
 
-/** Sonido de la mesa: cada paso de la reproducción suena en el momento en que se muestra. */
+/** Sonido de la mesa: cada paso suena en el momento en que lo hace su animación. */
 export const tableSounds: PlaybackListener = {
-  onStep(step) {
-    const cue = cueForStep(step);
-    if (cue) audio.play(cue);
+  onStep(step, speed) {
+    // Si la cola va atrasada, las animaciones se aceleran y los sonidos con ellas.
+    for (const cue of cuesForStep(step)) audio.play(cue.name, cue.delay / speed);
   },
   onSkip(steps) {
     const cue = cueForSkipped(steps);

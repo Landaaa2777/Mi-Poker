@@ -14,8 +14,7 @@ contra los bots.
 Etapa 2 (pulido visual y sonoro), en curso. Ya hecho: pantalla de inicio y
 mesa con diseño propio (placas con avatar, cartas y fichas dibujadas, marca en
 el tapete), la mano reproducida paso a paso, efectos de sonido, música de
-fondo y panel de audio. Falta el movimiento: las cartas y las fichas todavía
-aparecen en su sitio, sin volar ni girar.
+fondo, panel de audio y animaciones. Queda el repaso final.
 
 ## Requisitos
 
@@ -152,6 +151,8 @@ frontend/
                      envía intenciones ("fold", "raise 400")
   src/timeline/      convierte cada estado del servidor en pasos y los
                      reproduce en orden (línea de tiempo y cola)
+  src/motion/        animaciones: fichas y cartas que cruzan la mesa, y la base
+                     común (curvas, velocidad, de dónde sale cada pieza)
   src/audio/         efectos y música generados con la Web Audio API, y qué
                      sonido corresponde a cada paso
   src/assets/audio/  carpeta para una pista de música propia (opcional)
@@ -162,6 +163,20 @@ frontend/
 ```
 
 El protocolo de mensajes está descrito en `backend/server/protocol.py`.
+
+### Animaciones
+
+Las cartas se mueven al estilo de Balatro, con nuestro propio dibujo: salen del
+mazo volando hacia cada jugador, las tuyas se voltean en 3D al llegar, las
+comunitarias giran en el aire y aterrizan con un pequeño rebote, y en reposo
+flotan. Tus cartas y las de la mesa se inclinan al pasar el ratón; las tuyas,
+además, se levantan al pulsarlas (es un adorno: no cambia el juego). Las fichas
+van del jugador al bote y del bote al ganador, y las cartas de quien se retira
+se deslizan hacia el centro y se desvanecen.
+
+Solo se animan `transform` y `opacity`, y cada movimiento dura menos de medio
+segundo. Con las animaciones desactivadas en **Ajustes** (o si el sistema pide
+movimiento reducido) no se mueve nada.
 
 ### Cómo se reproduce una mano
 
