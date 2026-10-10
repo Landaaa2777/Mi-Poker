@@ -19,7 +19,7 @@ interface SeatSize {
   height: number;
   avatar: number; // diámetro
   card: number; // ancho de sus cartas
-  overlap: number; // cuánto tapa la placa a las cartas
+  overlap: number; // cuánto tapa la placa a las cartas; en negativo, el hueco que deja con ellas
 }
 
 interface Layout {
@@ -30,6 +30,7 @@ interface Layout {
   boardCard: number;
   bot: SeatSize;
   human: SeatSize;
+  humanDrop: number; // cuánto baja mi placa de su sitio, para que no quede pegada a mis cartas
 }
 
 const LANDSCAPE: Layout = {
@@ -39,7 +40,8 @@ const LANDSCAPE: Layout = {
   radius: { x: 440, y: 224 },
   boardCard: 68,
   bot: { width: 196, height: 56, avatar: 48, card: 38, overlap: 12 },
-  human: { width: 240, height: 64, avatar: 56, card: 78, overlap: 22 },
+  human: { width: 240, height: 64, avatar: 56, card: 78, overlap: -8 },
+  humanDrop: 26,
 };
 
 const PORTRAIT: Layout = {
@@ -49,7 +51,8 @@ const PORTRAIT: Layout = {
   radius: { x: 170, y: 305 },
   boardCard: 52,
   bot: { width: 148, height: 48, avatar: 40, card: 32, overlap: 10 },
-  human: { width: 196, height: 56, avatar: 48, card: 62, overlap: 18 },
+  human: { width: 196, height: 56, avatar: 48, card: 62, overlap: -6 },
+  humanDrop: 22,
 };
 
 const PORTRAIT_BELOW = 620; // ancho disponible por debajo del cual se usa el lienzo vertical
@@ -91,18 +94,21 @@ function useFit() {
 }
 
 /** Sitio de cada jugador: tú abajo y los demás en el sentido de las agujas del reloj. */
-function seatPoint(layout: Layout, index: number, count: number): Point {
+function seatPoint(layout: Layout, index: number, count: number, human: boolean): Point {
   const angle = ((90 + (360 * index) / count) * Math.PI) / 180; // 90° = abajo en pantalla
   return {
     x: layout.center.x + layout.radius.x * Math.cos(angle),
-    y: layout.center.y + layout.radius.y * Math.sin(angle),
+    y: layout.center.y + layout.radius.y * Math.sin(angle) + (human ? layout.humanDrop : 0),
   };
 }
 
 /** Dónde deja cada jugador sus apuestas: delante de él, hacia el centro de la mesa. */
 function betPoint(layout: Layout, seat: Point, size: SeatSize, human: boolean): Point {
-  // Las mías van a la derecha de mis cartas: delante las taparían al levantarlas.
-  if (human) return { x: seat.x + size.width / 2 + 34, y: seat.y - size.height / 2 - 26 };
+  // Las mías van a la derecha de mis cartas, a media altura: delante las taparían al levantarlas.
+  if (human) {
+    const cardsBottom = seat.y - size.height / 2 + size.overlap;
+    return { x: seat.x + size.width / 2 + 34, y: cardsBottom - size.card * 0.62 };
+  }
   const dx = layout.center.x - seat.x;
   const dy = layout.center.y - seat.y;
   const length = Math.hypot(dx, dy) || 1;
@@ -283,7 +289,10 @@ export function Table({ frame, settled }: Props) {
   const count = frame.seats.length;
   const emptySlots = Array.from({ length: 5 - frame.board.length });
   const boardHeight = layout.boardCard * 1.4;
-  const seats = frame.seats.map((seat, index) => ({ seat, point: seatPoint(layout, index, count) }));
+  const seats = frame.seats.map((seat, index) => ({
+    seat,
+    point: seatPoint(layout, index, count, seat.isHuman),
+  }));
   const spotlight = seats.find(({ seat }) => seat.won > 0 || seat.seat === frame.actingSeat);
 
   return (

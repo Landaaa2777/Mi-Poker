@@ -53,7 +53,7 @@ export function Controls({ state, disabled, onAction }: Props) {
             {shortcuts.map((shortcut, index) => (
               <button
                 key={shortcut.label}
-                className={`border-l border-amber-400/25 py-2 first:border-l-0 ${index === active ? "bg-gradient-to-b from-amber-200 to-amber-500 text-stone-900" : "text-amber-100 hover:bg-white/10"}`}
+                className={`border-l border-amber-400/25 py-2 first:border-l-0 ${index === active ? "bg-gradient-to-b from-[#d6b160] to-[#b0862f] text-stone-900" : "text-amber-100 hover:bg-white/10"}`}
                 onClick={() => setAmount(shortcut.value)}
               >
                 {shortcut.label}

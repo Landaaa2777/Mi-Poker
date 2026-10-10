@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
-/* Paleta de casino: negro y granate de fondo, oro para lo importante, rojo y
-   verde vivos en los botones y esmeralda en el tapete. */
+/* Paleta de casino: negro y granate de fondo, oro para lo importante, rojo,
+   verde y oro apagados en los botones y esmeralda en el tapete. */
 :root {
   --gold: #f5c542;
   --gold-light: #fff1bf;
@@ -55,7 +55,8 @@ input[type="range"] {
   }
 
   /* Botones con relieve. El canto inferior los hace parecer teclas; al
-     pulsarlos bajan. No hay transiciones: el cambio es inmediato. */
+     pulsarlos bajan. No hay transiciones: el cambio es inmediato. Los colores
+     son tenues a propósito: los vivos cansaban la vista. */
   .btn-gold,
   .btn-red,
   .btn-green,
@@ -64,32 +65,33 @@ input[type="range"] {
     font-weight: 900;
   }
   .btn-gold {
-    background: linear-gradient(180deg, #ffe88f 0%, var(--gold) 46%, #d3971a 100%);
-    border: 1px solid #fff3c4;
-    color: #2a1803;
+    background: linear-gradient(180deg, #d6b160 0%, #b78c33 48%, #957021 100%);
+    border: 1px solid #dfc582;
+    color: #241703;
     box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 0.65),
-      0 4px 0 #8a5d0c,
-      0 9px 20px rgb(245 197 66 / 0.35);
+      inset 0 1px 0 rgb(255 255 255 / 0.3),
+      0 4px 0 #5c420d,
+      0 6px 14px rgb(0 0 0 / 0.4);
   }
   .btn-red {
-    background: linear-gradient(180deg, #ff5f6e 0%, #e11d2f 50%, #a50e1d 100%);
-    border: 1px solid #ff9ca6;
-    color: #ffffff;
+    background: linear-gradient(180deg, #bd4651 0%, #9b2a35 50%, #791c27 100%);
+    border: 1px solid #cb727b;
+    color: #fdf3f4;
     text-shadow: 0 1px 0 rgb(0 0 0 / 0.35);
     box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 0.4),
-      0 4px 0 #6b0711,
-      0 9px 20px rgb(225 29 47 / 0.35);
+      inset 0 1px 0 rgb(255 255 255 / 0.2),
+      0 4px 0 #4a0e16,
+      0 6px 14px rgb(0 0 0 / 0.4);
   }
   .btn-green {
-    background: linear-gradient(180deg, #5eea92 0%, #17a84d 50%, #0d7a36 100%);
-    border: 1px solid #b0f5c9;
-    color: #04210f;
+    background: linear-gradient(180deg, #43996a 0%, #2c7a50 50%, #1e5d3b 100%);
+    border: 1px solid #6fb892;
+    color: #f2fbf5;
+    text-shadow: 0 1px 0 rgb(0 0 0 / 0.3);
     box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 0.5),
-      0 4px 0 #095024,
-      0 9px 20px rgb(23 168 77 / 0.35);
+      inset 0 1px 0 rgb(255 255 255 / 0.2),
+      0 4px 0 #103a23,
+      0 6px 14px rgb(0 0 0 / 0.4);
   }
   .btn-dark {
     background: linear-gradient(180deg, #3a2a31 0%, #21161b 100%);
@@ -99,7 +101,7 @@ input[type="range"] {
     box-shadow: 0 3px 0 #0c0709;
   }
   :is(.btn-gold, .btn-red, .btn-green, .btn-dark):hover:not(:disabled) {
-    filter: brightness(1.09);
+    filter: brightness(1.07);
   }
   :is(.btn-gold, .btn-red, .btn-green, .btn-dark):active:not(:disabled) {
     translate: 0 3px;

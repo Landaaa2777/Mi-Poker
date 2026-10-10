@@ -17,8 +17,6 @@ import { useGame } from "./useGame";
 import { usePlayback } from "./usePlayback";
 import { usePrefersReducedMotion, useSettings } from "./useSettings";
 
-const NOTICE = "Solo para entretenimiento. Sin dinero real.";
-
 // Lo que acompaña a cada paso de la mano: primero el movimiento y después su sonido.
 const tableEffects: PlaybackListener = {
   onStep(step, speed) {
@@ -74,9 +72,11 @@ export default function App() {
           )}
         </div>
         <div className="flex items-center gap-2">
-          <p className="rounded-lg border border-amber-400/60 px-3 py-1.5 text-sm font-semibold text-amber-300">
-            {NOTICE}
-          </p>
+          {server && !showStart && (
+            <button className="btn-gold h-9 px-4 text-sm" onClick={() => setConfiguring(true)}>
+              Nueva partida
+            </button>
+          )}
           <SettingsMenu
             settings={settings}
             animations={animations}
@@ -140,13 +140,6 @@ export default function App() {
             </section>
             <HandLog frame={frame} />
           </div>
-
-          <footer className="flex items-center justify-between text-xs text-stone-400">
-            <span>Las fichas son virtuales y no tienen valor fuera del juego.</span>
-            <button className="underline" onClick={() => setConfiguring(true)}>
-              Nueva partida
-            </button>
-          </footer>
         </>
       )}
     </div>

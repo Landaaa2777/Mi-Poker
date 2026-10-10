@@ -228,11 +228,6 @@ export function StartScreen({ options, initial, onStart, onCancel }: Props) {
             )}
           </div>
         </form>
-
-        <p className="mt-4 text-center text-sm text-emerald-50/85">
-          <strong>Solo para entretenimiento. Sin dinero real.</strong> Las fichas son virtuales y
-          no tienen valor fuera del juego.
-        </p>
       </div>
     </main>
   );

@@ -53,7 +53,9 @@ Fuera del alcance (NO implementar):
 ## Reglas innegociables
 - NO se usa dinero real en ninguna parte. Las fichas son virtuales, viven
   solo en memoria durante la partida y no tienen valor fuera del juego.
-- Mostrar de forma visible: "Solo para entretenimiento. Sin dinero real."
+- El aviso "Solo para entretenimiento. Sin dinero real." ya NO se muestra en
+  la interfaz: pedí quitarlo de todas las pantallas el 2026-10-10. Antes era
+  obligatorio mostrarlo. La regla de arriba no cambia.
 
 ## Reglas del juego
 - Texas Hold'em No-Limit, de 2 a 6 jugadores (1 humano + 1 a 5 bots).
