@@ -7,7 +7,8 @@ solo en memoria durante la partida y no tienen ningún valor fuera del juego.
 
 ## Estado
 
-Etapa 1, hito 1 de 3: motor de poker y tests. Todavía no hay bots, servidor ni
+Etapa 1, hito 2 de 3: motor de poker y bots con cuatro niveles de dificultad,
+con sus tests y una simulación bot contra bot. Todavía no hay servidor ni
 interfaz web.
 
 ## Requisitos
@@ -39,12 +40,42 @@ completo: blinds, acciones, mesa, showdown y reparto de botes.
 python scripts\demo_hand.py
 ```
 
+## Simulación bot contra bot
+
+Juega miles de manos entre los cuatro niveles y muestra cuántas ciegas grandes
+gana cada uno cada 100 manos (bb/100). Tarda alrededor de medio minuto.
+
+```powershell
+python scripts\simulate.py
+python scripts\simulate.py --duels          # añade los duelos mano a mano
+python scripts\simulate.py --hands 200000   # más manos, resultado más estable
+```
+
+El orden esperado es Experto > Difícil > Medio > Fácil.
+
+## Bots
+
+Todos comparten la misma interfaz: `decide(vista)` recibe solo la mesa pública y
+sus propias cartas, y devuelve fold, call o raise con monto. Cambiar de nivel
+cambia la estrategia, nunca la información.
+
+| Nivel | Cómo juega |
+|---|---|
+| Fácil | Suelto y pasivo: juega casi todo, paga de más, apuesta poco y casi no farolea. |
+| Medio | Elige manos por su fuerza inicial, usa pot odds básicos y respeta las apuestas grandes. |
+| Difícil | Equity por Monte Carlo, pot odds, posición, tamaños de apuesta variables y faroles ocasionales. |
+| Experto | Como Difícil, pero observa lo que cada rival hace en público y se adapta: rangos, valor y faroles calculados. |
+
+Cada bot tiene además un nombre y una personalidad (`bots/personalities.py`) que
+ajustan levemente sus decisiones.
+
 ## Estructura
 
 ```
 backend/
   poker_engine/   motor del juego en Python puro (sin dependencias web)
-  scripts/        demos por consola
+  bots/           estrategias por nivel; solo usan la vista pública del motor
+  scripts/        demos y simulaciones por consola
   tests/          tests con pytest
 ```
 
