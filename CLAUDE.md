@@ -13,9 +13,16 @@ partida completa de Texas Hold'em No-Limit en el navegador, un humano contra
 1 a 5 bots, con dificultad de bots ajustable.
 
 Dentro del alcance:
-- Mesa ovalada con cartas y fichas de diseño propio (CSS/SVG).
+- Pantalla de inicio y mesa con diseño propio: placas con avatar, cartas y
+  fichas dibujadas con CSS/SVG y marca del juego en el tapete.
 - Animaciones de reparto, cartas, fichas, fold, turno y ganador.
 - Efectos de sonido, música de fondo y panel de controles de audio.
+
+Referencias que he dado (se toma la idea, nunca la marca ni los assets):
+- Disposición de la mesa y del panel inferior: como en las mesas de poker
+  social (placas oscuras con avatar, bote sobre las cartas comunitarias,
+  registro a la izquierda y botones grandes a la derecha).
+- Movimiento de las cartas: como en Balatro, pero SIN su estética pixelada.
 
 Fuera del alcance (NO implementar):
 - Cualquier cambio en el motor de poker, los bots, las reglas o el protocolo
@@ -79,6 +86,11 @@ Fuera del alcance (NO implementar):
 ## Reglas de la etapa 2
 
 ### Animaciones
+- Las cartas se mueven con el estilo de Balatro: salen del mazo con fluidez,
+  flotan suavemente mientras están quietas, se inclinan al pasar el ratón,
+  hacen un efecto al seleccionarlas (se levantan con un rebote) y entran en la
+  mesa con giro y rebote. Solo el movimiento: las cartas siguen siendo las
+  nuestras, sin píxeles. Seleccionar una carta es un adorno; no cambia el juego.
 - Reparto: las cartas salen del mazo (junto al dealer) y vuelan una a una
   hacia cada jugador en orden de reparto, con un pequeño retardo entre cartas.
 - Mis cartas se voltean con un giro 3D al llegar; las de los bots quedan boca
@@ -90,7 +102,8 @@ Fuera del alcance (NO implementar):
 - Fold: las cartas del jugador se deslizan hacia el centro y se desvanecen.
 - Resaltar de forma suave al jugador en turno y al ganador de la mano.
 - Solo se animan `transform` y `opacity` (60 fps), con curvas de aceleración
-  suaves y duraciones cortas: entre 200 y 500 ms por movimiento.
+  suaves y duraciones cortas: entre 200 y 500 ms por movimiento. La flotación
+  en reposo es la excepción: es continua, lenta y muy leve.
 - Los eventos del servidor pasan por una cola de animación: se reproducen en
   orden y no se pisan aunque lleguen varios seguidos. Los botones de acción se
   habilitan cuando termina la animación pendiente.
@@ -145,15 +158,16 @@ Fuera del alcance (NO implementar):
   tiempo, cola y preferencias).
 
 ## Hitos de la etapa 2 (detenerse al final de cada uno y esperar aprobación)
-1. Mesa y línea de tiempo: mesa ovalada, cartas y fichas nuevas, cola de
-   pasos, botones bloqueados hasta el final, interruptor de animaciones y
-   tests con partidas grabadas del servidor real.
-2. Animaciones: reparto, giro 3D, cartas comunitarias, fichas al bote y al
-   ganador, fold, resaltes y movimiento reducido.
-3. Efectos y panel de audio: los sonidos sincronizados con su paso, panel con
-   volumen de efectos y silenciar todo, preferencias guardadas.
-4. Música y cierre: música tras la primera interacción, volumen de música,
-   repaso final y README.
+1. Mesa, línea de tiempo y audio (completado). Pantalla de inicio y mesa
+   nuevas, cola de pasos con los botones bloqueados hasta el final,
+   interruptor de animaciones, efectos de sonido sincronizados con cada paso,
+   música de fondo tras la primera interacción, panel de audio con
+   preferencias guardadas y tests con partidas grabadas del servidor real. El
+   audio estaba previsto para más tarde y se adelantó a petición mía.
+2. Animaciones: cartas con el movimiento de Balatro (reparto desde el mazo,
+   flotación, inclinación, selección, entrada en la mesa con giro), fichas al
+   bote y al ganador, fold, resaltes y movimiento reducido.
+3. Cierre: repaso final y README.
 
 ## Hitos de la etapa 1 (completada)
 1. Motor de poker + tests: las 10 categorías de mano, empates por kickers,

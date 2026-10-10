@@ -3,13 +3,15 @@ import type { ActionName, GameState } from "../types";
 
 interface Props {
   state: GameState;
+  disabled: boolean; // ya se envió una intención y el servidor aún no ha contestado
   onAction: (action: ActionName, amount?: number) => void;
 }
 
-const BUTTON = "rounded px-4 py-2 font-semibold disabled:opacity-40";
+const BIG =
+  "flex h-16 flex-col items-center justify-center rounded-xl px-2 text-base font-black uppercase leading-tight tracking-wide shadow-md transition-colors disabled:opacity-40 sm:text-lg";
 
 /** Botones de acción. Solo envían la intención; el servidor decide si es legal. */
-export function Controls({ state, onAction }: Props) {
+export function Controls({ state, disabled, onAction }: Props) {
   const legal = state.legal_actions;
   const [amount, setAmount] = useState(0);
 
@@ -33,83 +35,93 @@ export function Controls({ state, onAction }: Props) {
     return clamp(state.current_bet + fraction * (state.pot + legal!.call_amount));
   }
 
-  return (
-    <section className="space-y-3 rounded-lg bg-slate-800 p-4">
-      <div className="text-sm text-amber-300">Es tu turno</div>
-      <div className="flex flex-wrap gap-2">
-        <button className={`${BUTTON} bg-rose-700 hover:bg-rose-600`} onClick={() => onAction("fold")}>
-          Retirarse
-        </button>
-        {legal.can_check ? (
-          <button className={`${BUTTON} bg-slate-600 hover:bg-slate-500`} onClick={() => onAction("check")}>
-            Pasar
-          </button>
-        ) : (
-          <button className={`${BUTTON} bg-sky-700 hover:bg-sky-600`} onClick={() => onAction("call")}>
-            Igualar {legal.call_amount}
-            {callsAllIn ? " (all-in)" : ""}
-          </button>
-        )}
-        {legal.can_raise && (
-          <button className={`${BUTTON} bg-amber-600 hover:bg-amber-500`} onClick={() => onAction("all_in")}>
-            All-in ({maxRaise})
-          </button>
-        )}
-      </div>
+  const shortcuts = [
+    { label: "Mín", value: minRaise },
+    { label: "½ bote", value: potFraction(0.5) },
+    { label: "Bote", value: potFraction(1) },
+    { label: "Máx", value: maxRaise },
+  ];
+  // Varios atajos pueden dar el mismo monto: se marca solo el primero.
+  const active = shortcuts.findIndex((shortcut) => shortcut.value === amount);
+  const raiseVerb = amount === maxRaise ? "All-in" : opening ? "Apostar" : "Subir a";
 
+  return (
+    <div className="flex h-full flex-col justify-end gap-2.5">
       {legal.can_raise && (
-        <div className="space-y-2 border-t border-slate-700 pt-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <label className="text-sm text-slate-300" htmlFor="raise-amount">
-              {opening ? "Apostar" : "Subir a"}
-            </label>
+        <>
+          <div className="grid grid-cols-4 overflow-hidden rounded-full bg-slate-600 text-xs font-extrabold uppercase tracking-wide sm:text-sm">
+            {shortcuts.map((shortcut, index) => (
+              <button
+                key={shortcut.label}
+                className={`border-l border-slate-800/60 py-2 first:border-l-0 ${index === active ? "bg-amber-400 text-slate-900" : "text-slate-200 hover:bg-slate-500"}`}
+                onClick={() => setAmount(shortcut.value)}
+              >
+                {shortcut.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-3">
             <input
-              id="raise-amount"
               type="number"
               min={minRaise}
               max={maxRaise}
               step={1}
               value={amount}
               onChange={(event) => setAmount(Number(event.target.value))}
-              className="w-28 rounded border border-slate-600 bg-slate-900 px-2 py-1"
+              className={`w-24 rounded-md bg-white px-2 py-1.5 text-center text-lg font-bold text-slate-900 outline-none ring-2 ${valid ? "ring-transparent focus:ring-amber-400" : "ring-rose-500"}`}
+              aria-label={`Monto: mínimo ${minRaise}, máximo ${maxRaise}`}
             />
-            <button
-              className={`${BUTTON} bg-emerald-600 hover:bg-emerald-500`}
-              disabled={!valid}
-              onClick={() => onAction("raise", amount)}
-            >
-              {opening ? "Apostar" : "Subir"}
-            </button>
-            <span className="text-xs text-slate-400">
-              mínimo {minRaise}, máximo {maxRaise}
-            </span>
+            <input
+              type="range"
+              min={minRaise}
+              max={maxRaise}
+              step={1}
+              value={valid ? amount : minRaise}
+              onChange={(event) => setAmount(Number(event.target.value))}
+              className="h-2 flex-1"
+              aria-label="Monto de la subida"
+            />
           </div>
-          <input
-            type="range"
-            min={minRaise}
-            max={maxRaise}
-            step={1}
-            value={valid ? amount : minRaise}
-            onChange={(event) => setAmount(Number(event.target.value))}
-            className="w-full"
-            aria-label="Monto de la subida"
-          />
-          <div className="flex flex-wrap gap-2 text-sm">
-            <button className="rounded bg-slate-700 px-2 py-1 hover:bg-slate-600" onClick={() => setAmount(minRaise)}>
-              Mínimo
-            </button>
-            <button className="rounded bg-slate-700 px-2 py-1 hover:bg-slate-600" onClick={() => setAmount(potFraction(0.5))}>
-              ½ bote
-            </button>
-            <button className="rounded bg-slate-700 px-2 py-1 hover:bg-slate-600" onClick={() => setAmount(potFraction(1))}>
-              Bote
-            </button>
-            <button className="rounded bg-slate-700 px-2 py-1 hover:bg-slate-600" onClick={() => setAmount(maxRaise)}>
-              Máximo
-            </button>
-          </div>
-        </div>
+        </>
       )}
-    </section>
+
+      <div className={`grid gap-2 ${legal.can_raise ? "grid-cols-3" : "grid-cols-2"}`}>
+        <button
+          className={`${BIG} bg-rose-600 hover:bg-rose-500`}
+          disabled={disabled}
+          onClick={() => onAction("fold")}
+        >
+          Retirarse
+        </button>
+        {legal.can_check ? (
+          <button
+            className={`${BIG} bg-sky-600 hover:bg-sky-500`}
+            disabled={disabled}
+            onClick={() => onAction("check")}
+          >
+            Pasar
+          </button>
+        ) : (
+          <button
+            className={`${BIG} bg-sky-600 hover:bg-sky-500`}
+            disabled={disabled}
+            onClick={() => onAction("call")}
+          >
+            <span>Igualar {legal.call_amount}</span>
+            {callsAllIn && <span className="text-xs font-bold normal-case">(all-in)</span>}
+          </button>
+        )}
+        {legal.can_raise && (
+          <button
+            className={`${BIG} bg-amber-400 text-slate-900 hover:bg-amber-300`}
+            disabled={disabled || !valid}
+            onClick={() => onAction("raise", amount)}
+          >
+            <span>{raiseVerb}</span>
+            <span className="tabular-nums">{valid ? amount : "—"}</span>
+          </button>
+        )}
+      </div>
+    </div>
   );
 }

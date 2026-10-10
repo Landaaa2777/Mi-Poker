@@ -1,5 +1,58 @@
 @import "tailwindcss";
 
 body {
-  @apply min-h-screen bg-slate-900 text-slate-100 antialiased;
+  @apply min-h-screen bg-[#0a1020] text-slate-100 antialiased;
+}
+
+/* Deslizadores (monto de la subida, volúmenes) con el color de acento del juego. */
+input[type="range"] {
+  accent-color: #fbbf24;
+}
+
+@layer components {
+  /* Tapete: degradado verde con un grano muy fino por encima. */
+  .felt {
+    background-color: #1c6a45;
+    background-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.3'/%3E%3C/svg%3E"),
+      radial-gradient(ellipse at 50% 42%, #37a068 0%, #257a4f 40%, #165437 76%, #0f3f29 100%);
+  }
+
+  /* Paneles oscuros de la barra superior, el registro y los botones. */
+  .panel {
+    background: #111a33;
+    border: 1px solid rgb(255 255 255 / 0.07);
+    border-radius: 0.9rem;
+  }
+
+  /* Carta: todo su tamaño sale del ancho, que fija quien la contiene con --card-w. */
+  .card {
+    width: var(--card-w, 2.75rem);
+    height: calc(var(--card-w, 2.75rem) * 1.4);
+    border-radius: calc(var(--card-w, 2.75rem) * 0.12);
+    font-size: calc(var(--card-w, 2.75rem) * 0.44);
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.5);
+  }
+  .card-face {
+    justify-content: center;
+    gap: 0.08em;
+  }
+  /* Cartas que asoman por detrás de la placa de un jugador: el dibujo va arriba. */
+  .peek .card-face {
+    justify-content: flex-start;
+    padding-top: 9%;
+  }
+  .card-back {
+    background: repeating-linear-gradient(45deg, #1e3a8a 0 5px, #2548b0 5px 10px);
+    box-shadow:
+      inset 0 0 0 2px #f8fafc,
+      inset 0 0 0 3px #1e3a8a,
+      0 1px 3px rgb(0 0 0 / 0.5);
+  }
+
+  /* Barra de desplazamiento discreta, a juego con el fondo oscuro. */
+  .quiet-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: #475569 transparent;
+  }
 }

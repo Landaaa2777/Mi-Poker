@@ -1,25 +1,41 @@
 import { useEffect, useRef } from "react";
-import { describeEvent } from "../format";
-import type { GameState } from "../types";
+import { describeEvent, isOpeningBet } from "../format";
+import type { Frame } from "../timeline/frame";
 
-/** Registro de la mano en curso. Solo contiene sucesos públicos. */
-export function HandLog({ state }: { state: GameState }) {
-  const end = useRef<HTMLLIElement>(null);
+const LINE_STYLE: Record<string, string> = {
+  board: "text-sky-300",
+  win: "font-bold text-emerald-300",
+  show: "text-slate-100",
+};
+
+/** Registro de la mano: solo lo que ya se ha visto en la mesa. */
+export function HandLog({ frame }: { frame: Frame }) {
+  const list = useRef<HTMLOListElement>(null);
   useEffect(() => {
-    const list = end.current?.parentElement;
-    if (list) list.scrollTop = list.scrollHeight;
-  }, [state.events.length]);
+    if (list.current) list.current.scrollTop = list.current.scrollHeight;
+  }, [frame.events.length]);
+
+  // Tus jugadas se cuentan en segunda persona: sin nombre.
+  const name = (seat: number | null) => {
+    const actor = frame.seats.find((candidate) => candidate.seat === seat);
+    return actor === undefined || actor.isHuman ? null : actor.name;
+  };
 
   return (
-    <section className="rounded-lg bg-slate-800 p-4">
-      <h2 className="mb-2 text-sm font-semibold text-slate-300">Registro de la mano</h2>
-      <ol className="max-h-64 space-y-0.5 overflow-y-auto text-sm">
-        {state.events.map((event, index) => (
-          <li key={index} className={event.kind === "board" ? "text-sky-300" : ""}>
-            {describeEvent(event, state)}
+    <section className="panel flex h-48 flex-col overflow-hidden lg:order-1">
+      <h2 className="self-start rounded-br-lg bg-[#1b2748] px-4 py-1.5 text-xs font-extrabold uppercase tracking-[0.18em] text-slate-200">
+        Registro
+      </h2>
+      <ol
+        ref={list}
+        data-zone="log"
+        className="quiet-scroll min-h-0 flex-1 space-y-0.5 overflow-y-auto px-4 py-2 text-sm text-slate-300"
+      >
+        {frame.events.map((event, index) => (
+          <li key={index} className={LINE_STYLE[event.kind] ?? ""}>
+            {describeEvent(event, name(event.seat), isOpeningBet(frame.events, index))}
           </li>
         ))}
-        <li ref={end} />
       </ol>
     </section>
   );
