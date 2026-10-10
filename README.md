@@ -7,13 +7,14 @@ solo en memoria durante la partida y no tienen ningún valor fuera del juego.
 
 ## Estado
 
-Etapa 1, hito 2 de 3: motor de poker y bots con cuatro niveles de dificultad,
-con sus tests y una simulación bot contra bot. Todavía no hay servidor ni
-interfaz web.
+Etapa 1, hito 3 de 3: motor de poker, bots con cuatro niveles de dificultad,
+servidor FastAPI + WebSocket e interfaz web simple para jugar una partida
+completa contra los bots.
 
 ## Requisitos
 
 - Python 3.12 o superior.
+- Node.js LTS (para la interfaz web).
 
 ## Instalación
 
@@ -24,6 +25,38 @@ py -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
 ```
+
+Y la interfaz, desde la carpeta `frontend`:
+
+```powershell
+npm install
+```
+
+## Jugar
+
+Forma simple: compilar la interfaz una vez y dejar que el servidor la sirva.
+
+```powershell
+cd frontend
+npm run build
+cd ..\backend
+.\.venv\Scripts\Activate.ps1
+uvicorn server.app:app
+```
+
+Abrir http://localhost:8000. Se elige el número de bots, la dificultad, las
+fichas iniciales y las blinds, y se juega con los botones de la mesa.
+
+Para desarrollar, con recarga automática, en dos terminales:
+
+```powershell
+# terminal 1, en backend (con el venv activado)
+uvicorn server.app:app --reload
+# terminal 2, en frontend
+npm run dev
+```
+
+y abrir http://localhost:5173.
 
 ## Tests
 
@@ -75,9 +108,16 @@ ajustan levemente sus decisiones.
 backend/
   poker_engine/   motor del juego en Python puro (sin dependencias web)
   bots/           estrategias por nivel; solo usan la vista pública del motor
+  server/         FastAPI + WebSocket; partidas en memoria, una por invitado
   scripts/        demos y simulaciones por consola
   tests/          tests con pytest
+frontend/
+  src/            React + TypeScript + Tailwind; solo muestra el estado y
+                  envía intenciones ("fold", "raise 400")
+  src/guest.ts    identificador de invitado, aislado para cambiarlo por login
 ```
+
+El protocolo de mensajes está descrito en `backend/server/protocol.py`.
 
 El motor es la única autoridad: baraja con el generador seguro del sistema,
 reparte, valida cada acción y paga los botes. Bots y cliente solo reciben una
