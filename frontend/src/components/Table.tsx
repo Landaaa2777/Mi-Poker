@@ -37,9 +37,9 @@ const LANDSCAPE: Layout = {
   height: 640,
   center: { x: 560, y: 312 },
   radius: { x: 440, y: 224 },
-  boardCard: 58,
+  boardCard: 68,
   bot: { width: 196, height: 56, avatar: 48, card: 38, overlap: 12 },
-  human: { width: 224, height: 64, avatar: 56, card: 64, overlap: 20 },
+  human: { width: 240, height: 64, avatar: 56, card: 78, overlap: 22 },
 };
 
 const PORTRAIT: Layout = {
@@ -47,14 +47,16 @@ const PORTRAIT: Layout = {
   height: 780,
   center: { x: 250, y: 365 },
   radius: { x: 170, y: 305 },
-  boardCard: 46,
+  boardCard: 52,
   bot: { width: 148, height: 48, avatar: 40, card: 32, overlap: 10 },
-  human: { width: 190, height: 56, avatar: 48, card: 54, overlap: 16 },
+  human: { width: 196, height: 56, avatar: 48, card: 62, overlap: 18 },
 };
 
 const PORTRAIT_BELOW = 620; // ancho disponible por debajo del cual se usa el lienzo vertical
 const MAX_HEIGHT_SHARE = 0.68; // en apaisado, parte del alto de la ventana que puede ocupar
 const MIN_SCALE = 0.72; // por debajo, el texto se vuelve ilegible: mejor desplazar la página
+const FULL_ART_FROM = 44; // ancho en pantalla (px) desde el que una carta luce su dibujo completo
+const REST_FLOAT = 0.15; // flotación de las cartas en reposo: apenas un respiro
 
 /** Elige el lienzo y la escala para el ancho disponible. */
 function useFit() {
@@ -126,11 +128,12 @@ interface SeatProps {
   seat: SeatFrame;
   frame: Frame;
   size: SeatSize;
+  scale: number; // escala a la que se dibuja la mesa
   avatarSide: "left" | "right"; // el avatar va en el extremo que mira al centro de la mesa
   thinking: boolean; // el servidor está esperando a que este bot juegue
 }
 
-function SeatPlaque({ seat, frame, size, avatarSide, thinking }: SeatProps) {
+function SeatPlaque({ seat, frame, size, scale, avatarSide, thinking }: SeatProps) {
   const acting = frame.actingSeat === seat.seat;
   const dealer = frame.buttonSeat === seat.seat;
   const faded = seat.status === "folded" || seat.status === "out";
@@ -143,7 +146,7 @@ function SeatPlaque({ seat, frame, size, avatarSide, thinking }: SeatProps) {
   let noteColor = "text-emerald-50/55";
   if (seat.handName) {
     note = seat.handName;
-    noteColor = "font-semibold text-sky-200";
+    noteColor = "font-semibold text-amber-200";
   } else if (STATUS_LABEL[seat.status]) {
     note = STATUS_LABEL[seat.status];
     noteColor = seat.status === "all_in" ? "font-semibold text-amber-200" : "text-white/50";
@@ -169,10 +172,11 @@ function SeatPlaque({ seat, frame, size, avatarSide, thinking }: SeatProps) {
             key={index}
             card={card}
             enter="deal"
-            // Mis cartas están vivas: flotan, se inclinan y se levantan al pulsarlas.
+            // Mis cartas están vivas: se inclinan con el ratón y se levantan al pulsarlas.
             interactive={seat.isHuman ? "select" : undefined}
-            float={seat.isHuman ? 1 : 0}
+            float={seat.isHuman ? REST_FLOAT : 0}
             fan={seat.isHuman ? (index === 0 ? -4 : 4) : 0}
+            detail={size.card * scale >= FULL_ART_FROM ? "full" : "compact"}
           />
         ))}
       </div>
@@ -184,7 +188,10 @@ function SeatPlaque({ seat, frame, size, avatarSide, thinking }: SeatProps) {
           style={{ bottom: size.height - 8, [avatarSide]: 8, ...cardWidth(26) }}
           title="Mazo"
         >
-          <span className="card-float relative block" style={{ "--float": 0.6 } as CSSProperties}>
+          <span
+            className="card-float relative block"
+            style={{ "--float": REST_FLOAT } as CSSProperties}
+          >
             <span className="card card-back absolute -left-1 -top-1 inline-block" />
             <span className="card card-back absolute -left-0.5 -top-0.5 inline-block" />
             {/* De aquí salen las cartas al repartir. */}
@@ -194,7 +201,7 @@ function SeatPlaque({ seat, frame, size, avatarSide, thinking }: SeatProps) {
       )}
 
       <div
-        className={`relative flex items-center gap-2.5 rounded-full bg-[#090d15]/90 p-1 shadow-lg shadow-black/40 ${avatarSide === "right" ? "flex-row-reverse" : ""} ${faded ? "opacity-60" : ""}`}
+        className={`relative flex items-center gap-2.5 rounded-full bg-[#0c0709]/90 p-1 shadow-lg shadow-black/50 ring-1 ring-amber-400/35 ${avatarSide === "right" ? "flex-row-reverse" : ""} ${faded ? "opacity-60" : ""}`}
         style={{ height: size.height }}
       >
         {/* De aquí salen sus fichas al apostar y aquí llegan las que gana. */}
@@ -213,7 +220,7 @@ function SeatPlaque({ seat, frame, size, avatarSide, thinking }: SeatProps) {
               </span>
             )}
           </div>
-          <div className="text-[15px] font-semibold tabular-nums text-emerald-400">{seat.stack}</div>
+          <div className="text-[15px] font-semibold tabular-nums text-amber-300">{seat.stack}</div>
         </div>
       </div>
 
@@ -257,7 +264,7 @@ function SeatBets({ seat }: { seat: SeatFrame }) {
         </span>
       )}
       {seat.won > 0 && (
-        <span className="pop-in rounded-full bg-emerald-400 px-3 py-0.5 text-sm font-black text-emerald-950 shadow">
+        <span className="pop-in rounded-full bg-gradient-to-b from-amber-200 to-amber-500 px-3 py-0.5 text-sm font-black text-stone-900 shadow">
           +{seat.won}
         </span>
       )}
@@ -282,7 +289,7 @@ export function Table({ frame, settled }: Props) {
   return (
     <section
       ref={ref}
-      className="felt relative w-full overflow-hidden rounded-[1.75rem] shadow-xl ring-1 ring-black/50"
+      className="felt relative w-full rim overflow-hidden rounded-[1.75rem]"
       style={{ height: layout.height * scale }}
       aria-label="Mesa de poker"
     >
@@ -299,7 +306,7 @@ export function Table({ frame, settled }: Props) {
       >
         {/* Línea que dibuja el contorno de la mesa. */}
         <div
-          className="absolute rounded-[999px] border-2 border-white/10"
+          className="absolute rounded-[999px] border-2 border-amber-200/20"
           style={{
             left: layout.center.x - layout.radius.x * 0.82,
             right: layout.width - layout.center.x - layout.radius.x * 0.82,
@@ -331,12 +338,12 @@ export function Table({ frame, settled }: Props) {
           className={`${CENTERED} flex flex-col items-center`}
           style={at({ x: layout.center.x, y: layout.center.y - boardHeight / 2 - 34 })}
         >
-          <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-white/75">
+          <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-amber-100/85">
             Bote
           </span>
           <span
             data-zone="pot"
-            className="rounded-full bg-black/55 px-4 py-0.5 text-lg font-black tabular-nums"
+            className="rounded-full border border-amber-400/55 bg-black/60 px-4 py-0.5 text-lg font-black tabular-nums text-amber-200"
           >
             {frame.pot}
           </span>
@@ -348,7 +355,14 @@ export function Table({ frame, settled }: Props) {
           style={{ ...at(layout.center), ...cardWidth(layout.boardCard) }}
         >
           {frame.board.map((card) => (
-            <PlayingCard key={card} card={card} enter="board" interactive="tilt" float={0.5} />
+            <PlayingCard
+              key={card}
+              card={card}
+              enter="board"
+              interactive="tilt"
+              float={REST_FLOAT}
+              detail={layout.boardCard * scale >= FULL_ART_FROM ? "full" : "compact"}
+            />
           ))}
           {emptySlots.map((_, index) => (
             <span key={index} className="card invisible inline-block" />
@@ -367,6 +381,7 @@ export function Table({ frame, settled }: Props) {
                   seat={seat}
                   frame={frame}
                   size={size}
+                  scale={scale}
                   avatarSide={point.x < layout.center.x - 1 ? "right" : "left"}
                   thinking={settled && frame.actingSeat === seat.seat && !seat.isHuman}
                 />

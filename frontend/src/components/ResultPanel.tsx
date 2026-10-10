@@ -8,8 +8,7 @@ interface Props {
   onConfigure: () => void;
 }
 
-const BIG =
-  "h-14 rounded-xl px-5 text-base font-black uppercase tracking-wide shadow-md disabled:opacity-40 sm:text-lg";
+const BIG = "h-14 flex-1 px-5 text-base uppercase tracking-wide sm:text-lg";
 
 /** Resultado de la mano y qué se puede hacer después. */
 export function ResultPanel({ state, disabled, onNextHand, onRestart, onConfigure }: Props) {
@@ -27,13 +26,13 @@ export function ResultPanel({ state, disabled, onNextHand, onRestart, onConfigur
   return (
     <div className="flex h-full flex-col justify-between gap-3">
       <div className="space-y-1.5">
-        <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
+        <h2 className="gold-text text-xs font-extrabold uppercase tracking-[0.2em]">
           {result.showdown ? "Showdown" : "Todos los demás se retiraron"}
         </h2>
         <ul className="space-y-0.5 text-sm">
           {result.awards.map((award, index) => (
             <li key={index}>
-              <span className="text-slate-400">
+              <span className="text-stone-400">
                 {index === 0 ? "Bote principal" : `Bote lateral ${index}`} ({award.amount}):
               </span>{" "}
               {Object.entries(award.payouts)
@@ -48,10 +47,10 @@ export function ResultPanel({ state, disabled, onNextHand, onRestart, onConfigur
         {headline && <p className="text-lg font-bold text-amber-300">{headline}</p>}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2.5 pb-1">
         {finished ? (
           <button
-            className={`${BIG} flex-1 bg-emerald-500 text-emerald-950 hover:bg-emerald-400`}
+            className={`${BIG} btn-gold`}
             disabled={disabled}
             onClick={onRestart}
             title="Fichas virtuales nuevas, gratis"
@@ -59,23 +58,16 @@ export function ResultPanel({ state, disabled, onNextHand, onRestart, onConfigur
             Reiniciar partida
           </button>
         ) : (
-          <button
-            className={`${BIG} flex-1 bg-emerald-500 text-emerald-950 hover:bg-emerald-400`}
-            disabled={disabled}
-            onClick={onNextHand}
-          >
+          <button className={`${BIG} btn-green`} disabled={disabled} onClick={onNextHand}>
             Siguiente mano
           </button>
         )}
-        <button
-          className="h-14 rounded-xl bg-slate-700 px-4 text-sm font-semibold hover:bg-slate-600"
-          onClick={onConfigure}
-        >
+        <button className="btn-dark h-14 px-4 text-sm" onClick={onConfigure}>
           Cambiar configuración
         </button>
       </div>
       {finished && (
-        <p className="text-xs text-slate-400">Al reiniciar recibes fichas virtuales nuevas, gratis.</p>
+        <p className="text-xs text-stone-400">Al reiniciar recibes fichas virtuales nuevas, gratis.</p>
       )}
     </div>
   );

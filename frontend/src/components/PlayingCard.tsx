@@ -1,7 +1,9 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { audio } from "../audio/engine";
-import { cardLabel, cardRank } from "../format";
+import { cardLabel } from "../format";
 import { EASE, JUICE, animate, motion, offsetFrom } from "../motion/motion";
+import { CardFace, CompactFace } from "./cards/CardFace";
+import { Emblem } from "./Emblem";
 
 interface Props {
   card: string | null; // null = boca abajo
@@ -13,29 +15,8 @@ interface Props {
   float?: number;
   /** Inclinación fija, en grados, para abrir las cartas en abanico. */
   fan?: number;
-}
-
-/** Palo dibujado como SVG propio, para que se vea igual en cualquier sistema. */
-function Suit({ suit }: { suit: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className="h-[0.95em] w-[0.95em]" fill="currentColor" aria-hidden>
-      {suit === "h" && (
-        <path d="M12 20.5C5 15.5 2 12 2 8.5 2 5.5 4.3 3.5 7 3.5c2 0 3.8 1.1 5 3 1.2-1.9 3-3 5-3 2.7 0 5 2 5 5 0 3.5-3 7-10 12z" />
-      )}
-      {suit === "d" && <path d="M12 2l8 10-8 10-8-10z" />}
-      {suit === "s" && (
-        <path d="M12 2.5c7 5.5 10 8.5 10 12 0 2.8-2.1 4.5-4.5 4.5-1.7 0-3.3-.8-4.3-2.2.3 2.2 1.1 3.8 2.3 4.7h-7c1.2-.9 2-2.5 2.3-4.7C9.8 18.2 8.2 19 6.5 19 4.1 19 2 17.3 2 14.5c0-3.5 3-6.5 10-12z" />
-      )}
-      {suit === "c" && (
-        <>
-          <circle cx="12" cy="7" r="4.6" />
-          <circle cx="6.6" cy="14" r="4.6" />
-          <circle cx="17.4" cy="14" r="4.6" />
-          <path d="M12 11l-2.6 10.5h5.2z" />
-        </>
-      )}
-    </svg>
-  );
+  /** "full": la carta con todo su dibujo. "compact": solo valor y palo, para cartas pequeñas. */
+  detail?: "full" | "compact";
 }
 
 // Giro 3D de dorso a cara. La perspectiva va dentro del propio transform.
@@ -56,7 +37,14 @@ const TURN_MS = 300; // voltear una carta
  * se pisen: flota en reposo, se inclina con el ratón, vuela desde el mazo y
  * gira en 3D. Solo se animan `transform` y `opacity`.
  */
-export function PlayingCard({ card, enter, interactive, float = 0, fan = 0 }: Props) {
+export function PlayingCard({
+  card,
+  enter,
+  interactive,
+  float = 0,
+  fan = 0,
+  detail = "full",
+}: Props) {
   const slot = useRef<HTMLSpanElement>(null);
   const tilt = useRef<HTMLSpanElement>(null);
   const flight = useRef<HTMLSpanElement>(null);
@@ -156,7 +144,6 @@ export function PlayingCard({ card, enter, interactive, float = 0, fan = 0 }: Pr
     if (motion.enabled && flight.current) animate(flight.current, JUICE, { duration: 320, easing: EASE.out });
   }
 
-  const red = card !== null && (card[1] === "h" || card[1] === "d");
   const style = {
     "--float": float,
     "--float-delay": `${phase.toFixed(2)}s`,
@@ -178,17 +165,13 @@ export function PlayingCard({ card, enter, interactive, float = 0, fan = 0 }: Pr
         <span ref={tilt} className="card-layer card-tilt">
           <span ref={flight} className="card-layer">
             <span ref={sides} className={`card card-3d ${card === null ? "face-down" : ""}`}>
-              <span
-                className={`card-side card-face flex select-none flex-col items-center bg-white font-bold leading-none ${red ? "text-red-600" : "text-slate-900"}`}
-              >
-                {card !== null && (
-                  <>
-                    <span>{cardRank(card)}</span>
-                    <Suit suit={card[1]} />
-                  </>
-                )}
+              <span className="card-side card-face select-none overflow-hidden">
+                {card !== null &&
+                  (detail === "full" ? <CardFace card={card} /> : <CompactFace card={card} />)}
               </span>
-              <span className="card-side card-back" />
+              <span className="card-side card-back">
+                <Emblem className="card-back-emblem" />
+              </span>
             </span>
           </span>
         </span>

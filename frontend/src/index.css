@@ -1,28 +1,112 @@
 @import "tailwindcss";
 
+/* Paleta de casino: negro y granate de fondo, oro para lo importante, rojo y
+   verde vivos en los botones y esmeralda en el tapete. */
+:root {
+  --gold: #f5c542;
+  --gold-light: #fff1bf;
+  --gold-dark: #b47d14;
+}
+
 body {
-  @apply min-h-screen bg-[#0a1020] text-slate-100 antialiased;
+  @apply min-h-screen text-stone-100 antialiased;
+  background: radial-gradient(1100px 560px at 50% -8%, #4d0f20 0%, #1c080e 46%, #080405 100%) fixed
+    #080405;
 }
 
 /* Deslizadores (monto de la subida, volúmenes) con el color de acento del juego. */
 input[type="range"] {
-  accent-color: #fbbf24;
+  accent-color: var(--gold);
 }
 
 @layer components {
-  /* Tapete: degradado verde con un grano muy fino por encima. */
-  .felt {
-    background-color: #1c6a45;
-    background-image:
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.3'/%3E%3C/svg%3E"),
-      radial-gradient(ellipse at 50% 42%, #37a068 0%, #257a4f 40%, #165437 76%, #0f3f29 100%);
+  /* Letras de oro, para el nombre del juego y los títulos. */
+  .gold-text {
+    background: linear-gradient(180deg, var(--gold-light) 0%, var(--gold) 48%, var(--gold-dark) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
   }
 
-  /* Paneles oscuros de la barra superior, el registro y los botones. */
+  /* Tapete: esmeralda con luz en el centro y un grano muy fino por encima. */
+  .felt {
+    background-color: #17804c;
+    background-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.3'/%3E%3C/svg%3E"),
+      radial-gradient(ellipse at 50% 42%, #35c478 0%, #1f9a59 36%, #10653a 72%, #093f24 100%);
+  }
+  /* Ribete dorado alrededor del tapete, como el borde de una mesa de casino. */
+  .rim {
+    box-shadow:
+      0 0 0 2px #6e4a0b,
+      0 0 0 5px var(--gold),
+      0 0 0 7px #6e4a0b,
+      0 18px 44px rgb(0 0 0 / 0.65);
+  }
+
+  /* Paneles oscuros con filo dorado: registro, botones, ajustes. */
   .panel {
-    background: #111a33;
-    border: 1px solid rgb(255 255 255 / 0.07);
+    background: linear-gradient(180deg, #21121a 0%, #130a0e 100%);
+    border: 1px solid rgb(245 197 66 / 0.32);
     border-radius: 0.9rem;
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.05),
+      0 10px 26px rgb(0 0 0 / 0.5);
+  }
+
+  /* Botones con relieve. El canto inferior los hace parecer teclas; al
+     pulsarlos bajan. No hay transiciones: el cambio es inmediato. */
+  .btn-gold,
+  .btn-red,
+  .btn-green,
+  .btn-dark {
+    border-radius: 0.8rem;
+    font-weight: 900;
+  }
+  .btn-gold {
+    background: linear-gradient(180deg, #ffe88f 0%, var(--gold) 46%, #d3971a 100%);
+    border: 1px solid #fff3c4;
+    color: #2a1803;
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.65),
+      0 4px 0 #8a5d0c,
+      0 9px 20px rgb(245 197 66 / 0.35);
+  }
+  .btn-red {
+    background: linear-gradient(180deg, #ff5f6e 0%, #e11d2f 50%, #a50e1d 100%);
+    border: 1px solid #ff9ca6;
+    color: #ffffff;
+    text-shadow: 0 1px 0 rgb(0 0 0 / 0.35);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.4),
+      0 4px 0 #6b0711,
+      0 9px 20px rgb(225 29 47 / 0.35);
+  }
+  .btn-green {
+    background: linear-gradient(180deg, #5eea92 0%, #17a84d 50%, #0d7a36 100%);
+    border: 1px solid #b0f5c9;
+    color: #04210f;
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.5),
+      0 4px 0 #095024,
+      0 9px 20px rgb(23 168 77 / 0.35);
+  }
+  .btn-dark {
+    background: linear-gradient(180deg, #3a2a31 0%, #21161b 100%);
+    border: 1px solid rgb(245 197 66 / 0.4);
+    color: #f6ead0;
+    font-weight: 600;
+    box-shadow: 0 3px 0 #0c0709;
+  }
+  :is(.btn-gold, .btn-red, .btn-green, .btn-dark):hover:not(:disabled) {
+    filter: brightness(1.09);
+  }
+  :is(.btn-gold, .btn-red, .btn-green, .btn-dark):active:not(:disabled) {
+    translate: 0 3px;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.3);
+  }
+  :is(.btn-gold, .btn-red, .btn-green, .btn-dark):disabled {
+    opacity: 0.45;
   }
 
   /* Carta: todo su tamaño sale del ancho, que fija quien la contiene con --card-w. */
@@ -32,15 +116,35 @@ input[type="range"] {
     height: calc(var(--card-w, 2.75rem) * 1.4);
   }
   .card {
-    border-radius: calc(var(--card-w, 2.75rem) * 0.12);
+    border-radius: calc(var(--card-w, 2.75rem) * 0.065);
     font-size: calc(var(--card-w, 2.75rem) * 0.44);
   }
+  /* Dorso: rojo de casino con enrejado de rombos y doble filo blanco. El
+     tamaño del enrejado acompaña al de la carta. */
   .card-back {
-    background: repeating-linear-gradient(45deg, #1e3a8a 0 5px, #2548b0 5px 10px);
+    --mesh: calc(var(--card-w, 2.75rem) * 0.11);
+    background-color: #b3101c;
+    background-image:
+      repeating-linear-gradient(45deg, rgb(255 255 255 / 0.34) 0 1px, transparent 1px var(--mesh)),
+      repeating-linear-gradient(-45deg, rgb(255 255 255 / 0.34) 0 1px, transparent 1px var(--mesh));
     box-shadow:
-      inset 0 0 0 2px #f8fafc,
-      inset 0 0 0 3px #1e3a8a,
+      inset 0 0 0 calc(var(--card-w, 2.75rem) * 0.045) #fdfbf5,
+      inset 0 0 0 calc(var(--card-w, 2.75rem) * 0.075) #b3101c,
+      inset 0 0 0 calc(var(--card-w, 2.75rem) * 0.095) rgb(253 251 245 / 0.8),
       0 1px 3px rgb(0 0 0 / 0.5);
+  }
+  /* Medallón central del dorso, con el emblema del juego. */
+  .card-back-emblem {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    height: 46%;
+    width: 64.4%;
+    translate: -50% -50%;
+    border-radius: 50%;
+    background: #b3101c;
+    color: #fdfbf5;
+    padding: 6%;
   }
 
   /* Una carta de juego va en capas, una por movimiento, para que no se pisen:
@@ -69,15 +173,21 @@ input[type="range"] {
     backface-visibility: hidden;
   }
   .card-face {
+    background: #ffffff;
+    box-shadow:
+      0 0 0 1px rgb(0 0 0 / 0.18),
+      0 2px 5px rgb(0 0 0 / 0.5);
+  }
+  /* Cara sencilla (cartas pequeñas): valor y palo, grandes y centrados. */
+  .compact-face {
     justify-content: center;
     gap: 0.08em;
-    box-shadow: 0 1px 3px rgb(0 0 0 / 0.5);
   }
   .card-side.card-back {
     transform: rotateY(180deg);
   }
   /* Cartas que asoman por detrás de la placa de un jugador: el dibujo va arriba. */
-  .peek .card-face {
+  .peek .compact-face {
     justify-content: flex-start;
     padding-top: 9%;
   }
@@ -115,7 +225,7 @@ input[type="range"] {
     width: 22px;
     border-radius: 50%;
     border: 3px dashed #fff1f2;
-    background: #e11d48;
+    background: #e11d2f;
     box-shadow: 0 2px 4px rgb(0 0 0 / 0.45);
   }
   .fx-ghost {
@@ -139,7 +249,7 @@ input[type="range"] {
   /* Barra de desplazamiento discreta, a juego con el fondo oscuro. */
   .quiet-scroll {
     scrollbar-width: thin;
-    scrollbar-color: #475569 transparent;
+    scrollbar-color: #7a5410 transparent;
   }
 }
 

@@ -32,10 +32,8 @@ export function Emblem({ className = "" }: Props) {
 export function Wordmark({ className = "" }: Props) {
   return (
     <span className={`inline-flex items-center gap-2 font-black tracking-tight ${className}`}>
-      <Emblem className="h-[1.25em] w-[1.25em] text-amber-400" />
-      <span>
-        mi<span className="text-amber-400">-</span>poker
-      </span>
+      <Emblem className="h-[1.25em] w-[1.25em] text-amber-300" />
+      <span className="gold-text">mi-poker</span>
     </span>
   );
 }

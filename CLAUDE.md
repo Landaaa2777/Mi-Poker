@@ -23,14 +23,25 @@ Referencias que he dado (se toma la idea, nunca la marca ni los assets):
   social (placas oscuras con avatar, bote sobre las cartas comunitarias,
   registro a la izquierda y botones grandes a la derecha).
 - Movimiento de las cartas: como en Balatro, pero SIN su estética pixelada.
+- Baraja: el diseño clásico de toda la vida, como las cartas Bicycle. Como su
+  nombre, su as de picas y su dorso son marca registrada, se usa la baraja
+  clásica inglesa de Adrian Kennard, publicada como CC0 (dominio público),
+  con figuras calcadas de una baraja Goodall del siglo XIX. Es la única
+  excepción que aprobé al "diseño 100% original": ver
+  `frontend/src/assets/cards/LEEME.md`. El dorso y el adorno del as de picas
+  son propios.
+- Colores: los de una web de casino que llame la atención (negro y granate,
+  oro, tapete esmeralda con ribete dorado, botones rojo, verde y oro).
 
 Fuera del alcance (NO implementar):
 - Cualquier cambio en el motor de poker, los bots, las reglas o el protocolo
   del servidor. En la etapa 2 SOLO cambia el frontend, y los tests del
-  backend deben seguir pasando. Única excepción, que aprobé el 2026-10-10:
-  se corrigieron los tests de `backend/tests/test_server.py`, que fallaban al
-  azar por dar por hecho que al humano le tocaba jugar antes de que un bot se
-  retirase. El código del backend no cambió.
+  backend deben seguir pasando. Únicas excepciones, que aprobé el 2026-10-10:
+  se corrigieron tests que fallaban al azar. En `backend/tests/test_server.py`
+  daban por hecho que al humano le tocaba jugar antes de que un bot se
+  retirase; en `backend/tests/test_bots.py`, el test de adaptación del Experto
+  repartía con mazos al azar y ahora usa mazos con semilla fija. El código del
+  backend no cambió.
 - Cuentas, login, base de datos de usuarios, perfiles y estadísticas.
 - Minijuegos, bono diario y economía de fichas.
 - Multijugador entre humanos, lobby, chat.
@@ -105,8 +116,9 @@ Fuera del alcance (NO implementar):
 - Fold: las cartas del jugador se deslizan hacia el centro y se desvanecen.
 - Resaltar de forma suave al jugador en turno y al ganador de la mano.
 - Solo se animan `transform` y `opacity` (60 fps), con curvas de aceleración
-  suaves y duraciones cortas: entre 200 y 500 ms por movimiento. La flotación
-  en reposo es la excepción: es continua, lenta y muy leve.
+  suaves y duraciones cortas: entre 200 y 500 ms por movimiento. La única
+  excepción es continua, lenta y muy leve: la flotación en reposo, al mínimo.
+  Las figuras de las cartas NO se animan.
 - Los eventos del servidor pasan por una cola de animación: se reproducen en
   orden y no se pisan aunque lleguen varios seguidos. Los botones de acción se
   habilitan cuando termina la animación pendiente.
@@ -171,11 +183,11 @@ Fuera del alcance (NO implementar):
    desde el mazo, flotación, inclinación, selección, entrada en la mesa con
    giro), fichas al bote y al ganador, fold, resaltes y movimiento reducido.
    El reparto me gusta como está: NO cambiarlo.
-3. Cartas con arte: diseño propio inspirado en la baraja clásica (índices en
-   las esquinas, palos repartidos como en una baraja real, as de picas
-   ornamentado, dorso con rombos) y figuras (J, Q, K) dibujadas que se mueven
-   un poco, como si estuvieran vivas: ojos y manos, sin exagerar. La
-   flotación de las cartas en reposo, al mínimo.
+3. Baraja clásica y colores de casino: caras de la baraja clásica inglesa
+   (dominio público), sin animar; as de picas adornado y dorso propios;
+   flotación de las cartas en reposo al mínimo; y toda la interfaz con la
+   paleta de casino. Probé antes unas figuras dibujadas por mí que se movían
+   y NO me gustaron: no volver a ellas.
 4. Cierre: repaso final y README.
 
 ## Hitos de la etapa 1 (completada)

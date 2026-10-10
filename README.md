@@ -14,7 +14,8 @@ contra los bots.
 Etapa 2 (pulido visual y sonoro), en curso. Ya hecho: pantalla de inicio y
 mesa con diseño propio (placas con avatar, cartas y fichas dibujadas, marca en
 el tapete), la mano reproducida paso a paso, efectos de sonido, música de
-fondo, panel de audio y animaciones. Queda el repaso final.
+fondo, panel de audio, animaciones, baraja clásica y colores de casino. Queda
+el repaso final.
 
 ## Requisitos
 
@@ -156,20 +157,40 @@ frontend/
   src/audio/         efectos y música generados con la Web Audio API, y qué
                      sonido corresponde a cada paso
   src/assets/audio/  carpeta para una pista de música propia (opcional)
-  src/components/    pantalla de inicio, mesa, cartas, fichas, controles y ajustes
+  src/components/    pantalla de inicio, mesa, fichas, controles y ajustes
+  src/components/cards/  cómo se pinta cada carta: cara clásica o cara sencilla
+  src/assets/cards/  las 52 caras de la baraja clásica (CC0)
   src/guest.ts       identificador de invitado, aislado para cambiarlo por login
   src/settings.ts    preferencias guardadas en el navegador, también aisladas
-  tools/             graba partidas reales para los tests del frontend
+  tools/             graba partidas reales para los tests y prepara la baraja
 ```
 
 El protocolo de mensajes está descrito en `backend/server/protocol.py`.
+
+### Cartas
+
+Las caras son la baraja clásica inglesa de Adrian Kennard, publicada como CC0
+(dominio público) en https://www.me.uk/cards/. Sus figuras están calcadas de
+una baraja Goodall & Son del siglo XIX, el diseño del que descienden las
+barajas de póker actuales; no llevan el nombre ni los dibujos de ninguna
+marca. Los archivos están en `frontend/src/assets/cards/`, con su `LEEME.md`.
+
+Son dibujo propio el dorso (rojo, con rombos y el emblema del juego), el
+adorno del as de picas y la cara sencilla de las cartas pequeñas de los
+rivales, que lleva solo el valor y el palo para que se lea bien.
+
+Para volver a preparar la baraja desde el original:
+
+```powershell
+node frontend\tools\import_cards.mjs <carpeta con los SVG descargados>
+```
 
 ### Animaciones
 
 Las cartas se mueven al estilo de Balatro, con nuestro propio dibujo: salen del
 mazo volando hacia cada jugador, las tuyas se voltean en 3D al llegar, las
 comunitarias giran en el aire y aterrizan con un pequeño rebote, y en reposo
-flotan. Tus cartas y las de la mesa se inclinan al pasar el ratón; las tuyas,
+flotan apenas. Tus cartas y las de la mesa se inclinan al pasar el ratón; las tuyas,
 además, se levantan al pulsarlas (es un adorno: no cambia el juego). Las fichas
 van del jugador al bote y del bote al ganador, y las cartas de quien se retira
 se deslizan hacia el centro y se desvanecen.

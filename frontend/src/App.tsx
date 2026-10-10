@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useState } from "react";
 import { audio } from "./audio/engine";
 import { tableSounds, useAudio } from "./audio/useAudio";
 import { Controls } from "./components/Controls";
+import { preloadFaces } from "./components/cards/CardFace";
 import { Wordmark } from "./components/Emblem";
 import { HandLog } from "./components/HandLog";
 import { ResultPanel } from "./components/ResultPanel";
@@ -52,6 +53,9 @@ export default function App() {
   const handOver = settled && server !== null && !server.hand_in_progress;
   const actor = frame?.seats.find((seat) => seat.seat === frame.actingSeat);
 
+  // Las caras de la baraja se descargan al entrar, para que ninguna tarde al repartirla.
+  useEffect(preloadFaces, []);
+
   // Aviso suave cada vez que me toca jugar.
   useEffect(() => {
     if (myTurn) audio.play("turn");
@@ -63,7 +67,7 @@ export default function App() {
         <div className="flex items-baseline gap-3">
           <Wordmark className="text-2xl" />
           {frame && !showStart && (
-            <span className="text-sm text-slate-400">
+            <span className="text-sm text-amber-100/60">
               Mano {frame.handNumber} · {streetName(frame.phase)} · Ciegas {frame.smallBlind}/
               {frame.bigBlind}
             </span>
@@ -83,7 +87,7 @@ export default function App() {
       </header>
 
       {!connected && (
-        <p className="rounded-lg bg-slate-700 px-3 py-2 text-sm">Conectando con el servidor…</p>
+        <p className="panel px-3 py-2 text-sm">Conectando con el servidor…</p>
       )}
       {error && (
         <p role="alert" className="rounded-lg bg-rose-800 px-3 py-2 text-sm">
@@ -129,7 +133,7 @@ export default function App() {
                 />
               )}
               {!myTurn && !handOver && (
-                <p className="flex h-full min-h-40 items-center justify-center text-slate-400">
+                <p className="flex h-full min-h-40 items-center justify-center text-amber-100/60">
                   {settled && actor ? `Turno de ${actor.name}…` : " "}
                 </p>
               )}
@@ -137,7 +141,7 @@ export default function App() {
             <HandLog frame={frame} />
           </div>
 
-          <footer className="flex items-center justify-between text-xs text-slate-400">
+          <footer className="flex items-center justify-between text-xs text-stone-400">
             <span>Las fichas son virtuales y no tienen valor fuera del juego.</span>
             <button className="underline" onClick={() => setConfiguring(true)}>
               Nueva partida

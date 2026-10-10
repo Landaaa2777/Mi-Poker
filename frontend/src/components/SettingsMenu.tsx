@@ -45,7 +45,7 @@ function VolumeSlider({ label, value, onChange, onRelease }: SliderProps) {
         onPointerUp={onRelease}
         onKeyUp={onRelease}
       />
-      <span className="text-right tabular-nums text-slate-400">{percent}</span>
+      <span className="text-right tabular-nums text-stone-400">{percent}</span>
     </label>
   );
 }
@@ -77,7 +77,7 @@ export function SettingsMenu({ settings, animations, reducedMotion, onChange }: 
   return (
     <div ref={container} className="relative flex items-center gap-2">
       <button
-        className={`flex h-9 w-9 items-center justify-center rounded-lg hover:bg-slate-600 ${settings.muted ? "bg-rose-700 text-white" : "bg-slate-700"}`}
+        className={`flex h-9 w-9 items-center justify-center ${settings.muted ? "btn-red" : "btn-dark"}`}
         aria-pressed={settings.muted}
         aria-label={settings.muted ? "Activar el sonido" : "Silenciar todo"}
         title={settings.muted ? "Activar el sonido" : "Silenciar todo"}
@@ -86,7 +86,7 @@ export function SettingsMenu({ settings, animations, reducedMotion, onChange }: 
         <SpeakerIcon muted={settings.muted} />
       </button>
       <button
-        className="h-9 rounded-lg bg-slate-700 px-3 text-sm font-semibold hover:bg-slate-600"
+        className="btn-dark h-9 px-3 text-sm"
         aria-expanded={open}
         aria-controls="settings-panel"
         onClick={() => setOpen((current) => !current)}
@@ -99,7 +99,7 @@ export function SettingsMenu({ settings, animations, reducedMotion, onChange }: 
           id="settings-panel"
           className="panel absolute right-0 top-full z-30 mt-2 w-72 space-y-3 p-4 shadow-2xl"
         >
-          <h2 className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">Sonido</h2>
+          <h2 className="gold-text text-xs font-extrabold uppercase tracking-[0.16em]">Sonido</h2>
           <VolumeSlider
             label="Música"
             value={settings.musicVolume}
@@ -113,14 +113,14 @@ export function SettingsMenu({ settings, animations, reducedMotion, onChange }: 
             onRelease={() => audio.play("chips")}
           />
           <button
-            className={`w-full rounded-lg px-3 py-2 text-sm font-semibold ${settings.muted ? "bg-rose-700 hover:bg-rose-600" : "bg-slate-700 hover:bg-slate-600"}`}
+            className={`w-full px-3 py-2 text-sm ${settings.muted ? "btn-red" : "btn-dark"}`}
             aria-pressed={settings.muted}
             onClick={toggleMute}
           >
             {settings.muted ? "Silenciado: pulsa para activar" : "Silenciar todo"}
           </button>
 
-          <div className="border-t border-white/10 pt-3">
+          <div className="border-t border-amber-400/25 pt-3">
             <label className="flex cursor-pointer items-center justify-between gap-3 text-sm">
               <span>Animaciones</span>
               <input
@@ -130,7 +130,7 @@ export function SettingsMenu({ settings, animations, reducedMotion, onChange }: 
                 onChange={(event) => onChange({ animations: event.target.checked })}
               />
             </label>
-            <p className="mt-1 text-xs text-slate-400">
+            <p className="mt-1 text-xs text-stone-400">
               {animations
                 ? "La mano se reproduce paso a paso."
                 : "Cada jugada se muestra al instante."}

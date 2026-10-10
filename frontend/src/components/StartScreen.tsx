@@ -27,15 +27,16 @@ const BLIND_PRESETS: [number, number][] = [
 ];
 
 const INPUT =
-  "w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 outline-none focus:border-amber-400";
+  "w-full rounded-lg border border-amber-400/30 bg-black/45 px-3 py-2 outline-none focus:border-amber-300";
 const CHOICE = "rounded-lg border px-3 py-2 text-sm font-semibold";
-const CHOSEN = "border-amber-400 bg-amber-400 text-slate-900";
-const NOT_CHOSEN = "border-white/15 bg-white/5 hover:bg-white/10";
+const CHOSEN =
+  "border-amber-100 bg-gradient-to-b from-amber-200 to-amber-500 text-stone-900 shadow-[0_0_14px_rgb(245_197_66/0.45)]";
+const NOT_CHOSEN = "border-amber-400/25 bg-white/5 text-amber-50 hover:bg-white/10";
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
-      <div className="mb-1.5 text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
+      <div className="mb-1.5 text-xs font-bold uppercase tracking-[0.16em] text-amber-200/75">
         {label}
       </div>
       {children}
@@ -81,40 +82,40 @@ export function StartScreen({ options, initial, onStart, onCancel }: Props) {
   }
 
   return (
-    <main className="felt relative mx-auto w-full max-w-4xl overflow-hidden rounded-[1.75rem] shadow-xl ring-1 ring-black/50">
+    <main className="felt relative mx-auto w-full max-w-4xl rim overflow-hidden rounded-[1.75rem]">
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_50%,rgb(0_0_0/0.4))]" />
       <div className="relative p-5 sm:p-8">
         <header className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <Emblem className="h-16 w-16 shrink-0 text-amber-300 sm:h-20 sm:w-20" />
             <div>
-              <h1 className="text-4xl font-black tracking-tight sm:text-5xl">
-                mi<span className="text-amber-300">-</span>poker
+              <h1 className="gold-text text-4xl font-black tracking-tight sm:text-5xl">
+                mi-poker
               </h1>
               <p className="mt-1 text-emerald-50/85">Texas Hold&apos;em No-Limit contra bots</p>
             </div>
           </div>
           {/* Adorno: tres cartas en abanico. */}
           <div
-            className="relative mr-6 hidden h-28 w-36 shrink-0 sm:block"
-            style={{ "--card-w": "62px" } as CSSProperties}
+            className="relative mr-4 hidden h-36 w-48 shrink-0 sm:block"
+            style={{ "--card-w": "84px" } as CSSProperties}
             aria-hidden
           >
             <span className="absolute left-0 top-3 -rotate-[16deg]">
-              <PlayingCard card={null} float={0.8} />
+              <PlayingCard card={null} float={0.2} />
             </span>
-            <span className="absolute left-9 top-0 -rotate-3">
-              <PlayingCard card="As" interactive="tilt" float={1} />
+            <span className="absolute left-12 top-0 -rotate-3">
+              <PlayingCard card="As" interactive="tilt" float={0.2} />
             </span>
-            <span className="absolute left-[4.5rem] top-2 rotate-[12deg]">
-              <PlayingCard card="Kh" interactive="tilt" float={1} />
+            <span className="absolute left-24 top-2 rotate-[12deg]">
+              <PlayingCard card="Kh" interactive="tilt" float={0.2} />
             </span>
           </div>
         </header>
 
         <form
           onSubmit={submit}
-          className="mt-6 space-y-5 rounded-2xl bg-[#0b1122]/90 p-5 shadow-lg ring-1 ring-white/10 sm:p-6"
+          className="mt-6 space-y-5 rounded-2xl bg-[#14090d]/92 p-5 shadow-lg ring-1 ring-amber-400/35 sm:p-6"
         >
           <div className="grid gap-5 sm:grid-cols-2">
             <Field label="Tu nombre">
@@ -154,11 +155,11 @@ export function StartScreen({ options, initial, onStart, onCancel }: Props) {
                     key={level.id}
                     type="button"
                     aria-pressed={chosen}
-                    className={`rounded-xl border p-3 text-left ${chosen ? "border-amber-400 bg-amber-400/15" : NOT_CHOSEN}`}
+                    className={`rounded-xl border p-3 text-left ${chosen ? "border-amber-300 bg-amber-400/15 shadow-[0_0_16px_rgb(245_197_66/0.35)]" : NOT_CHOSEN}`}
                     onClick={() => update({ difficulty: level.id })}
                   >
                     <div className={`font-bold ${chosen ? "text-amber-300" : ""}`}>{level.name}</div>
-                    <div className="mt-0.5 text-xs leading-snug text-slate-300">
+                    <div className="mt-0.5 text-xs leading-snug text-stone-300">
                       {LEVEL_BLURB[level.id] ?? ""}
                     </div>
                   </button>
@@ -212,7 +213,7 @@ export function StartScreen({ options, initial, onStart, onCancel }: Props) {
             <button
               type="submit"
               disabled={problem !== null}
-              className="h-14 flex-1 rounded-xl bg-amber-400 px-6 text-lg font-black uppercase tracking-wide text-slate-900 shadow-md hover:bg-amber-300 disabled:opacity-40"
+              className="btn-gold h-14 flex-1 px-6 text-lg uppercase tracking-wide"
             >
               Empezar partida
             </button>
@@ -220,7 +221,7 @@ export function StartScreen({ options, initial, onStart, onCancel }: Props) {
               <button
                 type="button"
                 onClick={onCancel}
-                className="h-14 rounded-xl bg-slate-700 px-5 font-semibold hover:bg-slate-600"
+                className="btn-dark h-14 px-5"
               >
                 Volver a la mesa
               </button>

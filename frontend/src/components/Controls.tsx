@@ -8,7 +8,7 @@ interface Props {
 }
 
 const BIG =
-  "flex h-16 flex-col items-center justify-center rounded-xl px-2 text-base font-black uppercase leading-tight tracking-wide shadow-md disabled:opacity-40 sm:text-lg";
+  "flex h-16 flex-col items-center justify-center px-2 text-base uppercase leading-tight tracking-wide sm:text-lg";
 
 /** Botones de acción. Solo envían la intención; el servidor decide si es legal. */
 export function Controls({ state, disabled, onAction }: Props) {
@@ -46,14 +46,14 @@ export function Controls({ state, disabled, onAction }: Props) {
   const raiseVerb = amount === maxRaise ? "All-in" : opening ? "Apostar" : "Subir a";
 
   return (
-    <div className="flex h-full flex-col justify-end gap-2.5">
+    <div className="flex h-full flex-col justify-end gap-3">
       {legal.can_raise && (
         <>
-          <div className="grid grid-cols-4 overflow-hidden rounded-full bg-slate-600 text-xs font-extrabold uppercase tracking-wide sm:text-sm">
+          <div className="grid grid-cols-4 overflow-hidden rounded-full border border-amber-400/40 bg-black/50 text-xs font-extrabold uppercase tracking-wide sm:text-sm">
             {shortcuts.map((shortcut, index) => (
               <button
                 key={shortcut.label}
-                className={`border-l border-slate-800/60 py-2 first:border-l-0 ${index === active ? "bg-amber-400 text-slate-900" : "text-slate-200 hover:bg-slate-500"}`}
+                className={`border-l border-amber-400/25 py-2 first:border-l-0 ${index === active ? "bg-gradient-to-b from-amber-200 to-amber-500 text-stone-900" : "text-amber-100 hover:bg-white/10"}`}
                 onClick={() => setAmount(shortcut.value)}
               >
                 {shortcut.label}
@@ -68,7 +68,7 @@ export function Controls({ state, disabled, onAction }: Props) {
               step={1}
               value={amount}
               onChange={(event) => setAmount(Number(event.target.value))}
-              className={`w-24 rounded-md bg-white px-2 py-1.5 text-center text-lg font-bold text-slate-900 outline-none ring-2 ${valid ? "ring-transparent focus:ring-amber-400" : "ring-rose-500"}`}
+              className={`w-24 rounded-md bg-white px-2 py-1.5 text-center text-lg font-bold text-stone-900 outline-none ring-2 ${valid ? "ring-amber-400/60 focus:ring-amber-300" : "ring-rose-500"}`}
               aria-label={`Monto: mínimo ${minRaise}, máximo ${maxRaise}`}
             />
             <input
@@ -85,17 +85,13 @@ export function Controls({ state, disabled, onAction }: Props) {
         </>
       )}
 
-      <div className={`grid gap-2 ${legal.can_raise ? "grid-cols-3" : "grid-cols-2"}`}>
-        <button
-          className={`${BIG} bg-rose-600 hover:bg-rose-500`}
-          disabled={disabled}
-          onClick={() => onAction("fold")}
-        >
+      <div className={`grid gap-2.5 pb-1 ${legal.can_raise ? "grid-cols-3" : "grid-cols-2"}`}>
+        <button className={`${BIG} btn-red`} disabled={disabled} onClick={() => onAction("fold")}>
           Retirarse
         </button>
         {legal.can_check ? (
           <button
-            className={`${BIG} bg-sky-600 hover:bg-sky-500`}
+            className={`${BIG} btn-green`}
             disabled={disabled}
             onClick={() => onAction("check")}
           >
@@ -103,7 +99,7 @@ export function Controls({ state, disabled, onAction }: Props) {
           </button>
         ) : (
           <button
-            className={`${BIG} bg-sky-600 hover:bg-sky-500`}
+            className={`${BIG} btn-green`}
             disabled={disabled}
             onClick={() => onAction("call")}
           >
@@ -113,7 +109,7 @@ export function Controls({ state, disabled, onAction }: Props) {
         )}
         {legal.can_raise && (
           <button
-            className={`${BIG} bg-amber-400 text-slate-900 hover:bg-amber-300`}
+            className={`${BIG} btn-gold`}
             disabled={disabled || !valid}
             onClick={() => onAction("raise", amount)}
           >
