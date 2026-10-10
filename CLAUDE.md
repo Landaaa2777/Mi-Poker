@@ -8,6 +8,9 @@ originales (no copiar marca, assets ni textos de ningún sitio existente).
 Objetivo: que la mesa se sienta fluida y agradable, con animaciones, efectos
 de sonido y música de fondo relajante.
 
+La ETAPA 2 está completa: aprobé su último hito el 2026-10-10. La etapa 3 no
+ha empezado y no se empieza hasta que yo lo pida.
+
 La ETAPA 1 (motor, bots, servidor e interfaz simple) está completa: una
 partida completa de Texas Hold'em No-Limit en el navegador, un humano contra
 1 a 5 bots, con dificultad de bots ajustable.
@@ -183,12 +186,15 @@ Fuera del alcance (NO implementar):
    desde el mazo, flotación, inclinación, selección, entrada en la mesa con
    giro), fichas al bote y al ganador, fold, resaltes y movimiento reducido.
    El reparto me gusta como está: NO cambiarlo.
-3. Baraja clásica y colores de casino: caras de la baraja clásica inglesa
-   (dominio público), sin animar; as de picas adornado y dorso propios;
+3. Baraja clásica y colores de casino (completado): caras de la baraja
+   clásica inglesa (dominio público), sin animar; as de picas adornado y
+   dorso propios;
    flotación de las cartas en reposo al mínimo; y toda la interfaz con la
    paleta de casino. Probé antes unas figuras dibujadas por mí que se movían
    y NO me gustaron: no volver a ellas.
-4. Cierre: repaso final y README.
+4. Cierre (completado): repaso final y README. En el repaso se corrigió un
+   fallo de audio: un volumen cambiado en silencio no se aplicaba hasta el
+   siguiente sonido.
 
 ## Hitos de la etapa 1 (completada)
 1. Motor de poker + tests: las 10 categorías de mano, empates por kickers,

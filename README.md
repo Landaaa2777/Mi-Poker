@@ -11,11 +11,14 @@ Etapa 1 (completa): motor de poker, bots con cuatro niveles de dificultad,
 servidor FastAPI + WebSocket e interfaz web para jugar una partida completa
 contra los bots.
 
-Etapa 2 (pulido visual y sonoro), en curso. Ya hecho: pantalla de inicio y
-mesa con diseño propio (placas con avatar, cartas y fichas dibujadas, marca en
-el tapete), la mano reproducida paso a paso, efectos de sonido, música de
-fondo, panel de audio, animaciones, baraja clásica y colores de casino. Queda
-el repaso final.
+Etapa 2 (completa): pulido visual y sonoro. Pantalla de inicio y mesa con
+diseño propio y colores de casino, baraja clásica, la mano reproducida paso a
+paso con animaciones, efectos de sonido, música de fondo y un panel de ajustes
+con los volúmenes y el interruptor de animaciones.
+
+Todavía no hay cuentas ni login, estadísticas, minijuegos ni partidas entre
+personas: son etapas futuras. Cada partida vive en la memoria del servidor y
+se pierde al cerrarlo.
 
 ## Requisitos
 
@@ -103,7 +106,8 @@ backend\.venv\Scripts\python.exe frontend\tools\record_fixtures.py
 ## Demo por consola
 
 Juega una mano entre cuatro jugadores que actúan al azar e imprime el registro
-completo: blinds, acciones, mesa, showdown y reparto de botes.
+completo: blinds, acciones, mesa, showdown y reparto de botes. Desde `backend`
+con el venv activado:
 
 ```powershell
 python scripts\demo_hand.py
@@ -112,7 +116,8 @@ python scripts\demo_hand.py
 ## Simulación bot contra bot
 
 Juega miles de manos entre los cuatro niveles y muestra cuántas ciegas grandes
-gana cada uno cada 100 manos (bb/100). Tarda alrededor de medio minuto.
+gana cada uno cada 100 manos (bb/100). Tarda alrededor de medio minuto. Desde
+`backend` con el venv activado:
 
 ```powershell
 python scripts\simulate.py
@@ -167,6 +172,8 @@ frontend/
 
 El protocolo de mensajes está descrito en `backend/server/protocol.py`.
 
+## Cómo está hecho
+
 ### Cartas
 
 Las caras son la baraja clásica inglesa de Adrian Kennard, publicada como CC0
@@ -199,6 +206,14 @@ Solo se animan `transform` y `opacity`, y cada movimiento dura menos de medio
 segundo. Con las animaciones desactivadas en **Ajustes** (o si el sistema pide
 movimiento reducido) no se mueve nada.
 
+### Sonido
+
+El juego no trae ningún archivo de audio: cada efecto y la música se
+sintetizan en el momento con la Web Audio API (`frontend/src/audio/`); la
+única excepción es la pista opcional que puedes poner tú. Hay dos canales,
+efectos y música, cada uno con su volumen, y un interruptor general. Con la
+pestaña oculta no suena nada.
+
 ### Cómo se reproduce una mano
 
 El servidor no envía sucesos sueltos: tras cada cambio envía la mesa completa,
@@ -212,3 +227,10 @@ servidor, y solo entonces se activan los botones de acción.
 El motor es la única autoridad: baraja con el generador seguro del sistema,
 reparte, valida cada acción y paga los botes. Bots y cliente solo reciben una
 vista (`poker_engine/views.py`) con la información pública y sus propias cartas.
+
+## Créditos
+
+- Caras de las cartas: baraja de Adrian Kennard, CC0 (dominio público),
+  https://www.me.uk/cards/. Detalles en `frontend/src/assets/cards/LEEME.md`.
+- Todo lo demás (nombre, emblema, dorso, mesa, avatares, textos, efectos de
+  sonido y música) es propio de este proyecto.

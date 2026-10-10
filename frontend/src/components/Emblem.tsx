@@ -31,7 +31,7 @@ export function Emblem({ className = "" }: Props) {
 /** Emblema con el nombre del juego al lado. */
 export function Wordmark({ className = "" }: Props) {
   return (
-    <span className={`inline-flex items-center gap-2 font-black tracking-tight ${className}`}>
+    <span className={`inline-flex items-center gap-2 whitespace-nowrap font-black tracking-tight ${className}`}>
       <Emblem className="h-[1.25em] w-[1.25em] text-amber-300" />
       <span className="gold-text">mi-poker</span>
     </span>

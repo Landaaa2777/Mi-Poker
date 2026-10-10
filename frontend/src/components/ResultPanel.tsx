@@ -8,7 +8,7 @@ interface Props {
   onConfigure: () => void;
 }
 
-const BIG = "h-14 flex-1 px-5 text-base uppercase tracking-wide sm:text-lg";
+const BIG = "h-14 flex-1 whitespace-nowrap px-5 text-base uppercase tracking-wide sm:text-lg";
 
 /** Resultado de la mano y qué se puede hacer después. */
 export function ResultPanel({ state, disabled, onNextHand, onRestart, onConfigure }: Props) {

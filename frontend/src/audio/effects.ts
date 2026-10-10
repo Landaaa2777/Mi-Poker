@@ -158,8 +158,6 @@ const EFFECTS: Record<EffectName, (target: Target, at: number) => void> = {
   },
 };
 
-export const EFFECT_NAMES = Object.keys(EFFECTS) as EffectName[];
-
 /** Programa el efecto `name` para que suene en el instante `at` del contexto. */
 export function playEffect(ctx: BaseAudioContext, out: AudioNode, name: EffectName, at: number): void {
   EFFECTS[name]({ ctx, out }, at);

@@ -80,6 +80,15 @@ export class AudioEngine {
     musicGain.gain.value = 0;
     musicGain.connect(master);
 
+    // Fuente muda que no se para nunca. Sin ella, el navegador deja de procesar
+    // un canal por el que no pasa nada, y un volumen cambiado en silencio no se
+    // aplica hasta el siguiente sonido, que empieza todavía con el volumen viejo.
+    const silence = ctx.createConstantSource();
+    silence.offset.value = 0;
+    silence.connect(effects);
+    silence.connect(musicGain);
+    silence.start();
+
     this.ctx = ctx;
     this.master = master;
     this.effects = effects;
