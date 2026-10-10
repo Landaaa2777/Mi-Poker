@@ -27,7 +27,10 @@ Referencias que he dado (se toma la idea, nunca la marca ni los assets):
 Fuera del alcance (NO implementar):
 - Cualquier cambio en el motor de poker, los bots, las reglas o el protocolo
   del servidor. En la etapa 2 SOLO cambia el frontend, y los tests del
-  backend deben seguir pasando.
+  backend deben seguir pasando. Única excepción, que aprobé el 2026-10-10:
+  se corrigieron los tests de `backend/tests/test_server.py`, que fallaban al
+  azar por dar por hecho que al humano le tocaba jugar antes de que un bot se
+  retirase. El código del backend no cambió.
 - Cuentas, login, base de datos de usuarios, perfiles y estadísticas.
 - Minijuegos, bono diario y economía de fichas.
 - Multijugador entre humanos, lobby, chat.

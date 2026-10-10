@@ -62,12 +62,48 @@ class Table:
 
     def play_hand(self, state, action="call"):
         while state["hand_in_progress"]:
-            state = self.request(type="action", action=action)
+            chosen = action
+            # Ir all-in no siempre es legal: si el rival ya lo está, solo queda igualar.
+            if action == "all_in" and not state["legal_actions"]["can_raise"]:
+                chosen = "call"
+            state = self.request(type="action", action=chosen)
         return state
 
 
 def new_game(table, **config):
+    """Empieza una partida y espera a que me toque jugar o a que acabe la mano."""
     return table.request(type="new_game", config=config)
+
+
+def first_state(table, **config):
+    """El estado tal como queda nada más repartir, antes de que juegue nadie."""
+    table.send(type="new_game", config=config)
+    return table.receive()["state"]
+
+
+def can_raise(legal):
+    return legal["can_raise"]
+
+
+def facing_a_bet(legal):
+    """Tengo algo que igualar y además puedo subir."""
+    return legal["call_amount"] > 0 and legal["can_raise"]
+
+
+def my_turn(table, needs=lambda legal: True, **config):
+    """Empieza partidas hasta que me toca jugar en la primera mano.
+
+    El reparto es al azar: a veces los bots se retiran antes de que me llegue el
+    turno y la mano termina sin mí. Entonces se reinicia y se prueba otra vez.
+    `needs` permite exigir algo más de mis acciones legales.
+    """
+    state = new_game(table, **config)
+    for _ in range(200):
+        legal = state["legal_actions"]
+        if state["hand_in_progress"] and legal is not None and needs(legal):
+            return state
+        state = table.request(type="restart")
+    raise AssertionError("No llegó ninguna mano en la que me tocara jugar")
 
 
 def chips(state):
@@ -98,7 +134,7 @@ def test_bots_think_between_0_8_and_2_5_seconds():
 
 @pytest.mark.parametrize("bots", [1, 5])
 def test_new_game_uses_the_chosen_configuration(table, bots):
-    state = new_game(
+    state = first_state(
         table, bots=bots, difficulty="hard", starting_stack=500, small_blind=10, big_blind=20
     )
     assert state["notice"] == NOTICE
@@ -111,7 +147,9 @@ def test_new_game_uses_the_chosen_configuration(table, bots):
         assert not seat["is_human"] and seat["level"] == "Difícil" and seat["style"]
     assert len({seat["name"] for seat in state["seats"]}) == bots + 1
     assert len(state["hole_cards"]) == 2
-    assert state["to_act_seat"] == HUMAN_SEAT and state["legal_actions"] is not None
+    # Solo recibo mis acciones legales cuando el turno es mío.
+    assert state["hand_in_progress"] and state["to_act_seat"] is not None
+    assert (state["legal_actions"] is not None) == (state["to_act_seat"] == HUMAN_SEAT)
 
 
 @pytest.mark.parametrize("difficulty", ["easy", "medium", "hard", "expert"])
@@ -149,7 +187,7 @@ def test_full_game_never_leaks_hidden_cards(table, difficulty):
 
 
 def test_before_showdown_only_the_human_cards_are_visible(table):
-    state = new_game(table, bots=5)
+    state = first_state(table, bots=5)
     assert state["result"] is None
     assert state["seats"][0]["hole_cards"] == state["hole_cards"]
     assert all(seat["hole_cards"] is None for seat in state["seats"][1:])
@@ -163,7 +201,7 @@ def test_illegal_intentions_are_rejected_without_changing_the_game(table):
     blinds = {"small_blind": 50, "big_blind": 10}
     assert "ciega pequeña" in table.error(type="new_game", config=blinds)
 
-    legal = new_game(table, bots=1)["legal_actions"]
+    legal = my_turn(table, facing_a_bet, bots=1)["legal_actions"]
     before = table.session.state()
     too_much, too_little = legal["max_raise_to"] + 1, legal["min_raise_to"] - 1
     assert "Monto inválido" in table.error(type="action", action="raise", amount=too_much)
@@ -184,14 +222,14 @@ def test_illegal_intentions_are_rejected_without_changing_the_game(table):
 
 
 def test_cannot_act_when_the_hand_is_over(table):
-    new_game(table, bots=1)
+    my_turn(table, bots=1)
     state = table.request(type="action", action="fold")
     assert not state["hand_in_progress"]
     assert "No hay ninguna mano en curso" in table.error(type="action", action="call")
 
 
 def test_raise_with_amount_and_all_in(table):
-    state = new_game(table, bots=2, difficulty="easy", starting_stack=400)
+    state = my_turn(table, can_raise, bots=2, difficulty="easy", starting_stack=400)
     target = state["legal_actions"]["min_raise_to"]
     table.send(type="action", action="raise", amount=target)
     after = table.receive()["state"]
