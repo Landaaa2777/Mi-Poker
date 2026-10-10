@@ -10,7 +10,7 @@ import bots
 from bots import LEVELS, PERSONALITIES, Spot, create_bot, pick_personalities
 from bots.simulation import play_hand, run_match
 from conftest import CALL, FOLD, make_game, raise_to, stacked_deck
-from poker_engine import ActionType, Game, GameConfig, TableView, player_view
+from poker_engine import ActionType, Deck, Game, GameConfig, TableView, full_deck, player_view
 from test_views import cards_in, hidden_from
 
 BOT_ACTIONS = {ActionType.FOLD, ActionType.CALL, ActionType.RAISE}
@@ -224,9 +224,13 @@ def test_position_changes_the_opening_range(level):
 def test_expert_adapts_to_what_each_rival_does_in_public():
     expert = create_bot("expert", rng=random.Random(1), simulations=100)
     table = {0: expert, 1: create_bot("easy", rng=random.Random(2))}
+    # Mazos con semilla: las mismas 200 manos siempre, para que no dependa del azar.
+    shuffler = random.Random(5)
     for number in range(200):
         game = make_game([1000, 1000], button=number % 2, sb=5, bb=10)
-        play_hand(game, table)
+        cards = full_deck()
+        shuffler.shuffle(cards)
+        play_hand(game, table, Deck(cards))
     # El Fácil paga más y sube preflop mucho menos que el rival típico supuesto.
     assert expert._call_frequency("P1") > expert.TYPICAL_CALL + 0.05
     assert expert._open_frequency("P1") < expert.TYPICAL_OPEN / 2
