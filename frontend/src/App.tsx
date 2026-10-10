@@ -1,6 +1,9 @@
 import { useEffect, useLayoutEffect, useState } from "react";
+import { logout } from "./account";
 import { audio } from "./audio/engine";
 import { tableSounds, useAudio } from "./audio/useAudio";
+import { AccountDialog } from "./components/AccountDialog";
+import { AccountMenu } from "./components/AccountMenu";
 import { Controls } from "./components/Controls";
 import { preloadFaces } from "./components/cards/CardFace";
 import { Wordmark } from "./components/Emblem";
@@ -42,8 +45,25 @@ export default function App() {
   // `frame` es lo que se dibuja; `server`, lo último que dijo el servidor. Mientras
   // `busy`, la mesa todavía está reproduciendo pasos y no se puede actuar.
   const { frame, server, busy, push } = usePlayback(animations, tableEffects);
-  const { connected, options, error, waiting, send } = useGame(push);
+  const { connected, options, user, error, waiting, send, reconnect } = useGame(push);
   const [configuring, setConfiguring] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+
+  // Al entrar o salir de la cuenta se vuelve a conectar: el servidor me
+  // identifica en ese momento y me da la partida de esa identidad.
+  function signedIn() {
+    setAccountOpen(false);
+    setConfiguring(false);
+    reconnect();
+  }
+  async function signOut() {
+    setSigningOut(true);
+    await logout();
+    setSigningOut(false);
+    setConfiguring(false);
+    reconnect();
+  }
   const showStart = options !== null && (server === null || configuring);
 
   const settled = !busy;
@@ -77,6 +97,12 @@ export default function App() {
               Nueva partida
             </button>
           )}
+          <AccountMenu
+            user={user}
+            disabled={signingOut}
+            onSignIn={() => setAccountOpen(true)}
+            onSignOut={signOut}
+          />
           <SettingsMenu
             settings={settings}
             animations={animations}
@@ -97,7 +123,10 @@ export default function App() {
 
       {showStart && (
         <StartScreen
+          // Otra identidad, otra configuración: la pantalla empieza de cero.
+          key={user?.username ?? ""}
           options={options}
+          accountName={user?.username}
           initial={server?.config ?? options.defaults}
           onStart={(config) => {
             send({ type: "new_game", config });
@@ -142,6 +171,8 @@ export default function App() {
           </div>
         </>
       )}
+
+      {accountOpen && <AccountDialog onClose={() => setAccountOpen(false)} onSignedIn={signedIn} />}
     </div>
   );
 }

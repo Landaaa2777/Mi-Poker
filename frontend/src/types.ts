@@ -1,5 +1,7 @@
 // Formas de los mensajes del servidor (ver backend/server/protocol.py).
 
+import type { User } from "./account";
+
 export type ActionName = "fold" | "check" | "call" | "raise" | "all_in";
 export type SeatStatus = "active" | "folded" | "all_in" | "out";
 
@@ -91,7 +93,7 @@ export interface Options {
 }
 
 export type ServerMessage =
-  | { type: "hello"; options: Options; state: GameState | null }
+  | { type: "hello"; options: Options; user: User | null; state: GameState | null }
   | { type: "state"; state: GameState | null }
   | { type: "error"; message: string };
 

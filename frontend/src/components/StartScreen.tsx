@@ -6,6 +6,7 @@ import { PlayingCard } from "./PlayingCard";
 interface Props {
   options: Options;
   initial: TableConfig;
+  accountName?: string; // con cuenta, el nombre en la mesa es el de la cuenta
   onStart: (config: TableConfig) => void;
   onCancel?: () => void; // hay una partida en curso a la que se puede volver
 }
@@ -45,7 +46,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /** Pantalla de inicio: presentación del juego y configuración de la partida. */
-export function StartScreen({ options, initial, onStart, onCancel }: Props) {
+export function StartScreen({ options, initial, accountName, onStart, onCancel }: Props) {
   const [config, setConfig] = useState<TableConfig>(initial);
 
   function update(changes: Partial<TableConfig>) {
@@ -78,7 +79,7 @@ export function StartScreen({ options, initial, onStart, onCancel }: Props) {
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    if (!problem) onStart(config);
+    if (!problem) onStart(accountName ? { ...config, player_name: accountName } : config);
   }
 
   return (
@@ -119,15 +120,26 @@ export function StartScreen({ options, initial, onStart, onCancel }: Props) {
         >
           <div className="grid gap-5 sm:grid-cols-2">
             <Field label="Tu nombre">
-              <input
-                type="text"
-                required
-                maxLength={16}
-                className={INPUT}
-                aria-label="Tu nombre"
-                value={config.player_name}
-                onChange={(event) => update({ player_name: event.target.value })}
-              />
+              {accountName ? (
+                <input
+                  type="text"
+                  readOnly
+                  className={`${INPUT} text-amber-200`}
+                  aria-label="Tu nombre"
+                  title="Juegas con el nombre de tu cuenta"
+                  value={accountName}
+                />
+              ) : (
+                <input
+                  type="text"
+                  required
+                  maxLength={16}
+                  className={INPUT}
+                  aria-label="Tu nombre"
+                  value={config.player_name}
+                  onChange={(event) => update({ player_name: event.target.value })}
+                />
+              )}
             </Field>
             <Field label="Rivales">
               <div className="grid grid-cols-5 gap-2" role="group" aria-label="Número de bots">

@@ -7,9 +7,13 @@ El cliente envía intenciones:
     {"type": "restart"}                       reiniciar con la misma configuración
 
 El servidor responde:
-    {"type": "hello", "options": {...}, "state": {...} | null}   al conectar
+    {"type": "hello", "options": {...}, "user": {...} | null, "state": {...} | null}
+                                                                 al conectar
     {"type": "state", "state": {...}}                            tras cada cambio
     {"type": "error", "message": "..."}                          intención rechazada
+
+`user` es la cuenta con la que se ha conectado, o null si juega como invitado.
+Las cuentas van por HTTP: ver `accounts_api.py`.
 """
 
 from __future__ import annotations

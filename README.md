@@ -16,9 +16,13 @@ diseño propio y colores de casino, baraja clásica, la mano reproducida paso a
 paso con animaciones, efectos de sonido, música de fondo y un panel de ajustes
 con los volúmenes y el interruptor de animaciones.
 
-Todavía no hay cuentas ni login, estadísticas, minijuegos ni partidas entre
-personas: son etapas futuras. Cada partida vive en la memoria del servidor y
-se pierde al cerrarlo.
+Etapa 3 (cuentas), en curso. Ya hecho: crear una cuenta, entrar y salir. La
+cuenta es opcional: sin ella se sigue jugando como invitado. Quedan el perfil
+con estadísticas y el saldo de fichas guardado en la cuenta.
+
+Todavía no hay minijuegos ni partidas entre personas: son etapas futuras. Cada
+partida vive en la memoria del servidor y se pierde al cerrarlo; las cuentas
+sí se guardan.
 
 ## Requisitos
 
@@ -66,6 +70,23 @@ npm run dev
 ```
 
 y abrir http://localhost:5173.
+
+### Cuentas
+
+Arriba a la derecha, **Entrar** abre la ventana para iniciar sesión o crear
+una cuenta: solo hacen falta un nombre de usuario (de 3 a 16 letras sin
+acento, números, guion o guion bajo) y una contraseña de al menos 8
+caracteres. No se pide correo, así que una contraseña olvidada no se puede
+recuperar.
+
+Con la sesión iniciada juegas con el nombre de tu cuenta y la sesión dura 30
+días en ese navegador, hasta que pulses **Salir**. Cada cuenta tiene su propia
+partida, distinta de la que tuvieras como invitado.
+
+Las cuentas se guardan en `backend/data/mi-poker.db` (SQLite), que se crea
+solo la primera vez y no se sube a git. Para usar otro archivo, define la
+variable `MI_POKER_DB` antes de arrancar el servidor. Borrar ese archivo
+borra todas las cuentas.
 
 ### Sonido y ajustes
 
@@ -149,7 +170,10 @@ ajustan levemente sus decisiones.
 backend/
   poker_engine/   motor del juego en Python puro (sin dependencias web)
   bots/           estrategias por nivel; solo usan la vista pública del motor
-  server/         FastAPI + WebSocket; partidas en memoria, una por invitado
+  accounts/       cuentas en Python puro: contraseñas, usuarios y sesiones (SQLite)
+  server/         FastAPI + WebSocket; partidas en memoria, una por jugador,
+                  y las rutas de cuentas (`accounts_api.py`)
+  data/           la base de datos de cuentas (se crea sola; fuera de git)
   scripts/        demos y simulaciones por consola
   tests/          tests con pytest
 frontend/
@@ -162,15 +186,18 @@ frontend/
   src/audio/         efectos y música generados con la Web Audio API, y qué
                      sonido corresponde a cada paso
   src/assets/audio/  carpeta para una pista de música propia (opcional)
-  src/components/    pantalla de inicio, mesa, fichas, controles y ajustes
+  src/components/    pantalla de inicio, mesa, fichas, controles, ajustes y cuenta
   src/components/cards/  cómo se pinta cada carta: cara clásica o cara sencilla
   src/assets/cards/  las 52 caras de la baraja clásica (CC0)
-  src/guest.ts       identificador de invitado, aislado para cambiarlo por login
+  src/guest.ts       identificador de quien juega sin cuenta
+  src/account.ts     todo lo de la cuenta: registrarse, entrar y salir
   src/settings.ts    preferencias guardadas en el navegador, también aisladas
   tools/             graba partidas reales para los tests y prepara la baraja
 ```
 
-El protocolo de mensajes está descrito en `backend/server/protocol.py`.
+El protocolo de mensajes de la mesa está descrito en
+`backend/server/protocol.py`, y las rutas de cuentas en
+`backend/server/accounts_api.py`.
 
 ## Cómo está hecho
 
@@ -213,6 +240,26 @@ sintetizan en el momento con la Web Audio API (`frontend/src/audio/`); la
 única excepción es la pista opcional que puedes poner tú. Hay dos canales,
 efectos y música, cada uno con su volumen, y un interruptor general. Con la
 pestaña oculta no suena nada.
+
+### Cuentas y sesión
+
+- **Contraseñas**: nunca se guardan. Se guarda un hash scrypt con una sal
+  distinta por cuenta; el coste sigue la recomendación de OWASP.
+- **Sesión**: al entrar, el servidor crea un token al azar y lo manda en una
+  cookie `HttpOnly` (los scripts de la página no pueden leerla) y
+  `SameSite=Lax`. En la base de datos solo queda el hash del token.
+- **Quién soy**: lo decide el servidor al abrir la conexión con la mesa. Si la
+  cookie es de una sesión válida, juegas con esa cuenta; si no, como invitado.
+  El nombre en la mesa lo pone el servidor.
+- **Intentos fallidos**: el mensaje es el mismo exista o no el usuario, y tras
+  cinco fallos en un minuto hay que esperar para volver a intentarlo.
+- **Otras webs**: las peticiones de cuenta y la conexión con la mesa se
+  rechazan si vienen de otra página.
+- **Cerrar sesión** borra la sesión en el servidor y corta sus conexiones
+  abiertas.
+
+Pensado para jugar en local. Antes de publicarlo en internet haría falta, como
+mínimo, servirlo por HTTPS y limitar cuántas cuentas se pueden crear.
 
 ### Cómo se reproduce una mano
 

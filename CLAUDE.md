@@ -192,8 +192,9 @@ idea, nunca la marca ni los assets):
   tiempo, cola y preferencias).
 
 ## Hitos de la etapa 3 (detenerse al final de cada uno y esperar aprobación)
-1. Cuentas y login: registro, inicio y cierre de sesión; el servidor reconoce
-   al usuario en la partida y los invitados siguen pudiendo jugar.
+1. Cuentas y login (completado): registro, inicio y cierre de sesión; el
+   servidor reconoce al usuario en la partida y los invitados siguen pudiendo
+   jugar. La partida de invitado y la de la cuenta son independientes.
 2. Perfil y estadísticas: manos jugadas y ganadas, mayor bote, partidas
    ganadas, y una pantalla de perfil.
 3. Saldo: fichas virtuales guardadas en la cuenta. Hay que decidir cómo al

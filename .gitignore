@@ -6,6 +6,9 @@ __pycache__/
 .pytest_cache/
 build/
 
+# Base de datos de cuentas (local, no se comparte)
+backend/data/
+
 # Frontend
 node_modules/
 dist/
