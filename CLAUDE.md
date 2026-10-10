@@ -4,24 +4,28 @@ Juego de poker para navegador, inspirado en la idea general de los sitios de
 poker social con fichas virtuales, pero con nombre, diseño y textos 100%
 originales (no copiar marca, assets ni textos de ningún sitio existente).
 
-## ETAPA ACTUAL: ETAPA 2 (pulido visual y sonoro)
-Objetivo: que la mesa se sienta fluida y agradable, con animaciones, efectos
-de sonido y música de fondo relajante.
+## ETAPA ACTUAL: ETAPA 3 (cuentas y login)
+Objetivo: que cada jugador pueda tener su cuenta, con perfil, estadísticas y
+saldo de fichas virtuales, sin dejar de poder jugar como invitado.
 
-La ETAPA 2 está completa: aprobé su último hito el 2026-10-10. La etapa 3 no
-ha empezado y no se empieza hasta que yo lo pida.
-
-La ETAPA 1 (motor, bots, servidor e interfaz simple) está completa: una
-partida completa de Texas Hold'em No-Limit en el navegador, un humano contra
-1 a 5 bots, con dificultad de bots ajustable.
+Las ETAPAS 1 (motor, bots, servidor e interfaz simple) y 2 (pulido visual y
+sonoro) están completas: aprobé el último hito de la etapa 2 el 2026-10-10.
 
 Dentro del alcance:
-- Pantalla de inicio y mesa con diseño propio: placas con avatar, cartas y
-  fichas dibujadas con CSS/SVG y marca del juego en el tapete.
-- Animaciones de reparto, cartas, fichas, fold, turno y ganador.
-- Efectos de sonido, música de fondo y panel de controles de audio.
+- Registro, inicio y cierre de sesión con usuario y contraseña.
+- Perfil con estadísticas de juego.
+- Saldo de fichas virtuales guardado en la cuenta.
 
-Referencias que he dado (se toma la idea, nunca la marca ni los assets):
+Fuera del alcance (NO implementar):
+- Cambios en el motor de poker, los bots o las reglas del juego.
+- Recuperación de contraseña, verificación por correo e inicio de sesión con
+  terceros (Google y similares): no hay servicio de correo ni despliegue.
+- Minijuegos, bono diario y economía de fichas.
+- Multijugador entre humanos, lobby, chat.
+- Despliegue.
+
+Referencias visuales que di en la etapa 2 y siguen valiendo (se toma la
+idea, nunca la marca ni los assets):
 - Disposición de la mesa y del panel inferior: como en las mesas de poker
   social (placas oscuras con avatar, bote sobre las cartas comunitarias,
   registro a la izquierda y botones grandes a la derecha).
@@ -34,21 +38,8 @@ Referencias que he dado (se toma la idea, nunca la marca ni los assets):
   `frontend/src/assets/cards/LEEME.md`. El dorso y el adorno del as de picas
   son propios.
 - Colores: los de una web de casino que llame la atención (negro y granate,
-  oro, tapete esmeralda con ribete dorado, botones rojo, verde y oro).
-
-Fuera del alcance (NO implementar):
-- Cualquier cambio en el motor de poker, los bots, las reglas o el protocolo
-  del servidor. En la etapa 2 SOLO cambia el frontend, y los tests del
-  backend deben seguir pasando. Únicas excepciones, que aprobé el 2026-10-10:
-  se corrigieron tests que fallaban al azar. En `backend/tests/test_server.py`
-  daban por hecho que al humano le tocaba jugar antes de que un bot se
-  retirase; en `backend/tests/test_bots.py`, el test de adaptación del Experto
-  repartía con mazos al azar y ahora usa mazos con semilla fija. El código del
-  backend no cambió.
-- Cuentas, login, base de datos de usuarios, perfiles y estadísticas.
-- Minijuegos, bono diario y economía de fichas.
-- Multijugador entre humanos, lobby, chat.
-- Despliegue.
+  oro, tapete esmeralda con ribete dorado, botones rojo, verde y oro en
+  tonos tenues: los vivos me resultaban demasiado brillantes).
 
 ## Reglas innegociables
 - NO se usa dinero real en ninguna parte. Las fichas son virtuales, viven
@@ -99,8 +90,30 @@ Fuera del alcance (NO implementar):
 - Barajar con `secrets` o `random.SystemRandom` (nunca `random` normal).
 - El motor de poker es Python puro, separado de FastAPI, para poder
   probarlo solo con pytest.
-- Identificador de invitado guardado en el navegador, aislado en un módulo,
-  para poder sustituirlo por login en etapas futuras.
+- Identificador de invitado guardado en el navegador, aislado en un módulo.
+  Desde la etapa 3 convive con las cuentas: identifica a quien juega sin
+  registrarse.
+
+## Reglas de la etapa 3
+
+### Cuentas y sesión
+- La cuenta es opcional (lo decidí el 2026-10-10): se puede jugar como
+  invitado, igual que antes. Quien crea una cuenta guarda su perfil, sus
+  estadísticas y su saldo.
+- Se entra con nombre de usuario y contraseña. Sin correo.
+- Las contraseñas se guardan solo como hash con sal (scrypt), nunca en claro.
+  No se escriben en registros ni se devuelven al cliente.
+- La sesión es un token aleatorio en una cookie que los scripts no pueden leer
+  (HttpOnly). En la base de datos se guarda solo el hash del token.
+- Un inicio de sesión fallido no dice si el usuario existe, y los intentos
+  repetidos se frenan.
+- Base de datos SQLite en un archivo local dentro de `backend/data/`, fuera
+  de git.
+- Con sesión iniciada, el nombre en la mesa es el de la cuenta: lo pone el
+  servidor, no el cliente.
+- Cada identidad (cuenta o invitado) tiene su propia partida en el servidor.
+- La lógica de cuentas es Python puro, separada de FastAPI, para probarla solo
+  con pytest. En el frontend, todo lo de la cuenta va en un módulo aislado.
 
 ## Reglas de la etapa 2
 
@@ -172,12 +185,27 @@ Fuera del alcance (NO implementar):
   módulo aislado.
 
 ## Stack
-- Backend: Python 3.12 + FastAPI + WebSockets.
+- Backend: Python 3.12 + FastAPI + WebSockets. Cuentas en SQLite (módulo
+  `sqlite3` de Python, sin dependencias nuevas).
 - Frontend: React + TypeScript + Vite + Tailwind.
 - Pruebas: pytest (backend) y Vitest (lógica pura del frontend: línea de
   tiempo, cola y preferencias).
 
-## Hitos de la etapa 2 (detenerse al final de cada uno y esperar aprobación)
+## Hitos de la etapa 3 (detenerse al final de cada uno y esperar aprobación)
+1. Cuentas y login: registro, inicio y cierre de sesión; el servidor reconoce
+   al usuario en la partida y los invitados siguen pudiendo jugar.
+2. Perfil y estadísticas: manos jugadas y ganadas, mayor bote, partidas
+   ganadas, y una pantalla de perfil.
+3. Saldo: fichas virtuales guardadas en la cuenta. Hay que decidir cómo al
+   llegar, porque cambia la regla de que las fichas viven solo en memoria.
+4. Cierre: repaso final y README.
+
+## Hitos de la etapa 2 (completada)
+En esta etapa solo cambió el frontend. Únicas excepciones en el backend, que
+aprobé el 2026-10-10: se corrigieron tests que fallaban al azar
+(`backend/tests/test_server.py` y `backend/tests/test_bots.py`); el código
+del backend no cambió.
+
 1. Mesa, línea de tiempo y audio (completado). Pantalla de inicio y mesa
    nuevas, cola de pasos con los botones bloqueados hasta el final,
    interruptor de animaciones, efectos de sonido sincronizados con cada paso,
@@ -190,10 +218,9 @@ Fuera del alcance (NO implementar):
    El reparto me gusta como está: NO cambiarlo.
 3. Baraja clásica y colores de casino (completado): caras de la baraja
    clásica inglesa (dominio público), sin animar; as de picas adornado y
-   dorso propios;
-   flotación de las cartas en reposo al mínimo; y toda la interfaz con la
-   paleta de casino. Probé antes unas figuras dibujadas por mí que se movían
-   y NO me gustaron: no volver a ellas.
+   dorso propios; flotación de las cartas en reposo al mínimo; y toda la
+   interfaz con la paleta de casino. Probé antes unas figuras dibujadas por
+   mí que se movían y NO me gustaron: no volver a ellas.
 4. Cierre (completado): repaso final y README. En el repaso se corrigió un
    fallo de audio: un volumen cambiado en silencio no se aplicaba hasta el
    siguiente sonido.
@@ -216,6 +243,5 @@ Fuera del alcance (NO implementar):
 - Si hay una decisión de diseño con varias opciones, preguntarme.
 
 ## Visión futura (solo referencia, NO implementar todavía)
-- Etapa 3: cuentas y login, perfil, saldo y estadísticas.
 - Etapa 4: minijuegos para ganar fichas, bono diario, límite diario.
 - Etapa 5: multijugador entre humanos, lobby y chat.
