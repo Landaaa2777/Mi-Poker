@@ -4,22 +4,27 @@ Juego de poker para navegador, inspirado en la idea general de los sitios de
 poker social con fichas virtuales, pero con nombre, diseño y textos 100%
 originales (no copiar marca, assets ni textos de ningún sitio existente).
 
-## ETAPA ACTUAL: ETAPA 1 (solo juego, reglas y bots)
-Objetivo: una partida completa de Texas Hold'em No-Limit en el navegador,
-un humano contra 1 a 5 bots, con dificultad de bots ajustable.
+## ETAPA ACTUAL: ETAPA 2 (pulido visual y sonoro)
+Objetivo: que la mesa se sienta fluida y agradable, con animaciones, efectos
+de sonido y música de fondo relajante.
+
+La ETAPA 1 (motor, bots, servidor e interfaz simple) está completa: una
+partida completa de Texas Hold'em No-Limit en el navegador, un humano contra
+1 a 5 bots, con dificultad de bots ajustable.
 
 Dentro del alcance:
-- Motor de poker completo y probado.
-- Bots con 4 niveles de dificultad.
-- Servidor y una interfaz simple pero funcional para jugar y probar.
+- Mesa ovalada con cartas y fichas de diseño propio (CSS/SVG).
+- Animaciones de reparto, cartas, fichas, fold, turno y ganador.
+- Efectos de sonido, música de fondo y panel de controles de audio.
 
-Fuera del alcance por ahora (NO implementar, solo dejar la estructura lista):
+Fuera del alcance (NO implementar):
+- Cualquier cambio en el motor de poker, los bots, las reglas o el protocolo
+  del servidor. En la etapa 2 SOLO cambia el frontend, y los tests del
+  backend deben seguir pasando.
 - Cuentas, login, base de datos de usuarios, perfiles y estadísticas.
 - Minijuegos, bono diario y economía de fichas.
 - Multijugador entre humanos, lobby, chat.
 - Despliegue.
-- Estética avanzada y animaciones: son la ETAPA 2. En la etapa 1 la interfaz
-  debe ser limpia y usable, sin pulido visual.
 
 ## Reglas innegociables
 - NO se usa dinero real en ninguna parte. Las fichas son virtuales, viven
@@ -71,12 +76,86 @@ Fuera del alcance por ahora (NO implementar, solo dejar la estructura lista):
 - Identificador de invitado guardado en el navegador, aislado en un módulo,
   para poder sustituirlo por login en etapas futuras.
 
+## Reglas de la etapa 2
+
+### Animaciones
+- Reparto: las cartas salen del mazo (junto al dealer) y vuelan una a una
+  hacia cada jugador en orden de reparto, con un pequeño retardo entre cartas.
+- Mis cartas se voltean con un giro 3D al llegar; las de los bots quedan boca
+  abajo y solo se voltean en el showdown.
+- Flop, turn y river: las cartas comunitarias aparecen de una en una con
+  deslizamiento y giro.
+- Fichas: se deslizan del jugador al bote al apostar, y del bote al ganador
+  al terminar la mano.
+- Fold: las cartas del jugador se deslizan hacia el centro y se desvanecen.
+- Resaltar de forma suave al jugador en turno y al ganador de la mano.
+- Solo se animan `transform` y `opacity` (60 fps), con curvas de aceleración
+  suaves y duraciones cortas: entre 200 y 500 ms por movimiento.
+- Los eventos del servidor pasan por una cola de animación: se reproducen en
+  orden y no se pisan aunque lleguen varios seguidos. Los botones de acción se
+  habilitan cuando termina la animación pendiente.
+- Respetar `prefers-reduced-motion` y ofrecer una opción para desactivar las
+  animaciones.
+
+### Efectos de sonido
+- Sonidos para: repartir carta, voltear carta, check, apostar o igualar
+  fichas, subir, fold, all-in, ganar el bote, y un aviso suave cuando es mi
+  turno.
+- Cortos, discretos y sincronizados con su animación.
+
+### Música de fondo
+- Ambiental, tranquila y relajante (tipo lo-fi o ambient suave), en bucle sin
+  cortes perceptibles y a volumen bajo por defecto.
+- Empieza solo después de la primera interacción del usuario (política de
+  reproducción automática de los navegadores).
+
+### Controles de audio
+- Un panel pequeño con volumen de música y volumen de efectos por separado, y
+  un botón de silenciar todo. Las preferencias se guardan en localStorage.
+
+### Origen del audio
+- Nada con derechos de autor.
+- Efectos y música se generan por código con la Web Audio API: la aplicación
+  funciona sin ningún archivo de audio.
+- Opcional: si existe `frontend/src/assets/audio/music.mp3` (o `.ogg`), se usa
+  esa pista en lugar de la música generada, con fundido en el punto de bucle.
+  Debe ser CC0 de verdad y la descargo yo; si falta, no hay ningún error.
+
+### Decisiones de diseño aprobadas
+- El servidor envía el estado completo tras cada cambio. El cliente compara
+  el registro de la mano (`events`) con el anterior y lo convierte en pasos
+  (línea de tiempo) que se reproducen de uno en uno. Al vaciarse la cola, lo
+  mostrado es exactamente el estado del servidor, y solo entonces se activan
+  los botones. El servidor sigue siendo la única autoridad.
+- El reparto no es un evento del servidor: se deduce en el cliente con el
+  botón y los jugadores con fichas, en el mismo orden que usa el motor.
+- Animaciones sin librerías: API de animaciones del navegador y CSS. Los
+  resaltes son halos ya dibujados a los que solo se les anima la opacidad.
+- Las fichas van directas al bote; la apuesta de la ronda sigue visible como
+  cifra junto a cada jugador.
+- Si la cola se atrasa, se acelera. Con la pestaña oculta, al reconectar o
+  con las animaciones desactivadas, se salta al estado final sin animar.
+- Preferencias (animaciones, volúmenes, silencio) en localStorage, en un
+  módulo aislado.
+
 ## Stack
 - Backend: Python 3.12 + FastAPI + WebSockets.
 - Frontend: React + TypeScript + Vite + Tailwind.
-- Pruebas: pytest.
+- Pruebas: pytest (backend) y Vitest (lógica pura del frontend: línea de
+  tiempo, cola y preferencias).
 
-## Hitos de la etapa 1 (detenerse al final de cada uno y esperar aprobación)
+## Hitos de la etapa 2 (detenerse al final de cada uno y esperar aprobación)
+1. Mesa y línea de tiempo: mesa ovalada, cartas y fichas nuevas, cola de
+   pasos, botones bloqueados hasta el final, interruptor de animaciones y
+   tests con partidas grabadas del servidor real.
+2. Animaciones: reparto, giro 3D, cartas comunitarias, fichas al bote y al
+   ganador, fold, resaltes y movimiento reducido.
+3. Efectos y panel de audio: los sonidos sincronizados con su paso, panel con
+   volumen de efectos y silenciar todo, preferencias guardadas.
+4. Música y cierre: música tras la primera interacción, volumen de música,
+   repaso final y README.
+
+## Hitos de la etapa 1 (completada)
 1. Motor de poker + tests: las 10 categorías de mano, empates por kickers,
    side pots con 3 all-ins distintos y simulaciones de manos completas
    verificando que la suma total de fichas se conserva siempre.
@@ -87,12 +166,13 @@ Fuera del alcance por ahora (NO implementar, solo dejar la estructura lista):
    partida completa contra los bots, con panel de configuración.
 
 ## Cómo trabajar
-- Al cerrar cada hito: ejecutar los tests, indicar cómo correr el proyecto
-  y qué debería ver en pantalla.
+- Al cerrar cada hito: ejecutar los tests (backend y frontend), indicar cómo
+  correr el proyecto y qué debería ver en pantalla, y esperar a que lo pruebe
+  en el navegador.
+- Un commit por hito, después de que lo apruebe.
 - Si hay una decisión de diseño con varias opciones, preguntarme.
 
 ## Visión futura (solo referencia, NO implementar todavía)
-- Etapa 2: estética original (mesa, cartas SVG, fichas, avatares) y animaciones.
 - Etapa 3: cuentas y login, perfil, saldo y estadísticas.
 - Etapa 4: minijuegos para ganar fichas, bono diario, límite diario.
 - Etapa 5: multijugador entre humanos, lobby y chat.
