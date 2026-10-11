@@ -1,4 +1,4 @@
-"""Cuentas: contraseñas con hash, usuarios, sesiones y estadísticas en SQLite, y freno de intentos."""
+"""Cuentas: contraseñas, usuarios, sesiones, estadísticas y saldo en SQLite, y freno de intentos."""
 
 import sqlite3
 from contextlib import closing
@@ -8,7 +8,9 @@ import pytest
 import accounts.store
 from accounts import (
     DEFAULT_COST,
+    REFILL_BELOW,
     SESSION_SECONDS,
+    STARTING_BALANCE,
     AccountError,
     AccountStore,
     Cost,
@@ -295,4 +297,64 @@ def test_a_database_from_before_the_stats_is_upgraded_in_place(tmp_path):
     assert user is not None and store.member_since(user) == 123
     store.record_hand(user, HandOutcome("medium", chips_won=10))
     assert store.stats(user) == [LevelStats("medium", hands_played=1, hands_won=1, biggest_win=10)]
-    assert rows(store, "PRAGMA user_version") == [(2,)]
+    assert rows(store, "PRAGMA user_version") == [(3,)]
+    # Y recibe el saldo de una cuenta nueva.
+    assert store.balance(user) == STARTING_BALANCE
+
+
+# --- Saldo ---
+
+
+def test_a_new_account_starts_with_the_starting_balance(store):
+    assert STARTING_BALANCE == 10_000 and REFILL_BELOW == 100
+    assert store.balance(store.register("joker", PASSWORD)) == STARTING_BALANCE
+
+
+def test_each_hand_moves_the_balance_together_with_the_stats(store):
+    user = store.register("joker", PASSWORD)
+    assert store.record_hand(user, HandOutcome("easy", chips_won=300, chips_delta=180)) == 10_180
+    assert store.record_hand(user, HandOutcome("easy", chips_delta=-430)) == 9_750
+    assert store.record_hand(user, HandOutcome("hard", chips_delta=0)) == 9_750
+    assert store.balance(user) == 9_750
+    assert total(store.stats(user)).hands_played == 3
+
+
+def test_chips_can_be_added_or_taken_but_never_owed(store):
+    joker, ana = store.register("joker", PASSWORD), store.register("ana", PASSWORD)
+    assert store.add_chips(joker, 250) == 10_250
+    assert store.add_chips(joker, -10_000) == 250
+    assert store.add_chips(joker, -900) == 0
+    assert store.balance(joker) == 0
+    assert store.balance(ana) == STARTING_BALANCE
+
+
+@pytest.mark.parametrize("left, allowed", [(0, True), (99, True), (100, False), (5_000, False)])
+def test_the_free_refill_is_only_for_who_ran_out(store, left, allowed):
+    user = store.register("joker", PASSWORD)
+    store.add_chips(user, left - STARTING_BALANCE)
+    assert store.balance(user) == left
+    if allowed:
+        assert store.refill(user) == STARTING_BALANCE
+        assert store.balance(user) == STARTING_BALANCE
+        with pytest.raises(AccountError):
+            store.refill(user)  # ya no le hace falta
+    else:
+        with pytest.raises(AccountError):
+            store.refill(user)
+        assert store.balance(user) == left
+
+
+def test_a_database_from_before_the_balance_keeps_its_stats(store, tmp_path):
+    """Una base de datos del hito anterior: cuentas y estadísticas, sin columna de saldo."""
+    user = store.register("joker", PASSWORD)
+    store.record_hand(user, HandOutcome("easy", chips_won=40, chips_delta=40))
+    old = tmp_path / "sin-saldo.db"
+    with closing(sqlite3.connect(store.path)) as source, closing(sqlite3.connect(old)) as target:
+        source.backup(target)
+        with target:
+            target.execute("ALTER TABLE users DROP COLUMN balance")
+            target.execute("PRAGMA user_version = 2")
+    reopened = AccountStore(old, FAST)
+    assert reopened.balance(user) == STARTING_BALANCE
+    assert reopened.stats(user) == [LevelStats("easy", hands_played=1, hands_won=1, biggest_win=40)]
+    assert reopened.authenticate("joker", PASSWORD) == user

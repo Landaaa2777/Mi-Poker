@@ -5,10 +5,12 @@
     POST /api/logout                                             sale
     GET  /api/me                                                 la cuenta de esta sesión
     GET  /api/profile                                            la cuenta y sus estadísticas
+    POST /api/refill                                             recarga gratis de fichas
 
-Todas responden {"user": {"username": "..."} | null}, o {"message": "..."} con
-un código de error. El perfil añade "member_since" y "stats": el total y el
-desglose por nivel de los rivales. La sesión viaja en una cookie que los scripts de la página
+Todas responden {"user": {"username": "...", "balance": 10000} | null}, o
+{"message": "..."} con un código de error. El perfil añade "member_since" y
+"stats": el total y el desglose por nivel de los rivales. La recarga responde
+{"balance": 10000}; solo se concede a quien se ha quedado sin fichas. La sesión viaja en una cookie que los scripts de la página
 no pueden leer; la contraseña no se guarda ni se devuelve nunca.
 """
 
@@ -61,9 +63,9 @@ def same_origin(headers: Headers) -> bool:
     return origin is None or urlsplit(origin).netloc == headers.get("host")
 
 
-def public_user(user: User | None) -> dict | None:
-    """Lo que el cliente puede saber de una cuenta."""
-    return {"username": user.username} if user else None
+def public_user(store: AccountStore, user: User | None) -> dict | None:
+    """Lo que el cliente puede saber de una cuenta: su nombre y su saldo de fichas."""
+    return {"username": user.username, "balance": store.balance(user)} if user else None
 
 
 def public_stats(stats: LevelStats) -> dict:
@@ -86,7 +88,7 @@ def account_routes(store: AccountStore, throttle: Throttle, on_logout: OnLogout)
         return JSONResponse({"message": message}, status_code=status, headers=headers)
 
     def signed_in(request: Request, user: User, status: int = 200) -> JSONResponse:
-        response = JSONResponse({"user": public_user(user)}, status_code=status)
+        response = JSONResponse({"user": public_user(store, user)}, status_code=status)
         response.set_cookie(
             SESSION_COOKIE,
             store.create_session(user),
@@ -142,7 +144,8 @@ def account_routes(store: AccountStore, throttle: Throttle, on_logout: OnLogout)
 
     @router.get("/me")
     def me(request: Request) -> dict:
-        return {"user": public_user(store.user_for_token(request.cookies.get(SESSION_COOKIE)))}
+        user = store.user_for_token(request.cookies.get(SESSION_COOKIE))
+        return {"user": public_user(store, user)}
 
     @router.get("/profile")
     def profile(request: Request) -> JSONResponse:
@@ -158,9 +161,21 @@ def account_routes(store: AccountStore, throttle: Throttle, on_logout: OnLogout)
         ]
         return JSONResponse(
             {
-                "user": {"username": user.username, "member_since": store.member_since(user)},
+                "user": {**public_user(store, user), "member_since": store.member_since(user)},
                 "stats": {"total": public_stats(total(played.values())), "levels": levels},
             }
         )
+
+    @router.post("/refill")
+    def refill(request: Request) -> JSONResponse:
+        if not same_origin(request.headers):
+            return failure(403, "Petición rechazada")
+        user = store.user_for_token(request.cookies.get(SESSION_COOKIE))
+        if user is None:
+            return failure(401, "Inicia sesión para recibir fichas")
+        try:
+            return JSONResponse({"balance": store.refill(user)})
+        except AccountError as error:
+            return failure(400, str(error))
 
     return router

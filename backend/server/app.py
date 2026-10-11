@@ -15,7 +15,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
-from accounts import DEFAULT_COST, AccountStore, Cost, HandOutcome, Throttle, token_hash
+from accounts import DEFAULT_COST, AccountStore, Cost, HandOutcome, Throttle, User, token_hash
 
 from .accounts_api import SESSION_COOKIE, account_routes, public_user, same_origin
 from .protocol import CLIENT_MESSAGE, NOTICE, NewGame, NextHand, PlayerAction, options
@@ -29,6 +29,38 @@ MAX_SESSIONS = 500
 
 _GUEST_ID = re.compile(r"[A-Za-z0-9_-]{8,64}")
 log = logging.getLogger("mi-poker")
+
+
+class AccountAtTable:
+    """La cuenta de un jugador vista desde su partida: su saldo y dónde apuntar cada mano.
+
+    Una partida no se estropea porque falle la base de datos: el fallo se
+    anota en el registro del servidor y la mano sigue.
+    """
+
+    def __init__(self, store: AccountStore, user: User) -> None:
+        self.store = store
+        self.user = user
+        self._last_balance = 0
+
+    def balance(self) -> int:
+        try:
+            self._last_balance = self.store.balance(self.user)
+        except Exception:
+            log.exception("No se pudo leer el saldo")
+        return self._last_balance
+
+    def hand_finished(self, outcome: HandOutcome) -> None:
+        try:
+            self.store.record_hand(self.user, outcome)
+        except Exception:
+            log.exception("No se pudo guardar el resultado de una mano")
+
+    def hand_abandoned(self, chips: int) -> None:
+        try:
+            self.store.add_chips(self.user, -chips)
+        except Exception:
+            log.exception("No se pudo descontar una mano dejada a medias")
 
 
 def create_app(
@@ -82,18 +114,8 @@ def create_app(
         if session is None:
             if len(sessions) >= MAX_SESSIONS:
                 sessions.pop(next(iter(sessions)))  # se descarta la partida más antigua
-            record = None
-            if user is not None:
-                account = user
-
-                def record(outcome: HandOutcome) -> None:
-                    # Una mano no se estropea porque falle el guardado de sus estadísticas.
-                    try:
-                        accounts.record_hand(account, outcome)
-                    except Exception:
-                        log.exception("No se pudieron guardar las estadísticas de una mano")
-
-            session = sessions[key] = GameSession(bot_delay, simulations, record)
+            account = AccountAtTable(accounts, user) if user else None
+            session = sessions[key] = GameSession(bot_delay, simulations, account)
 
         send_lock = asyncio.Lock()
 
@@ -113,7 +135,7 @@ def create_app(
             {
                 "type": "hello",
                 "options": options(),
-                "user": public_user(user),
+                "user": await asyncio.to_thread(public_user, accounts, user),
                 "state": session.state(),
             }
         )

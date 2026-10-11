@@ -1,4 +1,5 @@
 import { useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
+import { formatChips } from "../format";
 import type { Options, TableConfig } from "../types";
 import { Emblem } from "./Emblem";
 import { PlayingCard } from "./PlayingCard";
@@ -7,6 +8,9 @@ interface Props {
   options: Options;
   initial: TableConfig;
   accountName?: string; // con cuenta, el nombre en la mesa es el de la cuenta
+  balance: number | null; // con cuenta, las fichas de la mesa salen de este saldo
+  atStake: number; // lo que llevo apostado en una mano a medias: se pierde al empezar otra partida
+  onRefill: () => Promise<string | null>; // pide la recarga gratis; devuelve el motivo si se niega
   onStart: (config: TableConfig) => void;
   onCancel?: () => void; // hay una partida en curso a la que se puede volver
 }
@@ -46,8 +50,32 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /** Pantalla de inicio: presentación del juego y configuración de la partida. */
-export function StartScreen({ options, initial, accountName, onStart, onCancel }: Props) {
-  const [config, setConfig] = useState<TableConfig>(initial);
+export function StartScreen({
+  options,
+  initial,
+  accountName,
+  balance,
+  atStake,
+  onRefill,
+  onStart,
+  onCancel,
+}: Props) {
+  // Con cuenta no se puede llevar a la mesa más de lo que se tiene.
+  const available = balance === null ? null : Math.max(0, balance - atStake);
+  const [config, setConfig] = useState<TableConfig>(() =>
+    available !== null && available > 0 && initial.starting_stack > available
+      ? { ...initial, starting_stack: available }
+      : initial,
+  );
+  const [refillProblem, setRefillProblem] = useState<string | null>(null);
+  const [refilling, setRefilling] = useState(false);
+  const canRefill = balance !== null && balance < options.refill_below;
+
+  async function refill() {
+    setRefilling(true);
+    setRefillProblem(await onRefill());
+    setRefilling(false);
+  }
 
   function update(changes: Partial<TableConfig>) {
     setConfig((current) => ({ ...current, ...changes }));
@@ -71,11 +99,15 @@ export function StartScreen({ options, initial, accountName, onStart, onCancel }
   }
 
   const problem =
-    config.small_blind > config.big_blind
-      ? "La ciega pequeña no puede superar a la grande."
-      : config.starting_stack < config.big_blind
-        ? "Las fichas iniciales deben cubrir al menos la ciega grande."
-        : null;
+    available !== null && available < 1
+      ? "No te quedan fichas para sentarte a una mesa."
+      : available !== null && config.starting_stack > available
+        ? `No puedes llevar más fichas de las que tienes: como mucho, ${formatChips(available)}.`
+        : config.small_blind > config.big_blind
+          ? "La ciega pequeña no puede superar a la grande."
+          : config.starting_stack < config.big_blind
+            ? "Las fichas iniciales deben cubrir al menos la ciega grande."
+            : null;
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -181,13 +213,20 @@ export function StartScreen({ options, initial, accountName, onStart, onCancel }
           </Field>
 
           <div className="grid gap-5 sm:grid-cols-2">
-            <Field label="Fichas iniciales (virtuales)">
+            <Field
+              label={
+                available === null
+                  ? "Fichas iniciales (virtuales)"
+                  : `Fichas para la mesa (tienes ${formatChips(available)})`
+              }
+            >
               <div className="mb-2 grid grid-cols-4 gap-2">
                 {STACK_PRESETS.map((stack) => (
                   <button
                     key={stack}
                     type="button"
-                    className={`${CHOICE} tabular-nums ${config.starting_stack === stack ? CHOSEN : NOT_CHOSEN}`}
+                    disabled={available !== null && stack > available}
+                    className={`${CHOICE} tabular-nums disabled:opacity-35 ${config.starting_stack === stack ? CHOSEN : NOT_CHOSEN}`}
                     onClick={() => update({ starting_stack: stack })}
                   >
                     {stack}
@@ -218,6 +257,35 @@ export function StartScreen({ options, initial, accountName, onStart, onCancel }
               </div>
             </Field>
           </div>
+
+          {canRefill && (
+            <div className="rounded-xl border border-amber-400/45 bg-amber-400/10 p-3">
+              <p className="text-sm text-amber-100">
+                Te quedan menos de {formatChips(options.refill_below)} fichas. Puedes recibir{" "}
+                {formatChips(options.starting_balance)} fichas virtuales gratis para seguir jugando.
+              </p>
+              <button
+                type="button"
+                disabled={refilling}
+                className="btn-green mt-2.5 h-11 px-5 text-sm uppercase tracking-wide"
+                onClick={refill}
+              >
+                Recibir {formatChips(options.starting_balance)} fichas
+              </button>
+              {refillProblem && (
+                <p role="alert" className="mt-2 text-sm font-semibold text-amber-300">
+                  {refillProblem}
+                </p>
+              )}
+            </div>
+          )}
+
+          {atStake > 0 && balance !== null && (
+            <p className="text-sm text-amber-100/85">
+              Tienes una mano a medias: si empiezas otra partida ahora, pierdes las{" "}
+              {formatChips(atStake)} fichas que llevas apostadas en ella.
+            </p>
+          )}
 
           {problem && <p className="text-sm font-semibold text-amber-300">{problem}</p>}
 

@@ -176,7 +176,7 @@ def test_a_failure_saving_stats_does_not_break_the_hand(app, joker, monkeypatch,
         socket.receive_json()
         [state] = play(socket, hands=1, bots=2, difficulty="easy")
     assert not state["hand_in_progress"] and state["result"] is not None
-    assert "No se pudieron guardar las estadísticas" in caplog.text
+    assert "No se pudo guardar el resultado de una mano" in caplog.text
     assert stats(joker)["total"] == NOTHING
 
 

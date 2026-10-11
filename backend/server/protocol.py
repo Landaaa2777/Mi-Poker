@@ -12,7 +12,9 @@ El servidor responde:
     {"type": "state", "state": {...}}                            tras cada cambio
     {"type": "error", "message": "..."}                          intención rechazada
 
-`user` es la cuenta con la que se ha conectado, o null si juega como invitado.
+`user` es la cuenta con la que se ha conectado ({"username", "balance"}), o
+null si juega como invitado. Con cuenta, cada estado lleva además "balance":
+sus fichas en ese momento, contando las de la mesa; para un invitado es null.
 Las cuentas van por HTTP: ver `accounts_api.py`.
 """
 
@@ -22,6 +24,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, model_validator
 
+from accounts import REFILL_BELOW, STARTING_BALANCE
 from bots import LEVELS
 from poker_engine import MAX_PLAYERS, ActionType
 
@@ -90,5 +93,8 @@ def options() -> dict:
         "levels": [{"id": level, "name": bot.level_name} for level, bot in LEVELS.items()],
         "max_bots": MAX_BOTS,
         "max_stack": MAX_STACK,
+        # Saldo de las cuentas: con cuánto empiezan y por debajo de cuánto hay recarga gratis.
+        "starting_balance": STARTING_BALANCE,
+        "refill_below": REFILL_BELOW,
         "defaults": defaults.model_dump(),
     }

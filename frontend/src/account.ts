@@ -6,6 +6,7 @@
 
 export interface User {
   username: string;
+  balance: number; // fichas virtuales de la cuenta, contando las que tenga en la mesa
 }
 
 /** Lo acumulado en las manos jugadas con la cuenta. */
@@ -29,6 +30,8 @@ export interface Profile {
 }
 
 export type ProfileResult = { ok: true; profile: Profile } | { ok: false; message: string };
+
+export type RefillResult = { ok: true; balance: number } | { ok: false; message: string };
 
 export type AccountMode = "login" | "register";
 
@@ -109,6 +112,24 @@ export function login(username: string, password: string, fetcher: Fetcher = fet
 
 export function logout(fetcher: Fetcher = fetch) {
   return post("/api/logout", {}, fetcher);
+}
+
+/** Recarga gratis de fichas. El servidor solo la concede a quien se ha quedado sin ellas. */
+export async function refill(fetcher: Fetcher = fetch): Promise<RefillResult> {
+  let response: Response;
+  try {
+    response = await fetcher("/api/refill", { method: "POST", credentials: "same-origin" });
+  } catch {
+    return { ok: false, message: NO_CONNECTION };
+  }
+  let data: { balance?: unknown; message?: unknown } | null = null;
+  try {
+    data = await response.json();
+  } catch {
+    // Respuesta sin JSON: se trata abajo como un fallo inesperado.
+  }
+  if (response.ok && typeof data?.balance === "number") return { ok: true, balance: data.balance };
+  return { ok: false, message: typeof data?.message === "string" ? data.message : UNEXPECTED };
 }
 
 /** El perfil de la cuenta con la que hay sesión: quién es y sus estadísticas. */

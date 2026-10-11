@@ -11,6 +11,13 @@ const STREETS: Record<string, string> = {
 const RANKS: Record<string, string> = { T: "10" };
 const SUIT_SYMBOLS: Record<string, string> = { s: "♠", h: "♥", d: "♦", c: "♣" };
 
+/** Una cantidad de fichas con punto de millar: "1.000", "10.000". */
+export function formatChips(chips: number): string {
+  return Math.trunc(chips)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+}
+
 export function cardRank(card: string): string {
   return RANKS[card[0]] ?? card[0];
 }

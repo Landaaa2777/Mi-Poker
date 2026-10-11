@@ -12,6 +12,7 @@ class HandOutcome:
 
     difficulty: str  # nivel de los bots de la partida
     chips_won: int = 0  # lo que cobró de los botes; 0 si no ganó ninguno
+    chips_delta: int = 0  # cuánto cambiaron sus fichas en la mano: cobrado menos apostado
     best_hand: int | None = None  # categoría de la mano que enseñó, si llegó al showdown
     first_hand: bool = False  # era la primera mano de la partida
     game_won: bool = False  # con esta mano dejó sin fichas al último rival

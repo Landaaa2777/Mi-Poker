@@ -20,16 +20,19 @@ from .stats import HandOutcome, LevelStats
 USERNAME_MIN, USERNAME_MAX = 3, 16
 PASSWORD_MIN, PASSWORD_MAX = 8, 128
 SESSION_SECONDS = 30 * 24 * 3600  # una sesión dura 30 días
+STARTING_BALANCE = 10_000  # fichas virtuales con las que empieza una cuenta
+REFILL_BELOW = 100  # con menos saldo que este se puede pedir la recarga gratis
 
 _USERNAME = re.compile(r"[A-Za-z0-9_-]+")
 
-_SCHEMA = """
+_SCHEMA = f"""
 CREATE TABLE IF NOT EXISTS users (
     id            INTEGER PRIMARY KEY,
     username      TEXT    NOT NULL,           -- tal como lo escribió al registrarse
     username_key  TEXT    NOT NULL UNIQUE,    -- en minúsculas: "Joker" y "joker" son la misma cuenta
     password_hash TEXT    NOT NULL,
-    created_at    INTEGER NOT NULL
+    created_at    INTEGER NOT NULL,
+    balance       INTEGER NOT NULL DEFAULT {STARTING_BALANCE}  -- fichas virtuales, mesa incluida
 );
 CREATE TABLE IF NOT EXISTS sessions (
     token_hash TEXT    PRIMARY KEY,           -- el token solo lo tiene el navegador
@@ -49,9 +52,9 @@ CREATE TABLE IF NOT EXISTS stats (
     PRIMARY KEY (user_id, difficulty)
 );
 """
-# Cada tabla se crea solo si falta, así que una base de datos de una versión
-# anterior se pone al día sola al abrirla.
-SCHEMA_VERSION = 2
+# Cada tabla se crea solo si falta, y las columnas nuevas se añaden al abrir:
+# una base de datos de una versión anterior se pone al día sola.
+SCHEMA_VERSION = 3
 
 
 @dataclass(frozen=True)
@@ -182,8 +185,8 @@ class AccountStore:
             row = db.execute("SELECT created_at FROM users WHERE id = ?", (user.id,)).fetchone()
         return row[0] if row else None
 
-    def record_hand(self, user: User, outcome: HandOutcome) -> None:
-        """Suma una mano terminada a las estadísticas de la cuenta."""
+    def record_hand(self, user: User, outcome: HandOutcome) -> int:
+        """Apunta una mano terminada: estadísticas y saldo, todo o nada. Devuelve el saldo."""
         with self._connect() as db:
             db.execute(
                 "INSERT INTO stats (user_id, difficulty, hands_played, hands_won, biggest_win,"
@@ -205,6 +208,40 @@ class AccountStore:
                     int(outcome.game_won),
                 ),
             )
+            return self._add_chips(db, user, outcome.chips_delta)
+
+    # --- Saldo ---
+
+    def balance(self, user: User) -> int:
+        """Fichas virtuales de la cuenta, contando las que tenga en la mesa."""
+        with self._connect() as db:
+            row = db.execute("SELECT balance FROM users WHERE id = ?", (user.id,)).fetchone()
+        return row[0] if row else 0
+
+    def add_chips(self, user: User, chips: int) -> int:
+        """Suma fichas al saldo, o las resta si `chips` es negativo. Devuelve el saldo."""
+        with self._connect() as db:
+            return self._add_chips(db, user, chips)
+
+    def refill(self, user: User) -> int:
+        """Recarga gratis: repone el saldo inicial, solo a quien se ha quedado sin fichas."""
+        with self._connect() as db:
+            refilled = db.execute(
+                "UPDATE users SET balance = ? WHERE id = ? AND balance < ?",
+                (STARTING_BALANCE, user.id, REFILL_BELOW),
+            ).rowcount
+        if not refilled:
+            raise AccountError(
+                f"La recarga gratis es para cuando te quedan menos de {REFILL_BELOW} fichas"
+            )
+        return STARTING_BALANCE
+
+    @staticmethod
+    def _add_chips(db: sqlite3.Connection, user: User, chips: int) -> int:
+        # El saldo nunca baja de cero: no se puede deber fichas.
+        db.execute("UPDATE users SET balance = MAX(0, balance + ?) WHERE id = ?", (chips, user.id))
+        row = db.execute("SELECT balance FROM users WHERE id = ?", (user.id,)).fetchone()
+        return row[0] if row else 0
 
     def stats(self, user: User) -> list[LevelStats]:
         """Lo acumulado por la cuenta contra cada nivel que ha jugado."""
@@ -249,5 +286,12 @@ class AccountStore:
             with closing(sqlite3.connect(self.path, timeout=5)) as db:
                 with db:
                     db.executescript(_SCHEMA)
+                    columns = {row[1] for row in db.execute("PRAGMA table_info(users)")}
+                    if "balance" not in columns:
+                        # Cuentas de antes del saldo: reciben el mismo que una cuenta nueva.
+                        db.execute(
+                            "ALTER TABLE users ADD COLUMN balance INTEGER NOT NULL"
+                            f" DEFAULT {STARTING_BALANCE}"
+                        )
                     db.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
             self._ready = True

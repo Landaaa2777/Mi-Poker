@@ -29,6 +29,9 @@ idea, nunca la marca ni los assets):
 - Disposición de la mesa y del panel inferior: como en las mesas de poker
   social (placas oscuras con avatar, bote sobre las cartas comunitarias,
   registro a la izquierda y botones grandes a la derecha).
+- Las cartas de cada jugador, también las de los bots, van ENCIMA de su placa,
+  enteras y sobre el nombre. Nunca metidas por detrás de la placa ni tapadas
+  por ella: así se veía mal y pedí corregirlo el 2026-10-10.
 - Movimiento de las cartas: como en Balatro, pero SIN su estética pixelada.
 - Baraja: el diseño clásico de toda la vida, como las cartas Bicycle. Como su
   nombre, su as de picas y su dorso son marca registrada, se usa la baraja
@@ -42,8 +45,11 @@ idea, nunca la marca ni los assets):
   tonos tenues: los vivos me resultaban demasiado brillantes).
 
 ## Reglas innegociables
-- NO se usa dinero real en ninguna parte. Las fichas son virtuales, viven
-  solo en memoria durante la partida y no tienen valor fuera del juego.
+- NO se usa dinero real en ninguna parte. Las fichas son virtuales y no
+  tienen valor fuera del juego: no se compran, no se venden y no se canjean
+  por nada. Las de un invitado viven solo en memoria durante la partida; las
+  de una cuenta se guardan como saldo (lo decidí el 2026-10-10, al llegar a
+  la etapa 3).
 - El aviso "Solo para entretenimiento. Sin dinero real." ya NO se muestra en
   la interfaz: pedí quitarlo de todas las pantallas el 2026-10-10. Antes era
   obligatorio mostrarlo. La regla de arriba no cambia.
@@ -114,6 +120,22 @@ idea, nunca la marca ni los assets):
 - Cada identidad (cuenta o invitado) tiene su propia partida en el servidor.
 - La lógica de cuentas es Python puro, separada de FastAPI, para probarla solo
   con pytest. En el frontend, todo lo de la cuenta va en un módulo aislado.
+
+### Saldo (decisiones del 2026-10-10)
+- Cada cuenta empieza con 10.000 fichas. Para jugar se lleva a la mesa una
+  parte, como mucho todo el saldo, y lo ganado o perdido en cada mano cambia
+  el saldo al terminar esa mano. El saldo incluye las fichas que el jugador
+  tiene en la mesa.
+- Recarga gratis: solo cuando el saldo baja de 100 fichas, un botón lo
+  repone a 10.000. Sin límite por ahora; la etapa 4 podrá convertirlo en un
+  bono diario.
+- Dejar una mano a medias (empezar otra partida antes de que termine) cuesta
+  lo ya apostado en esa mano, como si el jugador se retirase.
+- Los invitados no tienen saldo: juegan con las fichas que elijan, gratis,
+  igual que antes.
+- El saldo lo lleva el servidor. El cliente solo lo muestra, y lo muestra al
+  ritmo de la mesa: no cambia en pantalla antes de que se vea cómo acabó la
+  mano.
 
 ### Perfil y estadísticas
 - Las estadísticas las apunta el servidor al terminar cada mano; el cliente
@@ -212,8 +234,8 @@ idea, nunca la marca ni los assets):
 2. Perfil y estadísticas (completado): manos jugadas y ganadas, mayor bote,
    mejor mano y partidas ganadas, en total y por nivel de los rivales, en una
    pantalla de perfil.
-3. Saldo: fichas virtuales guardadas en la cuenta. Hay que decidir cómo al
-   llegar, porque cambia la regla de que las fichas viven solo en memoria.
+3. Saldo (completado): fichas virtuales guardadas en la cuenta, que se llevan
+   a la mesa y cambian con cada mano; recarga gratis al quedarse sin ellas.
 4. Cierre: repaso final y README.
 
 ## Hitos de la etapa 2 (completada)

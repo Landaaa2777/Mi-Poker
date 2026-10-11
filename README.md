@@ -2,8 +2,9 @@
 
 Texas Hold'em No-Limit para el navegador: un humano contra 1 a 5 bots.
 
-**Solo para entretenimiento. Sin dinero real.** Las fichas son virtuales, viven
-solo en memoria durante la partida y no tienen ningún valor fuera del juego.
+**Solo para entretenimiento. Sin dinero real.** Las fichas son virtuales y no
+tienen ningún valor fuera del juego: no se compran, no se venden y no se
+canjean por nada.
 
 ## Estado
 
@@ -16,9 +17,9 @@ diseño propio y colores de casino, baraja clásica, la mano reproducida paso a
 paso con animaciones, efectos de sonido, música de fondo y un panel de ajustes
 con los volúmenes y el interruptor de animaciones.
 
-Etapa 3 (cuentas), en curso. Ya hecho: crear una cuenta, entrar y salir, y
-el perfil con estadísticas. La cuenta es opcional: sin ella se sigue jugando
-como invitado. Queda el saldo de fichas guardado en la cuenta.
+Etapa 3 (cuentas), en curso. Ya hecho: crear una cuenta, entrar y salir, el
+perfil con estadísticas y el saldo de fichas guardado en la cuenta. La cuenta
+es opcional: sin ella se sigue jugando como invitado. Queda el repaso final.
 
 Todavía no hay minijuegos ni partidas entre personas: son etapas futuras. Cada
 partida vive en la memoria del servidor y se pierde al cerrarlo; las cuentas
@@ -87,6 +88,14 @@ Al pulsar tu nombre, arriba, se abre tu perfil: manos jugadas y ganadas,
 mayor bote ganado, mejor mano enseñada y partidas ganadas, en total y según el
 nivel de los rivales. Solo cuentan las manos que terminas con la sesión
 iniciada; una mano que dejas a medias al empezar otra partida no cuenta.
+
+Cada cuenta tiene un saldo de fichas virtuales, que se ve junto a tu nombre.
+Empieza con 10.000. Para jugar eliges cuántas llevas a la mesa, como mucho las
+que tengas, y lo que ganas o pierdes en cada mano cambia el saldo al terminar
+esa mano. Si empiezas otra partida con una mano a medias, pierdes lo que
+llevabas apostado en ella, como si te retirases. Cuando te quedan menos de 100
+fichas, la pantalla de inicio te ofrece reponer el saldo a 10.000, gratis. Los
+invitados no tienen saldo: juegan con las fichas que elijan.
 
 Las cuentas se guardan en `backend/data/mi-poker.db` (SQLite), que se crea
 solo la primera vez y no se sube a git. Para usar otro archivo, define la
@@ -175,8 +184,8 @@ ajustan levemente sus decisiones.
 backend/
   poker_engine/   motor del juego en Python puro (sin dependencias web)
   bots/           estrategias por nivel; solo usan la vista pública del motor
-  accounts/       cuentas en Python puro: contraseñas, usuarios, sesiones y
-                  estadísticas (SQLite)
+  accounts/       cuentas en Python puro: contraseñas, usuarios, sesiones,
+                  estadísticas y saldo (SQLite)
   server/         FastAPI + WebSocket; partidas en memoria, una por jugador,
                   y las rutas de cuentas (`accounts_api.py`)
   data/           la base de datos de cuentas (se crea sola; fuera de git)
@@ -266,6 +275,10 @@ pestaña oculta no suena nada.
 - **Estadísticas**: las apunta el servidor al terminar cada mano, antes de
   enviar el resultado al navegador; el cliente no puede mandarlas. Se llevan
   aparte por nivel de los rivales.
+- **Saldo**: lo lleva el servidor y cuenta también las fichas que tienes en la
+  mesa, así que sentarte no lo cambia. Se actualiza junto con las estadísticas
+  de cada mano, todo o nada. En pantalla no cambia hasta que la mesa ha
+  terminado de mostrar cómo acabó la mano.
 
 Pensado para jugar en local. Antes de publicarlo en internet haría falta, como
 mínimo, servirlo por HTTPS y limitar cuántas cuentas se pueden crear.

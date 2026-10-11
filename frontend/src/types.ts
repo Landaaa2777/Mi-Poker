@@ -82,6 +82,7 @@ export interface GameState {
   human_out: boolean;
   game_over: boolean;
   winner_seat: number | null;
+  balance: number | null; // fichas de mi cuenta, contando las de la mesa; null si soy invitado
 }
 
 export interface Options {
@@ -89,6 +90,8 @@ export interface Options {
   levels: { id: string; name: string }[];
   max_bots: number;
   max_stack: number;
+  starting_balance: number; // fichas con las que empieza una cuenta
+  refill_below: number; // con menos saldo que este hay recarga gratis
   defaults: TableConfig;
 }
 

@@ -11,6 +11,7 @@ from server.app import create_app
 GUEST = "invitado-de-prueba"
 PASSWORD = "una clave de prueba"
 JOKER = {"username": "Joker", "password": PASSWORD}
+JOKER_USER = {"username": "Joker", "balance": 10_000}  # lo que el cliente sabe de la cuenta
 
 
 @pytest.fixture
@@ -53,8 +54,8 @@ def session_cookie(response):
 def test_register_creates_the_account_and_signs_in(client):
     response = client.post("/api/register", json=JOKER)
     assert response.status_code == 201
-    assert response.json() == {"user": {"username": "Joker"}}
-    assert client.get("/api/me").json() == {"user": {"username": "Joker"}}
+    assert response.json() == {"user": JOKER_USER}
+    assert client.get("/api/me").json() == {"user": JOKER_USER}
 
 
 def test_the_session_cookie_is_hidden_from_scripts(client):
@@ -114,8 +115,8 @@ def test_login_with_the_right_password(joker):
     other_browser = TestClient(joker.app)
     assert other_browser.get("/api/me").json() == {"user": None}
     response = other_browser.post("/api/login", json={"username": "joker", "password": PASSWORD})
-    assert response.status_code == 200 and response.json() == {"user": {"username": "Joker"}}
-    assert other_browser.get("/api/me").json() == {"user": {"username": "Joker"}}
+    assert response.status_code == 200 and response.json() == {"user": JOKER_USER}
+    assert other_browser.get("/api/me").json() == {"user": JOKER_USER}
 
 
 def test_a_failed_login_does_not_say_whether_the_user_exists(joker):
@@ -169,7 +170,7 @@ def test_requests_from_another_site_are_refused(joker):
     assert joker.post("/api/logout", headers=foreign).status_code == 403
     assert joker.post("/api/login", json=JOKER, headers=foreign).status_code == 403
     assert joker.post("/api/register", json=JOKER, headers=foreign).status_code == 403
-    assert joker.get("/api/me").json() == {"user": {"username": "Joker"}}
+    assert joker.get("/api/me").json() == {"user": JOKER_USER}
     assert joker.post("/api/logout", headers={"Origin": "http://testserver"}).status_code == 200
 
 
@@ -183,8 +184,8 @@ def test_guests_keep_playing_without_an_account(client):
 
 
 def test_hello_says_which_account_is_connected(joker):
-    assert hello(joker)["user"] == {"username": "Joker"}
-    assert hello(joker, query="")["user"] == {"username": "Joker"}  # no hace falta ser invitado
+    assert hello(joker)["user"] == JOKER_USER
+    assert hello(joker, query="")["user"] == JOKER_USER  # no hace falta ser invitado
 
 
 def test_a_made_up_cookie_plays_as_a_guest(app):
@@ -251,4 +252,4 @@ def test_the_table_refuses_connections_from_another_site(joker):
         with joker.websocket_connect("/ws", headers={"Origin": "http://otra-web.example"}) as socket:
             socket.receive_json()
     with joker.websocket_connect("/ws", headers={"Origin": "http://testserver"}) as socket:
-        assert socket.receive_json()["user"] == {"username": "Joker"}
+        assert socket.receive_json()["user"] == JOKER_USER

@@ -1,7 +1,9 @@
+import { formatChips } from "../format";
 import type { GameState } from "../types";
 
 interface Props {
   state: GameState;
+  balance: number | null; // mi saldo; null si juego como invitado
   disabled: boolean; // ya se envió una intención y el servidor aún no ha contestado
   onNextHand: () => void;
   onRestart: () => void;
@@ -11,17 +13,23 @@ interface Props {
 const BIG = "h-14 flex-1 whitespace-nowrap px-5 text-base uppercase tracking-wide sm:text-lg";
 
 /** Resultado de la mano y qué se puede hacer después. */
-export function ResultPanel({ state, disabled, onNextHand, onRestart, onConfigure }: Props) {
+export function ResultPanel({ state, balance, disabled, onNextHand, onRestart, onConfigure }: Props) {
   const result = state.result;
   if (!result || state.hand_in_progress) return null;
 
   const name = (seat: number | string) =>
     state.seats.find((candidate) => candidate.seat === Number(seat))?.name ?? "";
   const finished = state.human_out || state.game_over;
+  const stack = state.config.starting_stack;
+  // Con cuenta, repetir la mesa cuesta otra vez sus fichas: hay que tenerlas.
+  const canRepeat = balance === null || balance >= stack;
 
   let headline: string | null = null;
-  if (state.human_out) headline = "Te quedaste sin fichas.";
-  else if (state.game_over) headline = "¡Ganaste la partida! Eliminaste a todos los bots.";
+  if (state.human_out) {
+    headline = balance === null ? "Te quedaste sin fichas." : "Te quedaste sin fichas en esta mesa.";
+  } else if (state.game_over) {
+    headline = "¡Ganaste la partida! Eliminaste a todos los bots.";
+  }
 
   return (
     <div className="flex h-full flex-col justify-between gap-3">
@@ -48,26 +56,35 @@ export function ResultPanel({ state, disabled, onNextHand, onRestart, onConfigur
       </div>
 
       <div className="flex flex-wrap items-center gap-2.5 pb-1">
-        {finished ? (
-          <button
-            className={`${BIG} btn-gold`}
-            disabled={disabled}
-            onClick={onRestart}
-            title="Fichas virtuales nuevas, gratis"
-          >
+        {finished && canRepeat && (
+          <button className={`${BIG} btn-gold`} disabled={disabled} onClick={onRestart}>
             Reiniciar partida
           </button>
-        ) : (
+        )}
+        {finished && !canRepeat && (
+          <button className={`${BIG} btn-gold`} onClick={onConfigure}>
+            Elegir otra mesa
+          </button>
+        )}
+        {!finished && (
           <button className={`${BIG} btn-green`} disabled={disabled} onClick={onNextHand}>
             Siguiente mano
           </button>
         )}
-        <button className="btn-dark h-14 px-4 text-sm" onClick={onConfigure}>
-          Cambiar configuración
-        </button>
+        {(!finished || canRepeat) && (
+          <button className="btn-dark h-14 px-4 text-sm" onClick={onConfigure}>
+            Cambiar configuración
+          </button>
+        )}
       </div>
       {finished && (
-        <p className="text-xs text-stone-400">Al reiniciar recibes fichas virtuales nuevas, gratis.</p>
+        <p className="text-xs text-stone-400">
+          {balance === null
+            ? "Al reiniciar recibes fichas virtuales nuevas, gratis."
+            : canRepeat
+              ? `Al reiniciar te sientas otra vez con ${formatChips(stack)} fichas de tu saldo.`
+              : `Tu saldo no llega a las ${formatChips(stack)} fichas de esta mesa.`}
+        </p>
       )}
     </div>
   );

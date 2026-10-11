@@ -1,14 +1,15 @@
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { fetchProfile, percent, type Profile, type User } from "../account";
+import { formatChips } from "../format";
 import { Avatar } from "./Avatar";
 
 interface Props {
   user: User;
+  balance: number | null; // el saldo tal como debe verse ahora
   onClose: () => void;
   onSignOut: () => void;
 }
 
-const numberFormat = new Intl.NumberFormat("es");
 const dateFormat = new Intl.DateTimeFormat("es", { day: "numeric", month: "long", year: "numeric" });
 
 function Tile({ label, children, note }: { label: string; children: ReactNode; note?: string }) {
@@ -24,7 +25,7 @@ function Tile({ label, children, note }: { label: string; children: ReactNode; n
 }
 
 /** Ventana de perfil: quién soy y cómo me ha ido en las manos jugadas con la cuenta. */
-export function ProfileDialog({ user, onClose, onSignOut }: Props) {
+export function ProfileDialog({ user, balance, onClose, onSignOut }: Props) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const title = useId();
@@ -82,6 +83,18 @@ export function ProfileDialog({ user, onClose, onSignOut }: Props) {
           </button>
         </div>
 
+        {balance !== null && (
+          <div className="mt-4 flex items-baseline justify-between rounded-xl border border-amber-400/40 bg-black/45 px-4 py-3">
+            <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-amber-200/70">
+              Saldo
+            </span>
+            <span className="text-2xl font-black tabular-nums text-amber-300">
+              {formatChips(balance)}
+              <span className="ml-1.5 text-xs font-semibold text-stone-400">fichas virtuales</span>
+            </span>
+          </div>
+        )}
+
         {problem && (
           <p role="alert" className="mt-4 text-sm font-semibold text-amber-300">
             {problem}
@@ -98,22 +111,22 @@ export function ProfileDialog({ user, onClose, onSignOut }: Props) {
         {stats && total && total.hands_played > 0 && (
           <>
             <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-              <Tile label="Manos jugadas">{numberFormat.format(total.hands_played)}</Tile>
+              <Tile label="Manos jugadas">{formatChips(total.hands_played)}</Tile>
               <Tile
                 label="Manos ganadas"
                 note={`${percent(total.hands_won, total.hands_played)} % de las jugadas`}
               >
-                {numberFormat.format(total.hands_won)}
+                {formatChips(total.hands_won)}
               </Tile>
               <Tile label="Mayor bote ganado" note="fichas, en una mano">
-                {numberFormat.format(total.biggest_win)}
+                {formatChips(total.biggest_win)}
               </Tile>
               <Tile label="Mejor mano" note={total.best_hand ? "enseñada en un showdown" : undefined}>
                 {total.best_hand ?? "—"}
               </Tile>
-              <Tile label="Partidas jugadas">{numberFormat.format(total.games_played)}</Tile>
+              <Tile label="Partidas jugadas">{formatChips(total.games_played)}</Tile>
               <Tile label="Partidas ganadas" note="dejando sin fichas a todos">
-                {numberFormat.format(total.games_won)}
+                {formatChips(total.games_won)}
               </Tile>
             </div>
 
@@ -133,17 +146,17 @@ export function ProfileDialog({ user, onClose, onSignOut }: Props) {
                 {stats.levels.map((level) => (
                   <tr key={level.difficulty} className="border-t border-amber-400/15">
                     <td className="py-1.5 font-semibold text-amber-100">{level.name}</td>
-                    <td className="py-1.5 text-right">{numberFormat.format(level.hands_played)}</td>
+                    <td className="py-1.5 text-right">{formatChips(level.hands_played)}</td>
                     <td className="py-1.5 text-right">
-                      {numberFormat.format(level.hands_won)}
+                      {formatChips(level.hands_won)}
                       <span className="text-stone-400">
                         {" "}
                         ({percent(level.hands_won, level.hands_played)} %)
                       </span>
                     </td>
                     <td className="py-1.5 text-right">
-                      {numberFormat.format(level.games_won)}
-                      <span className="text-stone-400"> de {numberFormat.format(level.games_played)}</span>
+                      {formatChips(level.games_won)}
+                      <span className="text-stone-400"> de {formatChips(level.games_played)}</span>
                     </td>
                   </tr>
                 ))}

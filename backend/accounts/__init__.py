@@ -1,4 +1,4 @@
-"""Cuentas de usuario: registro, contraseñas, sesiones y estadísticas.
+"""Cuentas de usuario: registro, contraseñas, sesiones, estadísticas y saldo.
 
 Python puro y sin dependencias: se prueba solo con pytest. El servidor web
 está en `server/`; aquí no hay nada de FastAPI.
@@ -9,7 +9,9 @@ from .stats import HandOutcome, LevelStats, total
 from .store import (
     PASSWORD_MAX,
     PASSWORD_MIN,
+    REFILL_BELOW,
     SESSION_SECONDS,
+    STARTING_BALANCE,
     USERNAME_MAX,
     USERNAME_MIN,
     AccountError,
@@ -26,7 +28,9 @@ __all__ = [
     "DEFAULT_COST",
     "PASSWORD_MAX",
     "PASSWORD_MIN",
+    "REFILL_BELOW",
     "SESSION_SECONDS",
+    "STARTING_BALANCE",
     "USERNAME_MAX",
     "USERNAME_MIN",
     "AccountError",

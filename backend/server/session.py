@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import random
 from collections.abc import Awaitable, Callable
-from typing import Any
+from typing import Any, Protocol
 
 from accounts import HandOutcome
 from bots import PERSONALITIES, Bot, create_bot
@@ -25,7 +25,22 @@ HUMAN_SEAT = 0
 BOT_DELAY = (0.8, 2.5)  # segundos que un bot "piensa" antes de actuar
 
 Listener = Callable[[], Awaitable[None]]
-HandRecorder = Callable[[HandOutcome], None]
+
+
+class TableAccount(Protocol):
+    """Lo que una partida necesita de la cuenta del jugador. Un invitado no tiene."""
+
+    def balance(self) -> int:
+        """Fichas de la cuenta, contando las que tiene en esta mesa."""
+        ...
+
+    def hand_finished(self, outcome: HandOutcome) -> None:
+        """Una mano ha terminado: se apuntan sus estadísticas y lo ganado o perdido."""
+        ...
+
+    def hand_abandoned(self, chips: int) -> None:
+        """El jugador dejó una mano a medias: pierde lo que ya había apostado en ella."""
+        ...
 
 
 class SessionError(Exception):
@@ -33,19 +48,22 @@ class SessionError(Exception):
 
 
 class GameSession:
-    """Estado de la partida de un jugador. Las fichas solo existen aquí, en memoria."""
+    """Estado de la partida de un jugador, en memoria.
+
+    Un invitado juega con fichas que solo existen aquí. Con cuenta, las fichas
+    de la mesa salen de su saldo y lo que pasa en cada mano se apunta en él.
+    """
 
     def __init__(
         self,
         bot_delay: tuple[float, float] = BOT_DELAY,
         simulations: int | None = None,
-        on_hand_end: HandRecorder | None = None,
+        account: TableAccount | None = None,
     ) -> None:
         self.bot_delay = bot_delay
         self.simulations = simulations
-        # Se llama una vez por mano terminada, con cómo le fue al humano. Lo usan
-        # las cuentas para llevar las estadísticas; un invitado no tiene.
-        self.on_hand_end = on_hand_end
+        self.account = account
+        self._stack_before = 0  # fichas del humano al empezar la mano en curso
         self.config: TableConfig | None = None
         self.game: Game | None = None
         self.bots: dict[int, Bot] = {}
@@ -56,7 +74,20 @@ class GameSession:
     # --- Intenciones del cliente ---
 
     def new_game(self, config: TableConfig) -> None:
+        at_stake = self._at_stake()
+        if self.account is not None:
+            # El saldo ya cuenta las fichas de la mesa que se deja; lo apostado
+            # en una mano a medias se pierde, así que no está disponible.
+            available = self.account.balance() - at_stake
+            if available < 1:
+                raise SessionError("No te quedan fichas para sentarte a una mesa")
+            if config.starting_stack > available:
+                raise SessionError(
+                    f"No tienes fichas suficientes: puedes llevar a la mesa hasta {available}"
+                )
         self._stop_runner()
+        if self.account is not None and at_stake > 0:
+            self.account.hand_abandoned(at_stake)
         # Ningún bot se llama igual que el jugador.
         free = [p for p in PERSONALITIES if p.name.casefold() != config.player_name.casefold()]
         personalities = random.sample(free, config.bots)
@@ -73,7 +104,11 @@ class GameSession:
         self._deal()
 
     def restart(self) -> None:
-        """Vuelve a empezar con la misma configuración y fichas virtuales nuevas, gratis."""
+        """Vuelve a empezar con la misma configuración.
+
+        Un invitado recibe fichas virtuales nuevas, gratis. Con cuenta, las
+        fichas vuelven a salir de su saldo.
+        """
         if self.config is None:
             raise SessionError("Todavía no hay ninguna partida que reiniciar")
         self.new_game(self.config)
@@ -130,6 +165,7 @@ class GameSession:
             human_out=self.human_out,
             game_over=game.is_over,
             winner_seat=winner.seat if winner else None,
+            balance=self.account.balance() if self.account else None,
         )
         return state
 
@@ -140,8 +176,16 @@ class GameSession:
             raise SessionError("Primero hay que empezar una partida")
         return self.game
 
+    def _at_stake(self) -> int:
+        """Lo que el humano lleva apostado en la mano en curso; 0 si no hay ninguna."""
+        game = self.game
+        if game is None or not game.hand_in_progress:
+            return 0
+        return self._stack_before - game.players[HUMAN_SEAT].stack
+
     def _deal(self) -> None:
         assert self.game is not None
+        self._stack_before = self.game.players[HUMAN_SEAT].stack
         self.game.start_hand()
         self._after_action()
         self._start_runner()
@@ -155,8 +199,8 @@ class GameSession:
         self._observed_hand = game.hand_number
         for seat, bot in self.bots.items():
             bot.observe(player_view(game, seat))
-        if self.on_hand_end is not None:
-            self.on_hand_end(self._outcome(game))
+        if self.account is not None:
+            self.account.hand_finished(self._outcome(game))
 
     def _outcome(self, game: Game) -> HandOutcome:
         """Cómo le fue al humano en la mano que acaba de terminar."""
@@ -167,6 +211,7 @@ class GameSession:
         return HandOutcome(
             difficulty=self.config.difficulty,
             chips_won=result.payouts.get(HUMAN_SEAT, 0),
+            chips_delta=game.players[HUMAN_SEAT].stack - self._stack_before,
             best_hand=int(shown[0]) if shown else None,
             first_hand=game.hand_number == 1,
             game_won=winner is not None and winner.seat == HUMAN_SEAT,

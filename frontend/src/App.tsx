@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useState } from "react";
-import { logout } from "./account";
+import { logout, refill } from "./account";
 import { audio } from "./audio/engine";
 import { tableSounds, useAudio } from "./audio/useAudio";
 import { AccountDialog } from "./components/AccountDialog";
@@ -52,6 +52,22 @@ export default function App() {
   const [signingOut, setSigningOut] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
 
+  // El saldo se enseña al ritmo de la mesa: el servidor ya sabe cómo acabó la
+  // mano, pero en pantalla no cambia hasta que se ha visto el final.
+  const latestBalance = user ? (server?.balance ?? user.balance) : null;
+  const [balance, setBalance] = useState<number | null>(null);
+  useEffect(() => {
+    if (!busy) setBalance(latestBalance);
+  }, [busy, latestBalance]);
+
+  // Recarga gratis. El saldo nuevo llega al volver a conectar.
+  async function askRefill(): Promise<string | null> {
+    const result = await refill();
+    if (!result.ok) return result.message;
+    reconnect();
+    return null;
+  }
+
   // Al entrar o salir de la cuenta se vuelve a conectar: el servidor me
   // identifica en ese momento y me da la partida de esa identidad.
   function signedIn() {
@@ -73,6 +89,11 @@ export default function App() {
   const myTurn = settled && server?.legal_actions != null;
   const handOver = settled && server !== null && !server.hand_in_progress;
   const actor = frame?.seats.find((seat) => seat.seat === frame.actingSeat);
+  // Lo que llevo apostado en la mano en curso: se pierde si la dejo a medias.
+  const atStake =
+    server?.hand_in_progress === true
+      ? (server.seats.find((seat) => seat.seat === server.viewer_seat)?.contributed ?? 0)
+      : 0;
 
   // Las caras de la baraja se descargan al entrar, para que ninguna tarde al repartirla.
   useEffect(preloadFaces, []);
@@ -106,6 +127,7 @@ export default function App() {
           )}
           <AccountMenu
             user={user}
+            balance={balance}
             disabled={signingOut}
             onSignIn={() => setAccountOpen(true)}
             onSignOut={signOut}
@@ -135,6 +157,9 @@ export default function App() {
           key={user?.username ?? ""}
           options={options}
           accountName={user?.username}
+          balance={user ? latestBalance : null}
+          atStake={atStake}
+          onRefill={askRefill}
           initial={server?.config ?? options.defaults}
           onStart={(config) => {
             send({ type: "new_game", config });
@@ -163,6 +188,7 @@ export default function App() {
               {handOver && (
                 <ResultPanel
                   state={server}
+                  balance={user ? latestBalance : null}
                   disabled={waiting}
                   onNextHand={() => send({ type: "next_hand" })}
                   onRestart={() => send({ type: "restart" })}
@@ -182,7 +208,12 @@ export default function App() {
 
       {accountOpen && <AccountDialog onClose={() => setAccountOpen(false)} onSignedIn={signedIn} />}
       {profileOpen && user && (
-        <ProfileDialog user={user} onClose={() => setProfileOpen(false)} onSignOut={signOut} />
+        <ProfileDialog
+          user={user}
+          balance={balance}
+          onClose={() => setProfileOpen(false)}
+          onSignOut={signOut}
+        />
       )}
     </div>
   );

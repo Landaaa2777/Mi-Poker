@@ -1,5 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
-import { checkCredentials, fetchProfile, login, logout, percent, register } from "./account";
+import {
+  checkCredentials,
+  fetchProfile,
+  login,
+  logout,
+  percent,
+  refill,
+  register,
+} from "./account";
 
 const PASSWORD = "una clave de prueba";
 
@@ -54,7 +62,7 @@ describe("percent", () => {
 
 describe("perfil", () => {
   const profile = {
-    user: { username: "Joker", member_since: 1760000000 },
+    user: { username: "Joker", balance: 10000, member_since: 1760000000 },
     stats: {
       total: { hands_played: 3, hands_won: 1, biggest_win: 40, best_hand: "Color", games_played: 1, games_won: 0 },
       levels: [],
@@ -78,12 +86,32 @@ describe("perfil", () => {
   });
 });
 
+describe("recarga", () => {
+  it("devuelve el saldo nuevo", async () => {
+    const fetcher = reply(200, { balance: 10000 });
+    expect(await refill(fetcher)).toEqual({ ok: true, balance: 10000 });
+    expect(fetcher.mock.calls[0]).toEqual([
+      "/api/refill",
+      { method: "POST", credentials: "same-origin" },
+    ]);
+  });
+
+  it("si el servidor la niega, da su motivo", async () => {
+    const message = "La recarga gratis es para cuando te quedan menos de 100 fichas";
+    expect(await refill(reply(400, { message }))).toEqual({ ok: false, message });
+  });
+
+  it("una respuesta sin saldo no se da por buena", async () => {
+    expect((await refill(reply(200, {}))).ok).toBe(false);
+  });
+});
+
 describe("peticiones de cuenta", () => {
   it("entrar envía usuario y contraseña y devuelve la cuenta", async () => {
-    const fetcher = reply(200, { user: { username: "Joker" } });
+    const fetcher = reply(200, { user: { username: "Joker", balance: 10000 } });
     expect(await login(" joker ", PASSWORD, fetcher)).toEqual({
       ok: true,
-      user: { username: "Joker" },
+      user: { username: "Joker", balance: 10000 },
     });
     const { path, options, body } = sent(fetcher);
     expect(path).toBe("/api/login");
@@ -93,7 +121,7 @@ describe("peticiones de cuenta", () => {
   });
 
   it("crear la cuenta usa su propia ruta", async () => {
-    const fetcher = reply(201, { user: { username: "Joker" } });
+    const fetcher = reply(201, { user: { username: "Joker", balance: 10000 } });
     expect((await register("Joker", PASSWORD, fetcher)).ok).toBe(true);
     expect(sent(fetcher).path).toBe("/api/register");
   });
