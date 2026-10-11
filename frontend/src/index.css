@@ -188,12 +188,6 @@ input[type="range"] {
   .card-side.card-back {
     transform: rotateY(180deg);
   }
-  /* Cartas que asoman por detrás de la placa de un jugador: el dibujo va arriba. */
-  .peek .compact-face {
-    justify-content: flex-start;
-    padding-top: 9%;
-  }
-
   /* Inclinación con el ratón y levantada al seleccionar. Los valores los pone
      la propia carta en variables; aquí solo se compone el transform. */
   .card-tilt {

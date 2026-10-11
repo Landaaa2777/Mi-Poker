@@ -19,7 +19,7 @@ interface SeatSize {
   height: number;
   avatar: number; // diámetro
   card: number; // ancho de sus cartas
-  overlap: number; // cuánto tapa la placa a las cartas; en negativo, el hueco que deja con ellas
+  gap: number; // hueco entre la placa y las cartas, que van encima de ella
 }
 
 interface Layout {
@@ -36,22 +36,22 @@ interface Layout {
 const LANDSCAPE: Layout = {
   width: 1120,
   height: 640,
-  center: { x: 560, y: 312 },
-  radius: { x: 440, y: 224 },
+  center: { x: 560, y: 320 },
+  radius: { x: 440, y: 220 },
   boardCard: 68,
-  bot: { width: 196, height: 56, avatar: 48, card: 38, overlap: 12 },
-  human: { width: 240, height: 64, avatar: 56, card: 78, overlap: -8 },
+  bot: { width: 196, height: 56, avatar: 48, card: 38, gap: 4 },
+  human: { width: 240, height: 64, avatar: 56, card: 78, gap: 8 },
   humanDrop: 26,
 };
 
 const PORTRAIT: Layout = {
   width: 500,
-  height: 780,
-  center: { x: 250, y: 365 },
-  radius: { x: 170, y: 305 },
+  height: 800,
+  center: { x: 250, y: 400 },
+  radius: { x: 170, y: 310 },
   boardCard: 52,
-  bot: { width: 148, height: 48, avatar: 40, card: 32, overlap: 10 },
-  human: { width: 196, height: 56, avatar: 48, card: 62, overlap: -6 },
+  bot: { width: 148, height: 48, avatar: 40, card: 32, gap: 3 },
+  human: { width: 196, height: 56, avatar: 48, card: 62, gap: 6 },
   humanDrop: 22,
 };
 
@@ -106,14 +106,14 @@ function seatPoint(layout: Layout, index: number, count: number, human: boolean)
 function betPoint(layout: Layout, seat: Point, size: SeatSize, human: boolean): Point {
   // Las mías van a la derecha de mis cartas, a media altura: delante las taparían al levantarlas.
   if (human) {
-    const cardsBottom = seat.y - size.height / 2 + size.overlap;
+    const cardsBottom = seat.y - size.height / 2 - size.gap;
     return { x: seat.x + size.width / 2 + 34, y: cardsBottom - size.card * 0.62 };
   }
   const dx = layout.center.x - seat.x;
   const dy = layout.center.y - seat.y;
   const length = Math.hypot(dx, dy) || 1;
   // Hacia los lados basta con salir de la placa; hacia arriba hay que saltar también sus cartas.
-  const cardsAbove = size.card * 1.4 - size.overlap;
+  const cardsAbove = size.card * 1.4 + size.gap;
   const reachX = size.width / 2 + 44;
   const reachY = dy < 0 ? size.height / 2 + cardsAbove + 30 : size.height / 2 + 44;
   return { x: seat.x + (dx / length) * reachX, y: seat.y + (dy / length) * reachY };
@@ -123,6 +123,14 @@ const at = (point: Point): CSSProperties => ({ left: point.x, top: point.y });
 const cardWidth = (width: number) => ({ "--card-w": `${width}px` }) as CSSProperties;
 
 const CENTERED = "absolute -translate-x-1/2 -translate-y-1/2";
+const CARD_GAP = 4; // entre las dos cartas de un jugador
+
+/** Dónde empiezan las cartas, desde el lado del avatar, para quedar centradas sobre el nombre. */
+function cardsOffset(size: SeatSize): number {
+  const nameStart = size.avatar + 6;
+  const cards = 2 * size.card + CARD_GAP;
+  return nameStart + (size.width - nameStart - cards) / 2;
+}
 
 const STATUS_LABEL: Record<string, string> = {
   folded: "Retirado",
@@ -163,13 +171,14 @@ function SeatPlaque({ seat, frame, size, scale, avatarSide, thinking }: SeatProp
 
   return (
     <div className="relative" style={{ width: size.width }}>
-      {/* Sus cartas asoman por detrás de la placa, sobre el lado del nombre. */}
+      {/* Sus cartas van encima de la placa, enteras, sobre el nombre. */}
       <div
         data-zone="hand"
-        className="peek absolute flex gap-1"
+        className="absolute flex"
         style={{
-          bottom: size.height - size.overlap,
-          [avatarSide]: size.avatar + 14,
+          bottom: size.height + size.gap,
+          [avatarSide]: cardsOffset(size),
+          gap: CARD_GAP,
           ...cardWidth(size.card),
         }}
       >
@@ -187,11 +196,11 @@ function SeatPlaque({ seat, frame, size, scale, avatarSide, thinking }: SeatProp
         ))}
       </div>
 
-      {/* El mazo está junto a quien tiene el botón. */}
+      {/* El mazo está junto a quien tiene el botón, encima de su avatar. */}
       {dealer && (
         <span
           className="absolute"
-          style={{ bottom: size.height - 8, [avatarSide]: 8, ...cardWidth(26) }}
+          style={{ bottom: size.height + size.gap, [avatarSide]: 8, ...cardWidth(26) }}
           title="Mazo"
         >
           <span
