@@ -16,9 +16,9 @@ diseño propio y colores de casino, baraja clásica, la mano reproducida paso a
 paso con animaciones, efectos de sonido, música de fondo y un panel de ajustes
 con los volúmenes y el interruptor de animaciones.
 
-Etapa 3 (cuentas), en curso. Ya hecho: crear una cuenta, entrar y salir. La
-cuenta es opcional: sin ella se sigue jugando como invitado. Quedan el perfil
-con estadísticas y el saldo de fichas guardado en la cuenta.
+Etapa 3 (cuentas), en curso. Ya hecho: crear una cuenta, entrar y salir, y
+el perfil con estadísticas. La cuenta es opcional: sin ella se sigue jugando
+como invitado. Queda el saldo de fichas guardado en la cuenta.
 
 Todavía no hay minijuegos ni partidas entre personas: son etapas futuras. Cada
 partida vive en la memoria del servidor y se pierde al cerrarlo; las cuentas
@@ -82,6 +82,11 @@ recuperar.
 Con la sesión iniciada juegas con el nombre de tu cuenta y la sesión dura 30
 días en ese navegador, hasta que pulses **Salir**. Cada cuenta tiene su propia
 partida, distinta de la que tuvieras como invitado.
+
+Al pulsar tu nombre, arriba, se abre tu perfil: manos jugadas y ganadas,
+mayor bote ganado, mejor mano enseñada y partidas ganadas, en total y según el
+nivel de los rivales. Solo cuentan las manos que terminas con la sesión
+iniciada; una mano que dejas a medias al empezar otra partida no cuenta.
 
 Las cuentas se guardan en `backend/data/mi-poker.db` (SQLite), que se crea
 solo la primera vez y no se sube a git. Para usar otro archivo, define la
@@ -170,7 +175,8 @@ ajustan levemente sus decisiones.
 backend/
   poker_engine/   motor del juego en Python puro (sin dependencias web)
   bots/           estrategias por nivel; solo usan la vista pública del motor
-  accounts/       cuentas en Python puro: contraseñas, usuarios y sesiones (SQLite)
+  accounts/       cuentas en Python puro: contraseñas, usuarios, sesiones y
+                  estadísticas (SQLite)
   server/         FastAPI + WebSocket; partidas en memoria, una por jugador,
                   y las rutas de cuentas (`accounts_api.py`)
   data/           la base de datos de cuentas (se crea sola; fuera de git)
@@ -257,6 +263,9 @@ pestaña oculta no suena nada.
   rechazan si vienen de otra página.
 - **Cerrar sesión** borra la sesión en el servidor y corta sus conexiones
   abiertas.
+- **Estadísticas**: las apunta el servidor al terminar cada mano, antes de
+  enviar el resultado al navegador; el cliente no puede mandarlas. Se llevan
+  aparte por nivel de los rivales.
 
 Pensado para jugar en local. Antes de publicarlo en internet haría falta, como
 mínimo, servirlo por HTTPS y limitar cuántas cuentas se pueden crear.

@@ -1,4 +1,4 @@
-"""Cuentas: contraseñas con hash, usuarios y sesiones en SQLite, y freno de intentos."""
+"""Cuentas: contraseñas con hash, usuarios, sesiones y estadísticas en SQLite, y freno de intentos."""
 
 import sqlite3
 from contextlib import closing
@@ -12,9 +12,12 @@ from accounts import (
     AccountError,
     AccountStore,
     Cost,
+    HandOutcome,
+    LevelStats,
     Throttle,
     UsernameTaken,
     hash_password,
+    total,
     verify_password,
 )
 
@@ -223,3 +226,73 @@ def test_throttle_forgets_failures_after_a_success(clock):
     throttle.reset("joker")
     throttle.fail("joker")
     assert throttle.wait_seconds("joker") == 0
+
+
+# --- Estadísticas ---
+
+
+def test_a_new_account_has_no_stats(store, clock):
+    user = store.register("joker", PASSWORD)
+    assert store.stats(user) == []
+    assert total([]) == LevelStats()
+    assert store.member_since(user) == int(clock.now)
+
+
+def test_each_finished_hand_adds_up(store):
+    user = store.register("joker", PASSWORD)
+    for outcome in [
+        HandOutcome("easy", first_hand=True),
+        HandOutcome("easy", chips_won=300, best_hand=6),
+        HandOutcome("easy", chips_won=120, best_hand=2),
+        HandOutcome("easy", best_hand=4),
+        HandOutcome("easy", chips_won=40, game_won=True),
+    ]:
+        store.record_hand(user, outcome)
+    assert store.stats(user) == [
+        LevelStats("easy", hands_played=5, hands_won=3, biggest_win=300, best_hand=6,
+                   games_played=1, games_won=1)
+    ]
+
+
+def test_stats_are_kept_per_level_and_per_account(store):
+    joker, ana = store.register("joker", PASSWORD), store.register("ana", PASSWORD)
+    store.record_hand(joker, HandOutcome("easy", chips_won=50, best_hand=3, first_hand=True))
+    store.record_hand(joker, HandOutcome("expert", chips_won=900, first_hand=True, game_won=True))
+    store.record_hand(joker, HandOutcome("expert"))
+    store.record_hand(ana, HandOutcome("easy"))
+
+    easy, expert = store.stats(joker)
+    assert (easy.difficulty, easy.hands_played, easy.best_hand) == ("easy", 1, 3)
+    assert (expert.difficulty, expert.hands_played, expert.best_hand) == ("expert", 2, None)
+    assert total([easy, expert]) == LevelStats(
+        hands_played=3, hands_won=2, biggest_win=900, best_hand=3, games_played=2, games_won=1
+    )
+    assert store.stats(ana) == [LevelStats("easy", hands_played=1)]
+
+
+def test_a_database_from_before_the_stats_is_upgraded_in_place(tmp_path):
+    """Las cuentas creadas con la versión anterior siguen ahí y ya pueden tener estadísticas."""
+    path = tmp_path / "antigua.db"
+    with closing(sqlite3.connect(path)) as db, db:
+        db.executescript(
+            """
+            CREATE TABLE users (id INTEGER PRIMARY KEY, username TEXT NOT NULL,
+                username_key TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL,
+                created_at INTEGER NOT NULL);
+            CREATE TABLE sessions (token_hash TEXT PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL);
+            PRAGMA user_version = 1;
+            """
+        )
+        db.execute(
+            "INSERT INTO users (username, username_key, password_hash, created_at)"
+            " VALUES ('Joker', 'joker', ?, 123)",
+            (hash_password(PASSWORD, FAST),),
+        )
+    store = AccountStore(path, FAST)
+    user = store.authenticate("joker", PASSWORD)
+    assert user is not None and store.member_since(user) == 123
+    store.record_hand(user, HandOutcome("medium", chips_won=10))
+    assert store.stats(user) == [LevelStats("medium", hands_played=1, hands_won=1, biggest_win=10)]
+    assert rows(store, "PRAGMA user_version") == [(2,)]

@@ -1,10 +1,11 @@
-"""Cuentas de usuario: registro, contraseñas y sesiones.
+"""Cuentas de usuario: registro, contraseñas, sesiones y estadísticas.
 
 Python puro y sin dependencias: se prueba solo con pytest. El servidor web
 está en `server/`; aquí no hay nada de FastAPI.
 """
 
 from .passwords import DEFAULT_COST, Cost, hash_password, verify_password
+from .stats import HandOutcome, LevelStats, total
 from .store import (
     PASSWORD_MAX,
     PASSWORD_MIN,
@@ -31,6 +32,8 @@ __all__ = [
     "AccountError",
     "AccountStore",
     "Cost",
+    "HandOutcome",
+    "LevelStats",
     "Throttle",
     "User",
     "UsernameTaken",
@@ -38,5 +41,6 @@ __all__ = [
     "check_username",
     "hash_password",
     "token_hash",
+    "total",
     "verify_password",
 ]

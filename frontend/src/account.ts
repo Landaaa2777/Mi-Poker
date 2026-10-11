@@ -8,6 +8,28 @@ export interface User {
   username: string;
 }
 
+/** Lo acumulado en las manos jugadas con la cuenta. */
+export interface Stats {
+  hands_played: number;
+  hands_won: number;
+  biggest_win: number; // lo máximo cobrado en una sola mano
+  best_hand: string | null; // la mejor mano enseñada en un showdown, por su nombre
+  games_played: number;
+  games_won: number;
+}
+
+export interface LevelStats extends Stats {
+  difficulty: string;
+  name: string; // nombre del nivel de los rivales
+}
+
+export interface Profile {
+  user: User & { member_since: number | null }; // segundos desde 1970
+  stats: { total: Stats; levels: LevelStats[] };
+}
+
+export type ProfileResult = { ok: true; profile: Profile } | { ok: false; message: string };
+
 export type AccountMode = "login" | "register";
 
 export type AccountResult = { ok: true; user: User | null } | { ok: false; message: string };
@@ -47,6 +69,11 @@ export function checkCredentials(
   return password === repeat ? null : "Las dos contraseñas no coinciden.";
 }
 
+/** Porcentaje entero de `part` sobre `whole`; 0 si no hay nada sobre lo que calcular. */
+export function percent(part: number, whole: number): number {
+  return whole > 0 ? Math.round((100 * part) / whole) : 0;
+}
+
 type Fetcher = typeof fetch;
 
 async function post(path: string, body: unknown, fetcher: Fetcher): Promise<AccountResult> {
@@ -82,4 +109,24 @@ export function login(username: string, password: string, fetcher: Fetcher = fet
 
 export function logout(fetcher: Fetcher = fetch) {
   return post("/api/logout", {}, fetcher);
+}
+
+/** El perfil de la cuenta con la que hay sesión: quién es y sus estadísticas. */
+export async function fetchProfile(fetcher: Fetcher = fetch): Promise<ProfileResult> {
+  let response: Response;
+  try {
+    response = await fetcher("/api/profile", { credentials: "same-origin" });
+  } catch {
+    return { ok: false, message: NO_CONNECTION };
+  }
+  let data: (Partial<Profile> & { message?: unknown }) | null = null;
+  try {
+    data = await response.json();
+  } catch {
+    // Respuesta sin JSON: se trata abajo como un fallo inesperado.
+  }
+  if (response.ok && data?.user && data.stats) {
+    return { ok: true, profile: { user: data.user, stats: data.stats } };
+  }
+  return { ok: false, message: typeof data?.message === "string" ? data.message : UNEXPECTED };
 }

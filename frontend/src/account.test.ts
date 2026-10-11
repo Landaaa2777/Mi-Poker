@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { checkCredentials, login, logout, register } from "./account";
+import { checkCredentials, fetchProfile, login, logout, percent, register } from "./account";
 
 const PASSWORD = "una clave de prueba";
 
@@ -40,6 +40,41 @@ describe("checkCredentials", () => {
     const huge = "x".repeat(129);
     expect(checkCredentials("register", "joker", huge, huge)).toMatch(/128/);
     expect(checkCredentials("register", "joker", PASSWORD, PASSWORD + "!")).toMatch(/no coinciden/);
+  });
+});
+
+describe("percent", () => {
+  it("redondea al entero más cercano y no divide entre cero", () => {
+    expect(percent(1, 3)).toBe(33);
+    expect(percent(2, 3)).toBe(67);
+    expect(percent(5, 5)).toBe(100);
+    expect(percent(0, 0)).toBe(0);
+  });
+});
+
+describe("perfil", () => {
+  const profile = {
+    user: { username: "Joker", member_since: 1760000000 },
+    stats: {
+      total: { hands_played: 3, hands_won: 1, biggest_win: 40, best_hand: "Color", games_played: 1, games_won: 0 },
+      levels: [],
+    },
+  };
+
+  it("devuelve la cuenta y sus estadísticas", async () => {
+    const fetcher = reply(200, profile);
+    expect(await fetchProfile(fetcher)).toEqual({ ok: true, profile });
+    expect(fetcher.mock.calls[0]).toEqual(["/api/profile", { credentials: "same-origin" }]);
+  });
+
+  it("sin sesión, da el motivo", async () => {
+    const result = await fetchProfile(reply(401, { message: "Inicia sesión para ver tu perfil" }));
+    expect(result).toEqual({ ok: false, message: "Inicia sesión para ver tu perfil" });
+  });
+
+  it("una respuesta incompleta no se da por buena", async () => {
+    expect((await fetchProfile(reply(200, { user: profile.user }))).ok).toBe(false);
+    expect((await fetchProfile(reply(200, {}))).ok).toBe(false);
   });
 });
 

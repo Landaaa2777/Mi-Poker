@@ -4,6 +4,7 @@ import { audio } from "./audio/engine";
 import { tableSounds, useAudio } from "./audio/useAudio";
 import { AccountDialog } from "./components/AccountDialog";
 import { AccountMenu } from "./components/AccountMenu";
+import { ProfileDialog } from "./components/ProfileDialog";
 import { Controls } from "./components/Controls";
 import { preloadFaces } from "./components/cards/CardFace";
 import { Wordmark } from "./components/Emblem";
@@ -49,6 +50,7 @@ export default function App() {
   const [configuring, setConfiguring] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   // Al entrar o salir de la cuenta se vuelve a conectar: el servidor me
   // identifica en ese momento y me da la partida de esa identidad.
@@ -58,6 +60,7 @@ export default function App() {
     reconnect();
   }
   async function signOut() {
+    setProfileOpen(false);
     setSigningOut(true);
     await logout();
     setSigningOut(false);
@@ -91,9 +94,13 @@ export default function App() {
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        {/* En pantallas estrechas los botones bajan a otra fila en vez de salirse. */}
+        <div className="flex flex-wrap items-center gap-2">
           {server && !showStart && (
-            <button className="btn-gold h-9 px-4 text-sm" onClick={() => setConfiguring(true)}>
+            <button
+              className="btn-gold h-9 whitespace-nowrap px-4 text-sm"
+              onClick={() => setConfiguring(true)}
+            >
               Nueva partida
             </button>
           )}
@@ -102,6 +109,7 @@ export default function App() {
             disabled={signingOut}
             onSignIn={() => setAccountOpen(true)}
             onSignOut={signOut}
+            onProfile={() => setProfileOpen(true)}
           />
           <SettingsMenu
             settings={settings}
@@ -173,6 +181,9 @@ export default function App() {
       )}
 
       {accountOpen && <AccountDialog onClose={() => setAccountOpen(false)} onSignedIn={signedIn} />}
+      {profileOpen && user && (
+        <ProfileDialog user={user} onClose={() => setProfileOpen(false)} onSignOut={signOut} />
+      )}
     </div>
   );
 }

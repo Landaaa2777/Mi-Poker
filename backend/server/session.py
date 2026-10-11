@@ -7,6 +7,7 @@ import random
 from collections.abc import Awaitable, Callable
 from typing import Any
 
+from accounts import HandOutcome
 from bots import PERSONALITIES, Bot, create_bot
 from poker_engine import (
     CATEGORY_NAMES,
@@ -24,6 +25,7 @@ HUMAN_SEAT = 0
 BOT_DELAY = (0.8, 2.5)  # segundos que un bot "piensa" antes de actuar
 
 Listener = Callable[[], Awaitable[None]]
+HandRecorder = Callable[[HandOutcome], None]
 
 
 class SessionError(Exception):
@@ -31,15 +33,19 @@ class SessionError(Exception):
 
 
 class GameSession:
-    """Estado de la partida de un invitado. Las fichas solo existen aquí, en memoria."""
+    """Estado de la partida de un jugador. Las fichas solo existen aquí, en memoria."""
 
     def __init__(
         self,
         bot_delay: tuple[float, float] = BOT_DELAY,
         simulations: int | None = None,
+        on_hand_end: HandRecorder | None = None,
     ) -> None:
         self.bot_delay = bot_delay
         self.simulations = simulations
+        # Se llama una vez por mano terminada, con cómo le fue al humano. Lo usan
+        # las cuentas para llevar las estadísticas; un invitado no tiene.
+        self.on_hand_end = on_hand_end
         self.config: TableConfig | None = None
         self.game: Game | None = None
         self.bots: dict[int, Bot] = {}
@@ -149,6 +155,22 @@ class GameSession:
         self._observed_hand = game.hand_number
         for seat, bot in self.bots.items():
             bot.observe(player_view(game, seat))
+        if self.on_hand_end is not None:
+            self.on_hand_end(self._outcome(game))
+
+    def _outcome(self, game: Game) -> HandOutcome:
+        """Cómo le fue al humano en la mano que acaba de terminar."""
+        assert game.hand is not None and game.hand.result is not None and self.config is not None
+        result = game.hand.result
+        shown = result.hand_values.get(HUMAN_SEAT)
+        winner = game.winner
+        return HandOutcome(
+            difficulty=self.config.difficulty,
+            chips_won=result.payouts.get(HUMAN_SEAT, 0),
+            best_hand=int(shown[0]) if shown else None,
+            first_hand=game.hand_number == 1,
+            game_won=winner is not None and winner.seat == HUMAN_SEAT,
+        )
 
     def _stop_runner(self) -> None:
         if self._runner is not None:

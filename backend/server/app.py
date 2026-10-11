@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import re
 from pathlib import Path
@@ -14,7 +15,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
-from accounts import DEFAULT_COST, AccountStore, Cost, Throttle, token_hash
+from accounts import DEFAULT_COST, AccountStore, Cost, HandOutcome, Throttle, token_hash
 
 from .accounts_api import SESSION_COOKIE, account_routes, public_user, same_origin
 from .protocol import CLIENT_MESSAGE, NOTICE, NewGame, NextHand, PlayerAction, options
@@ -27,6 +28,7 @@ DATABASE = Path(os.environ.get("MI_POKER_DB") or BACKEND / "data" / "mi-poker.db
 MAX_SESSIONS = 500
 
 _GUEST_ID = re.compile(r"[A-Za-z0-9_-]{8,64}")
+log = logging.getLogger("mi-poker")
 
 
 def create_app(
@@ -80,7 +82,18 @@ def create_app(
         if session is None:
             if len(sessions) >= MAX_SESSIONS:
                 sessions.pop(next(iter(sessions)))  # se descarta la partida más antigua
-            session = sessions[key] = GameSession(bot_delay, simulations)
+            record = None
+            if user is not None:
+                account = user
+
+                def record(outcome: HandOutcome) -> None:
+                    # Una mano no se estropea porque falle el guardado de sus estadísticas.
+                    try:
+                        accounts.record_hand(account, outcome)
+                    except Exception:
+                        log.exception("No se pudieron guardar las estadísticas de una mano")
+
+            session = sessions[key] = GameSession(bot_delay, simulations, record)
 
         send_lock = asyncio.Lock()
 

@@ -4,9 +4,11 @@
     POST /api/login     {"username": "...", "password": "..."}   entra
     POST /api/logout                                             sale
     GET  /api/me                                                 la cuenta de esta sesión
+    GET  /api/profile                                            la cuenta y sus estadísticas
 
 Todas responden {"user": {"username": "..."} | null}, o {"message": "..."} con
-un código de error. La sesión viaja en una cookie que los scripts de la página
+un código de error. El perfil añade "member_since" y "stats": el total y el
+desglose por nivel de los rivales. La sesión viaja en una cookie que los scripts de la página
 no pueden leer; la contraseña no se guarda ni se devuelve nunca.
 """
 
@@ -21,7 +23,18 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 from starlette.datastructures import Headers
 
-from accounts import SESSION_SECONDS, AccountError, AccountStore, Throttle, User, UsernameTaken
+from accounts import (
+    SESSION_SECONDS,
+    AccountError,
+    AccountStore,
+    LevelStats,
+    Throttle,
+    User,
+    UsernameTaken,
+    total,
+)
+from bots import LEVELS
+from poker_engine import CATEGORY_NAMES, HandCategory
 
 SESSION_COOKIE = "mi_poker_session"
 WRONG_CREDENTIALS = "Usuario o contraseña incorrectos"
@@ -51,6 +64,19 @@ def same_origin(headers: Headers) -> bool:
 def public_user(user: User | None) -> dict | None:
     """Lo que el cliente puede saber de una cuenta."""
     return {"username": user.username} if user else None
+
+
+def public_stats(stats: LevelStats) -> dict:
+    """Estadísticas tal como las ve el cliente: la mejor mano va con su nombre."""
+    best = CATEGORY_NAMES[HandCategory(stats.best_hand)] if stats.best_hand else None
+    return {
+        "hands_played": stats.hands_played,
+        "hands_won": stats.hands_won,
+        "biggest_win": stats.biggest_win,
+        "best_hand": best,
+        "games_played": stats.games_played,
+        "games_won": stats.games_won,
+    }
 
 
 def account_routes(store: AccountStore, throttle: Throttle, on_logout: OnLogout) -> APIRouter:
@@ -117,5 +143,24 @@ def account_routes(store: AccountStore, throttle: Throttle, on_logout: OnLogout)
     @router.get("/me")
     def me(request: Request) -> dict:
         return {"user": public_user(store.user_for_token(request.cookies.get(SESSION_COOKIE)))}
+
+    @router.get("/profile")
+    def profile(request: Request) -> JSONResponse:
+        user = store.user_for_token(request.cookies.get(SESSION_COOKIE))
+        if user is None:
+            return failure(401, "Inicia sesión para ver tu perfil")
+        played = {stats.difficulty: stats for stats in store.stats(user)}
+        # Del nivel más flojo al más fuerte, y solo los que ha jugado.
+        levels = [
+            {"difficulty": level, "name": bot.level_name, **public_stats(played[level])}
+            for level, bot in LEVELS.items()
+            if level in played
+        ]
+        return JSONResponse(
+            {
+                "user": {"username": user.username, "member_since": store.member_since(user)},
+                "stats": {"total": public_stats(total(played.values())), "levels": levels},
+            }
+        )
 
     return router

@@ -115,6 +115,20 @@ idea, nunca la marca ni los assets):
 - La lógica de cuentas es Python puro, separada de FastAPI, para probarla solo
   con pytest. En el frontend, todo lo de la cuenta va en un módulo aislado.
 
+### Perfil y estadísticas
+- Las estadísticas las apunta el servidor al terminar cada mano; el cliente
+  no las envía. Quedan guardadas antes de que el jugador vea el resultado.
+- Solo cuentan las manos terminadas con la sesión iniciada. Los invitados no
+  tienen estadísticas, y una mano dejada a medias no cuenta.
+- Se llevan aparte por nivel de los rivales; el perfil muestra el total y el
+  desglose.
+- Qué se guarda: manos jugadas; manos ganadas (cobrar algo de algún bote);
+  lo máximo cobrado en una mano; la mejor mano enseñada en un showdown;
+  partidas jugadas (cuenta al terminar su primera mano) y partidas ganadas
+  (dejar sin fichas a todos los rivales).
+- Si falla el guardado, la mano sigue: nunca se rompe una partida por las
+  estadísticas.
+
 ## Reglas de la etapa 2
 
 ### Animaciones
@@ -195,8 +209,9 @@ idea, nunca la marca ni los assets):
 1. Cuentas y login (completado): registro, inicio y cierre de sesión; el
    servidor reconoce al usuario en la partida y los invitados siguen pudiendo
    jugar. La partida de invitado y la de la cuenta son independientes.
-2. Perfil y estadísticas: manos jugadas y ganadas, mayor bote, partidas
-   ganadas, y una pantalla de perfil.
+2. Perfil y estadísticas (completado): manos jugadas y ganadas, mayor bote,
+   mejor mano y partidas ganadas, en total y por nivel de los rivales, en una
+   pantalla de perfil.
 3. Saldo: fichas virtuales guardadas en la cuenta. Hay que decidir cómo al
    llegar, porque cambia la regla de que las fichas viven solo en memoria.
 4. Cierre: repaso final y README.

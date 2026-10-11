@@ -15,6 +15,7 @@ from functools import cached_property
 from pathlib import Path
 
 from .passwords import DEFAULT_COST, Cost, hash_password, verify_password
+from .stats import HandOutcome, LevelStats
 
 USERNAME_MIN, USERNAME_MAX = 3, 16
 PASSWORD_MIN, PASSWORD_MAX = 8, 128
@@ -36,8 +37,21 @@ CREATE TABLE IF NOT EXISTS sessions (
     created_at INTEGER NOT NULL,
     expires_at INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS stats (
+    user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    difficulty   TEXT    NOT NULL,            -- nivel de los bots: una fila por nivel jugado
+    hands_played INTEGER NOT NULL DEFAULT 0,
+    hands_won    INTEGER NOT NULL DEFAULT 0,
+    biggest_win  INTEGER NOT NULL DEFAULT 0,
+    best_hand    INTEGER NOT NULL DEFAULT 0,  -- categoría de mano; 0 = aún no enseñó ninguna
+    games_played INTEGER NOT NULL DEFAULT 0,
+    games_won    INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (user_id, difficulty)
+);
 """
-SCHEMA_VERSION = 1
+# Cada tabla se crea solo si falta, así que una base de datos de una versión
+# anterior se pone al día sola al abrirla.
+SCHEMA_VERSION = 2
 
 
 @dataclass(frozen=True)
@@ -159,6 +173,51 @@ class AccountStore:
             return
         with self._connect() as db:
             db.execute("DELETE FROM sessions WHERE token_hash = ?", (token_hash(token),))
+
+    # --- Perfil y estadísticas ---
+
+    def member_since(self, user: User) -> int | None:
+        """Cuándo se creó la cuenta, en segundos desde 1970."""
+        with self._connect() as db:
+            row = db.execute("SELECT created_at FROM users WHERE id = ?", (user.id,)).fetchone()
+        return row[0] if row else None
+
+    def record_hand(self, user: User, outcome: HandOutcome) -> None:
+        """Suma una mano terminada a las estadísticas de la cuenta."""
+        with self._connect() as db:
+            db.execute(
+                "INSERT INTO stats (user_id, difficulty, hands_played, hands_won, biggest_win,"
+                " best_hand, games_played, games_won) VALUES (?, ?, 1, ?, ?, ?, ?, ?)"
+                " ON CONFLICT (user_id, difficulty) DO UPDATE SET"
+                " hands_played = hands_played + 1,"
+                " hands_won = hands_won + excluded.hands_won,"
+                " biggest_win = MAX(biggest_win, excluded.biggest_win),"
+                " best_hand = MAX(best_hand, excluded.best_hand),"
+                " games_played = games_played + excluded.games_played,"
+                " games_won = games_won + excluded.games_won",
+                (
+                    user.id,
+                    outcome.difficulty,
+                    int(outcome.chips_won > 0),
+                    outcome.chips_won,
+                    outcome.best_hand or 0,
+                    int(outcome.first_hand),
+                    int(outcome.game_won),
+                ),
+            )
+
+    def stats(self, user: User) -> list[LevelStats]:
+        """Lo acumulado por la cuenta contra cada nivel que ha jugado."""
+        with self._connect() as db:
+            found = db.execute(
+                "SELECT difficulty, hands_played, hands_won, biggest_win, best_hand,"
+                " games_played, games_won FROM stats WHERE user_id = ? ORDER BY difficulty",
+                (user.id,),
+            ).fetchall()
+        return [
+            LevelStats(level, played, won, biggest, best or None, games, games_won)
+            for level, played, won, biggest, best, games, games_won in found
+        ]
 
     # --- Interno ---
 
