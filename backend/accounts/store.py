@@ -99,7 +99,7 @@ def token_hash(token: str) -> str:
 
 
 class AccountStore:
-    """Usuarios y sesiones. La base de datos no se crea hasta que hace falta."""
+    """Usuarios, sesiones, estadísticas y saldo. La base de datos se crea cuando hace falta."""
 
     def __init__(
         self,
@@ -132,6 +132,7 @@ class AccountStore:
 
     def authenticate(self, username: str, password: str) -> User | None:
         """El usuario, si la contraseña es la suya. No distingue por qué falla."""
+        decoy = self._decoy  # preparado antes de saber si la cuenta existe
         with self._connect() as db:
             row = db.execute(
                 "SELECT id, username, password_hash FROM users WHERE username_key = ?",
@@ -140,7 +141,7 @@ class AccountStore:
         if len(password) > PASSWORD_MAX:
             return None
         if row is None:
-            verify_password(password, self._decoy)
+            verify_password(password, decoy)
             return None
         return User(row[0], row[1]) if verify_password(password, row[2]) else None
 
@@ -210,6 +211,19 @@ class AccountStore:
             )
             return self._add_chips(db, user, outcome.chips_delta)
 
+    def stats(self, user: User) -> list[LevelStats]:
+        """Lo acumulado por la cuenta contra cada nivel que ha jugado."""
+        with self._connect() as db:
+            found = db.execute(
+                "SELECT difficulty, hands_played, hands_won, biggest_win, best_hand,"
+                " games_played, games_won FROM stats WHERE user_id = ? ORDER BY difficulty",
+                (user.id,),
+            ).fetchall()
+        return [
+            LevelStats(level, played, won, biggest, best or None, games, games_won)
+            for level, played, won, biggest, best, games, games_won in found
+        ]
+
     # --- Saldo ---
 
     def balance(self, user: User) -> int:
@@ -242,19 +256,6 @@ class AccountStore:
         db.execute("UPDATE users SET balance = MAX(0, balance + ?) WHERE id = ?", (chips, user.id))
         row = db.execute("SELECT balance FROM users WHERE id = ?", (user.id,)).fetchone()
         return row[0] if row else 0
-
-    def stats(self, user: User) -> list[LevelStats]:
-        """Lo acumulado por la cuenta contra cada nivel que ha jugado."""
-        with self._connect() as db:
-            found = db.execute(
-                "SELECT difficulty, hands_played, hands_won, biggest_win, best_hand,"
-                " games_played, games_won FROM stats WHERE user_id = ? ORDER BY difficulty",
-                (user.id,),
-            ).fetchall()
-        return [
-            LevelStats(level, played, won, biggest, best or None, games, games_won)
-            for level, played, won, biggest, best, games, games_won in found
-        ]
 
     # --- Interno ---
 

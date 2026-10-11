@@ -149,6 +149,23 @@ def test_an_unknown_user_costs_the_same_work_as_a_wrong_password(store, monkeypa
     assert len(checks) == 2
 
 
+def test_the_first_attempt_costs_the_same_whether_or_not_the_account_exists(tmp_path, monkeypatch):
+    """El hash señuelo se prepara antes de mirar la cuenta: tampoco el primer intento delata nada."""
+
+    def hashes_made(username):
+        store = AccountStore(tmp_path / f"{username}.db", FAST)
+        store.register("joker", PASSWORD)
+        made = []
+        real = accounts.store.hash_password
+        with monkeypatch.context() as patch:
+            patch.setattr(accounts.store, "hash_password", lambda *args: made.append(1) or real(*args))
+            store.authenticate(username, "otra clave distinta")
+            store.authenticate(username, "otra clave distinta")
+        return len(made)
+
+    assert hashes_made("joker") == hashes_made("nadie") == 1
+
+
 # --- Sesiones ---
 
 

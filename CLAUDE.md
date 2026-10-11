@@ -8,6 +8,9 @@ originales (no copiar marca, assets ni textos de ningún sitio existente).
 Objetivo: que cada jugador pueda tener su cuenta, con perfil, estadísticas y
 saldo de fichas virtuales, sin dejar de poder jugar como invitado.
 
+La ETAPA 3 está completa: aprobé su último hito el 2026-10-10. La etapa 4 no
+ha empezado y no se empieza hasta que yo lo pida.
+
 Las ETAPAS 1 (motor, bots, servidor e interfaz simple) y 2 (pulido visual y
 sonoro) están completas: aprobé el último hito de la etapa 2 el 2026-10-10.
 
@@ -236,7 +239,8 @@ idea, nunca la marca ni los assets):
    pantalla de perfil.
 3. Saldo (completado): fichas virtuales guardadas en la cuenta, que se llevan
    a la mesa y cambian con cada mano; recarga gratis al quedarse sin ellas.
-4. Cierre: repaso final y README.
+4. Cierre (completado): repaso final y README. En el repaso se igualó lo que
+   tarda el primer intento de inicio de sesión, exista o no la cuenta.
 
 ## Hitos de la etapa 2 (completada)
 En esta etapa solo cambió el frontend. Únicas excepciones en el backend, que

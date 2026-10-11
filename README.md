@@ -17,9 +17,9 @@ diseño propio y colores de casino, baraja clásica, la mano reproducida paso a
 paso con animaciones, efectos de sonido, música de fondo y un panel de ajustes
 con los volúmenes y el interruptor de animaciones.
 
-Etapa 3 (cuentas), en curso. Ya hecho: crear una cuenta, entrar y salir, el
-perfil con estadísticas y el saldo de fichas guardado en la cuenta. La cuenta
-es opcional: sin ella se sigue jugando como invitado. Queda el repaso final.
+Etapa 3 (completa): cuentas. Crear una cuenta, entrar y salir, perfil con
+estadísticas y saldo de fichas virtuales guardado en la cuenta. La cuenta es
+opcional: sin ella se sigue jugando como invitado.
 
 Todavía no hay minijuegos ni partidas entre personas: son etapas futuras. Cada
 partida vive en la memoria del servidor y se pierde al cerrarlo; las cuentas
@@ -100,7 +100,8 @@ invitados no tienen saldo: juegan con las fichas que elijan.
 Las cuentas se guardan en `backend/data/mi-poker.db` (SQLite), que se crea
 solo la primera vez y no se sube a git. Para usar otro archivo, define la
 variable `MI_POKER_DB` antes de arrancar el servidor. Borrar ese archivo
-borra todas las cuentas.
+borra todas las cuentas; para guardar una copia de seguridad basta con
+copiarlo con el servidor parado.
 
 ### Sonido y ajustes
 
@@ -124,8 +125,12 @@ Backend, desde `backend` con el venv activado:
 pytest
 ```
 
-Frontend (línea de tiempo, cola, preferencias y sonidos de cada paso), desde
-`frontend`:
+Los del backend cubren el motor, los bots, el servidor y las cuentas
+(contraseñas, sesiones, estadísticas y saldo). Usan bases de datos temporales:
+nunca tocan la de `backend/data`.
+
+Frontend (línea de tiempo, cola, preferencias, sonidos de cada paso y la parte
+de cuentas que no necesita navegador), desde `frontend`:
 
 ```powershell
 npm test
