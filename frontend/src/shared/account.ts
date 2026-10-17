@@ -114,6 +114,17 @@ export function logout(fetcher: Fetcher = fetch) {
   return post("/api/logout", {}, fetcher);
 }
 
+/** Quién soy según el servidor: la cuenta de la cookie de sesión, o null si juego como invitado. */
+export async function fetchMe(fetcher: Fetcher = fetch): Promise<User | null> {
+  try {
+    const response = await fetcher("/api/me", { credentials: "same-origin" });
+    const data = (await response.json()) as { user?: User | null };
+    return data.user ?? null;
+  } catch {
+    return null; // sin conexión: hasta que vuelva, como invitado
+  }
+}
+
 /** Recarga gratis de fichas. El servidor solo la concede a quien se ha quedado sin ellas. */
 export async function refill(fetcher: Fetcher = fetch): Promise<RefillResult> {
   let response: Response;

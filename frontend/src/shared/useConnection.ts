@@ -47,6 +47,9 @@ export function partidaUrl(game: string, partidaId: string): string {
  * Conexión con la partida de un juego. El cliente solo muestra el estado y
  * envía intenciones: el servidor decide todo.
  *
+ * `identity` cambia al entrar o salir de una cuenta: entonces se vuelve a
+ * conectar, y el servidor da la partida de la identidad nueva.
+ *
  * Primero se pide la partida por HTTP y luego se abre su WebSocket
  * (`/ws/{juego}/{partida_id}`). Cada estado recibido se entrega a `onState`;
  * `instant` vale `true` para el que llega al conectar: no se vio lo anterior,
@@ -57,6 +60,7 @@ export function partidaUrl(game: string, partidaId: string): string {
  */
 export function useConnection<State, Options, ClientMessage>(
   game: string,
+  identity: string,
   onState: (state: State | null, instant: boolean) => void,
 ): Connection<Options, ClientMessage> {
   const [connected, setConnected] = useState(false);
@@ -129,7 +133,7 @@ export function useConnection<State, Options, ClientMessage>(
       socketRef.current?.close();
       setWaiting(false);
     };
-  }, [game, setWaiting, connection]);
+  }, [game, identity, setWaiting, connection]);
 
   const reconnect = useCallback(() => setConnection((current) => current + 1), []);
 

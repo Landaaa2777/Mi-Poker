@@ -1,0 +1,90 @@
+/*
+ * Tokens de diseño de toda la plataforma: colores, tipografías, espacios, radios
+ * y sombras. Es la ÚNICA fuente de estos valores: los estilos y los componentes
+ * los leen de aquí. Con Tailwind, cada token es además una clase:
+ *   --color-gold      → text-gold, bg-gold, border-gold…
+ *   --radius-panel    → rounded-panel
+ *   --container-page  → max-w-page
+ * "static" hace que todos existan como variables CSS aunque ninguna clase los use.
+ */
+@theme static {
+  /* --- Oro: títulos, bordes y lo importante --- */
+  --color-gold: #f5c542;
+  --color-gold-light: #fff1bf;
+  --color-gold-dark: #b47d14;
+  --color-gold-deep: #6e4a0b; /* filo oscuro del ribete de la mesa */
+  --color-gold-scroll: #7a5410; /* barra de desplazamiento */
+
+  /* --- Fondo de casino: granate que se apaga hacia el negro --- */
+  --color-wine: #4d0f20;
+  --color-wine-dark: #1c080e;
+  --color-night: #080405;
+
+  /* --- Paneles oscuros con filo dorado --- */
+  --color-panel: #21121a;
+  --color-panel-deep: #130a0e;
+
+  /* --- Tapete esmeralda --- */
+  --color-felt: #17804c;
+  --color-felt-light: #35c478;
+  --color-felt-mid: #1f9a59;
+  --color-felt-dark: #10653a;
+  --color-felt-deep: #093f24;
+
+  /* --- Texto --- */
+  --color-ink: #f5f5f4; /* texto principal */
+  --color-ink-dark: #241703; /* texto sobre oro */
+
+  /* --- Botones: tonos tenues a propósito (los vivos cansaban la vista) --- */
+  --color-btn-gold-top: #d6b160;
+  --color-btn-gold-mid: #b78c33;
+  --color-btn-gold-bottom: #957021;
+  --color-btn-gold-border: #dfc582;
+  --color-btn-gold-edge: #5c420d;
+  --color-btn-red-top: #bd4651;
+  --color-btn-red-mid: #9b2a35;
+  --color-btn-red-bottom: #791c27;
+  --color-btn-red-border: #cb727b;
+  --color-btn-red-edge: #4a0e16;
+  --color-btn-red-text: #fdf3f4;
+  --color-btn-green-top: #43996a;
+  --color-btn-green-mid: #2c7a50;
+  --color-btn-green-bottom: #1e5d3b;
+  --color-btn-green-border: #6fb892;
+  --color-btn-green-edge: #103a23;
+  --color-btn-green-text: #f2fbf5;
+  --color-btn-dark-top: #3a2a31;
+  --color-btn-dark-bottom: #21161b;
+  --color-btn-dark-edge: #0c0709;
+  --color-btn-dark-text: #f6ead0;
+
+  /* --- Baraja clásica (poker y blackjack) --- */
+  --color-card-back: #b3101c; /* dorso rojo de casino */
+  --color-card-white: #fdfbf5;
+  --color-chip: #e11d2f; /* ficha que cruza la mesa */
+  --color-chip-edge: #fff1f2;
+
+  /* --- Prisma: los cuatro palos (cada uno con su forma; ver games/prisma) --- */
+  --color-panal: #e07a3c; /* naranja cobre, hexágono */
+  --color-halo: #1fb3a6; /* turquesa, anillo */
+  --color-cumbre: #8b5cf6; /* violeta, triángulo */
+  --color-astro: #e0428f; /* fucsia, estrella de cuatro puntas */
+  --color-prisma-back: #1b1530; /* reverso de las cartas de Prisma */
+
+  /* --- Tipografías --- */
+  --font-display: ui-rounded, "Segoe UI", system-ui, sans-serif; /* títulos del menú */
+  --font-numbers: "Trebuchet MS", "Segoe UI", system-ui, sans-serif; /* números de Prisma */
+
+  /* --- Radios --- */
+  --radius-panel: 0.9rem;
+  --radius-button: 0.8rem;
+  --radius-tile: 1.25rem; /* tarjetas del menú */
+
+  /* --- Espacios --- */
+  --spacing-gutter: 0.75rem; /* separación estándar entre bloques */
+  --container-page: 1180px; /* ancho máximo de la página */
+
+  /* --- Sombras --- */
+  --shadow-panel: inset 0 1px 0 rgb(255 255 255 / 0.05), 0 10px 26px rgb(0 0 0 / 0.5);
+  --shadow-lift: 0 18px 44px rgb(0 0 0 / 0.65);
+}

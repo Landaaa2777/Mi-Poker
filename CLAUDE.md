@@ -47,8 +47,8 @@ originales (no copiar marca, assets ni textos de ningún sitio existente).
   esquema de opciones configurables y la función que crea la partida.
   `GET /api/juegos` devuelve la lista y el menú se construye leyéndola.
   Añadir un juego = escribir su módulo, añadir su ficha al registro y su
-  página al mapa de juegos del frontend (`frontend/src/shared/games.ts`), sin
-  tocar el menú.
+  página y su ícono al mapa de juegos del frontend (`frontend/src/games/index.ts`),
+  sin tocar el menú.
 - El menú tiene tarjetas grandes con nombre, una línea de descripción, ícono
   SVG propio dibujado por código y rango de jugadores, y tarjetas
   "Próximamente" deshabilitadas (minijuegos y salas con amigos), que también
@@ -66,7 +66,7 @@ originales (no copiar marca, assets ni textos de ningún sitio existente).
   otra a la vez. Los invitados juegan con fichas gratis en cada mesa. El
   juego de descarte no usa fichas.
 - Todo con el estilo de casino del poker. Colores, tipografías y espaciados
-  centralizados en tokens (`frontend/src/shared/tokens.css`). Responsive,
+  centralizados en tokens (`frontend/src/shared/styles/tokens.css`). Responsive,
   usable con teclado y respetando `prefers-reduced-motion`.
 - Bots de todos los juegos: misma idea que en el poker. Reciben SOLO la
   información pública más la suya propia, y "piensan" entre 0.8 y 2.5
@@ -408,11 +408,15 @@ Referencias que di (se toma la idea, nunca la marca ni los assets):
 
 ## Hitos de la etapa 4
 0. Plan (completado el 2026-10-17).
-1. Refactor modular y registro de juegos: el poker se mueve a
+1. Refactor modular y registro de juegos (completado): el poker se mueve a
    `games/poker/`, aparecen `core/`, las partidas genéricas, el WebSocket
    `/ws/{juego}/{partida_id}` y `GET /api/juegos`. El poker sigue igual y sus
-   tests pasan.
-2. Menú principal conectado al registro, con el poker accesible desde él.
+   320 tests pasan con los mismos nombres.
+2. Menú principal conectado al registro, con el poker accesible desde él
+   (completado): cabecera común con botón Menú, cuenta y ajustes para toda la
+   plataforma, confirmación al salir de una partida, "Continuar partida" en
+   el menú, tokens de diseño y el servidor devuelve la web en /poker y demás
+   rutas.
 3. Blackjack: motor y tests, luego bots, luego interfaz.
 4. Prisma: motor y tests, luego bots con simulación, luego interfaz y arte
    SVG original.

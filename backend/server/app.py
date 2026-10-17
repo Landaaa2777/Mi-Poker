@@ -17,6 +17,9 @@ from pathlib import Path
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
+from starlette.exceptions import HTTPException
+from starlette.responses import Response
+from starlette.types import Scope
 
 from accounts import DEFAULT_COST, AccountStore, Cost, HandOutcome, Throttle, User, token_hash
 from core import NOTICE
@@ -34,6 +37,26 @@ FRONTEND_DIST = BACKEND.parent / "frontend" / "dist"
 DATABASE = Path(os.environ.get("MI_POKER_DB") or BACKEND / "data" / "mi-poker.db")
 
 log = logging.getLogger("mi-poker")
+
+
+class SinglePageApp(StaticFiles):
+    """Sirve la web compilada.
+
+    Las direcciones de la web (/poker, /blackjack…) no son archivos: para ellas
+    se devuelve index.html y es la web quien decide qué enseñar. Así una página
+    recargada o un enlace guardado siguen funcionando. Lo que parece un archivo
+    (lleva extensión) o es de la API y no existe sigue dando 404.
+    """
+
+    async def get_response(self, path: str, scope: Scope) -> Response:
+        try:
+            return await super().get_response(path, scope)
+        except HTTPException as error:
+            # En Windows la ruta llega con "\\": se normaliza antes de mirarla.
+            parts = path.replace("\\", "/").split("/")
+            if error.status_code != 404 or "." in parts[-1] or parts[0] in ("api", "ws"):
+                raise
+            return await super().get_response("index.html", scope)
 
 
 class AccountAtTable:
@@ -89,6 +112,7 @@ def create_app(
     serve_frontend: bool = True,
     database: Path | str = DATABASE,
     password_cost: Cost = DEFAULT_COST,
+    frontend_dist: Path = FRONTEND_DIST,
 ) -> FastAPI:
     app = FastAPI(title="mi-poker", description=NOTICE)
     # Partidas en memoria, una por identidad y juego. No se guardan en disco.
@@ -192,8 +216,8 @@ def create_app(
                 if not open_sockets:
                     del connections[token_hash(token)]
 
-    if serve_frontend and FRONTEND_DIST.is_dir():
-        app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")
+    if serve_frontend and frontend_dist.is_dir():
+        app.mount("/", SinglePageApp(directory=frontend_dist, html=True), name="frontend")
     return app
 
 

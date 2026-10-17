@@ -1,0 +1,312 @@
+/* Estilos base de la plataforma. Los colores, radios y sombras salen de los
+   tokens (tokens.css): negro y granate de fondo, oro para lo importante, rojo,
+   verde y oro apagados en los botones y esmeralda en el tapete. */
+
+body {
+  @apply min-h-screen text-stone-100 antialiased;
+  background: radial-gradient(
+      1100px 560px at 50% -8%,
+      var(--color-wine) 0%,
+      var(--color-wine-dark) 46%,
+      var(--color-night) 100%
+    )
+    fixed var(--color-night);
+}
+
+/* Deslizadores (monto de la subida, volúmenes) con el color de acento del juego. */
+input[type="range"] {
+  accent-color: var(--color-gold);
+}
+
+@layer components {
+  /* Letras de oro, para el nombre del juego y los títulos. */
+  .gold-text {
+    background: linear-gradient(
+      180deg,
+      var(--color-gold-light) 0%,
+      var(--color-gold) 48%,
+      var(--color-gold-dark) 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Tapete: esmeralda con luz en el centro y un grano muy fino por encima. */
+  .felt {
+    background-color: var(--color-felt);
+    background-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.3'/%3E%3C/svg%3E"),
+      radial-gradient(
+        ellipse at 50% 42%,
+        var(--color-felt-light) 0%,
+        var(--color-felt-mid) 36%,
+        var(--color-felt-dark) 72%,
+        var(--color-felt-deep) 100%
+      );
+  }
+  /* Ribete dorado alrededor del tapete, como el borde de una mesa de casino. */
+  .rim {
+    box-shadow:
+      0 0 0 2px var(--color-gold-deep),
+      0 0 0 5px var(--color-gold),
+      0 0 0 7px var(--color-gold-deep),
+      var(--shadow-lift);
+  }
+
+  /* Paneles oscuros con filo dorado: registro, botones, ajustes. */
+  .panel {
+    background: linear-gradient(180deg, var(--color-panel) 0%, var(--color-panel-deep) 100%);
+    border: 1px solid rgb(245 197 66 / 0.32);
+    border-radius: var(--radius-panel);
+    box-shadow: var(--shadow-panel);
+  }
+
+  /* Botones con relieve. El canto inferior los hace parecer teclas; al
+     pulsarlos bajan. No hay transiciones: el cambio es inmediato. Los colores
+     son tenues a propósito: los vivos cansaban la vista. */
+  .btn-gold,
+  .btn-red,
+  .btn-green,
+  .btn-dark {
+    border-radius: var(--radius-button);
+    font-weight: 900;
+  }
+  .btn-gold {
+    background: linear-gradient(
+      180deg,
+      var(--color-btn-gold-top) 0%,
+      var(--color-btn-gold-mid) 48%,
+      var(--color-btn-gold-bottom) 100%
+    );
+    border: 1px solid var(--color-btn-gold-border);
+    color: var(--color-ink-dark);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.3),
+      0 4px 0 var(--color-btn-gold-edge),
+      0 6px 14px rgb(0 0 0 / 0.4);
+  }
+  .btn-red {
+    background: linear-gradient(
+      180deg,
+      var(--color-btn-red-top) 0%,
+      var(--color-btn-red-mid) 50%,
+      var(--color-btn-red-bottom) 100%
+    );
+    border: 1px solid var(--color-btn-red-border);
+    color: var(--color-btn-red-text);
+    text-shadow: 0 1px 0 rgb(0 0 0 / 0.35);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.2),
+      0 4px 0 var(--color-btn-red-edge),
+      0 6px 14px rgb(0 0 0 / 0.4);
+  }
+  .btn-green {
+    background: linear-gradient(
+      180deg,
+      var(--color-btn-green-top) 0%,
+      var(--color-btn-green-mid) 50%,
+      var(--color-btn-green-bottom) 100%
+    );
+    border: 1px solid var(--color-btn-green-border);
+    color: var(--color-btn-green-text);
+    text-shadow: 0 1px 0 rgb(0 0 0 / 0.3);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.2),
+      0 4px 0 var(--color-btn-green-edge),
+      0 6px 14px rgb(0 0 0 / 0.4);
+  }
+  .btn-dark {
+    background: linear-gradient(180deg, var(--color-btn-dark-top) 0%, var(--color-btn-dark-bottom) 100%);
+    border: 1px solid rgb(245 197 66 / 0.4);
+    color: var(--color-btn-dark-text);
+    font-weight: 600;
+    box-shadow: 0 3px 0 var(--color-btn-dark-edge);
+  }
+  :is(.btn-gold, .btn-red, .btn-green, .btn-dark):hover:not(:disabled) {
+    filter: brightness(1.07);
+  }
+  :is(.btn-gold, .btn-red, .btn-green, .btn-dark):active:not(:disabled) {
+    translate: 0 3px;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.3);
+  }
+  :is(.btn-gold, .btn-red, .btn-green, .btn-dark):disabled {
+    opacity: 0.45;
+  }
+
+  /* Carta: todo su tamaño sale del ancho, que fija quien la contiene con --card-w. */
+  .card,
+  .card-slot {
+    width: var(--card-w, 2.75rem);
+    height: calc(var(--card-w, 2.75rem) * 1.4);
+  }
+  .card {
+    border-radius: calc(var(--card-w, 2.75rem) * 0.065);
+    font-size: calc(var(--card-w, 2.75rem) * 0.44);
+  }
+  /* Dorso: rojo de casino con enrejado de rombos y doble filo blanco. El
+     tamaño del enrejado acompaña al de la carta. */
+  .card-back {
+    --mesh: calc(var(--card-w, 2.75rem) * 0.11);
+    background-color: var(--color-card-back);
+    background-image:
+      repeating-linear-gradient(45deg, rgb(255 255 255 / 0.34) 0 1px, transparent 1px var(--mesh)),
+      repeating-linear-gradient(-45deg, rgb(255 255 255 / 0.34) 0 1px, transparent 1px var(--mesh));
+    box-shadow:
+      inset 0 0 0 calc(var(--card-w, 2.75rem) * 0.045) var(--color-card-white),
+      inset 0 0 0 calc(var(--card-w, 2.75rem) * 0.075) var(--color-card-back),
+      inset 0 0 0 calc(var(--card-w, 2.75rem) * 0.095) rgb(253 251 245 / 0.8),
+      0 1px 3px rgb(0 0 0 / 0.5);
+  }
+  /* Medallón central del dorso, con el emblema del juego. */
+  .card-back-emblem {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    height: 46%;
+    width: 64.4%;
+    translate: -50% -50%;
+    border-radius: 50%;
+    background: var(--color-card-back);
+    color: var(--color-card-white);
+    padding: 6%;
+  }
+
+  /* Una carta de juego va en capas, una por movimiento, para que no se pisen:
+     hueco fijo > flotación > inclinación > vuelo > giro 3D con sus dos caras. */
+  .card-slot {
+    position: relative;
+    display: inline-block;
+  }
+  .card-layer {
+    display: block;
+    height: 100%;
+    width: 100%;
+  }
+  .card-3d {
+    position: relative;
+    display: block;
+    transform-style: preserve-3d;
+  }
+  .card-3d.face-down {
+    transform: rotateY(180deg);
+  }
+  .card-side {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    backface-visibility: hidden;
+  }
+  .card-face {
+    background: #ffffff;
+    box-shadow:
+      0 0 0 1px rgb(0 0 0 / 0.18),
+      0 2px 5px rgb(0 0 0 / 0.5);
+  }
+  /* Cara sencilla (cartas pequeñas): valor y palo, grandes y centrados. */
+  .compact-face {
+    justify-content: center;
+    gap: 0.08em;
+  }
+  .card-side.card-back {
+    transform: rotateY(180deg);
+  }
+  /* Inclinación con el ratón y levantada al seleccionar. Los valores los pone
+     la propia carta en variables; aquí solo se compone el transform. */
+  .card-tilt {
+    transform: translateY(var(--lift, 0%)) rotate(var(--fan, 0deg)) perspective(700px)
+      rotateX(calc(var(--tilt-y, 0) * -18deg)) rotateY(calc(var(--tilt-x, 0) * 20deg))
+      scale(var(--zoom, 1));
+  }
+  [data-motion="on"] .card-tilt {
+    transition: transform 260ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  /* Mientras el ratón se mueve por encima, sigue al cursor sin rebote. */
+  [data-motion="on"] .card-tilt.tracking {
+    transition: transform 90ms ease-out;
+  }
+  .card-slot:hover {
+    z-index: 5;
+  }
+
+  /* Flotación en reposo: un vaivén lento y muy leve, distinto en cada carta. */
+  [data-motion="on"] .card-float {
+    animation: card-float 4s ease-in-out infinite;
+    animation-delay: var(--float-delay, 0s);
+  }
+
+  /* Capa de efectos: fichas y cartas que cruzan la mesa. */
+  .fx-chip {
+    position: absolute;
+    left: -11px;
+    top: -11px;
+    height: 22px;
+    width: 22px;
+    border-radius: 50%;
+    border: 3px dashed var(--color-chip-edge);
+    background: var(--color-chip);
+    box-shadow: 0 2px 4px rgb(0 0 0 / 0.45);
+  }
+  .fx-ghost {
+    position: absolute;
+    pointer-events: none;
+  }
+
+  /* Resaltes: aparecen con suavidad; el del turno late despacio. */
+  [data-motion="on"] .glow-in {
+    animation: glow-in 320ms ease-out both;
+  }
+  [data-motion="on"] .glow-turn {
+    animation:
+      glow-in 320ms ease-out both,
+      glow-pulse 2.4s ease-in-out 320ms infinite;
+  }
+  [data-motion="on"] .pop-in {
+    animation: pop-in 320ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+
+  /* Barra de desplazamiento discreta, a juego con el fondo oscuro. */
+  .quiet-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-gold-scroll) transparent;
+  }
+}
+
+@keyframes card-float {
+  0%,
+  100% {
+    transform: translateY(calc(var(--float, 1) * 3px)) rotate(calc(var(--float, 1) * -1.1deg));
+  }
+  50% {
+    transform: translateY(calc(var(--float, 1) * -3px)) rotate(calc(var(--float, 1) * 1.1deg));
+  }
+}
+
+@keyframes glow-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes glow-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+}
+
+/* Tarjetas del menú: se levantan un poco al pasar el ratón o con el foco del
+   teclado. Solo con las animaciones activadas, y moviendo solo transform. */
+[data-motion="on"] .hub-card {
+  transition: transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+[data-motion="on"] .hub-card:hover,
+[data-motion="on"] .hub-card:focus-visible {
+  transform: translateY(-4px);
+}
