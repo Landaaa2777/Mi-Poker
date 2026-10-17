@@ -1,6 +1,10 @@
-"""Aplicación FastAPI: un WebSocket por jugador, las cuentas y la interfaz ya compilada.
+"""Aplicación FastAPI: el menú de juegos, un WebSocket por partida, las cuentas y la web compilada.
 
     uvicorn server.app:app --reload
+
+El servidor no sabe jugar a nada en concreto: cada juego trae su partida
+(`games/<juego>/session.py`) y aquí solo se guardan, se conectan con el
+navegador y se les pasan los mensajes.
 """
 
 from __future__ import annotations
@@ -8,7 +12,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-import re
 from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -16,31 +19,38 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
 from accounts import DEFAULT_COST, AccountStore, Cost, HandOutcome, Throttle, User, token_hash
+from core import NOTICE
+from core.bots import BOT_DELAY
+from core.registry import GameInfo
+from core.session import GameSession, SessionContext, SessionError
 
 from .accounts_api import SESSION_COOKIE, account_routes, public_user, same_origin
-from .protocol import CLIENT_MESSAGE, NOTICE, NewGame, NextHand, PlayerAction, options
-from .session import BOT_DELAY, GameSession, SessionError
+from .games_api import game_routes
+from .partidas import Partidas, owner_key
 
 BACKEND = Path(__file__).resolve().parents[1]
 FRONTEND_DIST = BACKEND.parent / "frontend" / "dist"
 # Base de datos de cuentas. Se puede llevar a otro sitio con MI_POKER_DB.
 DATABASE = Path(os.environ.get("MI_POKER_DB") or BACKEND / "data" / "mi-poker.db")
-MAX_SESSIONS = 500
 
-_GUEST_ID = re.compile(r"[A-Za-z0-9_-]{8,64}")
 log = logging.getLogger("mi-poker")
 
 
 class AccountAtTable:
-    """La cuenta de un jugador vista desde su partida: su saldo y dónde apuntar cada mano.
+    """La cuenta de un jugador vista desde una de sus partidas: su saldo y dónde apuntar cada mano.
 
     Una partida no se estropea porque falle la base de datos: el fallo se
     anota en el registro del servidor y la mano sigue.
     """
 
-    def __init__(self, store: AccountStore, user: User) -> None:
+    def __init__(
+        self, store: AccountStore, user: User, partidas: Partidas, owner: str, partida_id: str
+    ) -> None:
         self.store = store
         self.user = user
+        self.partidas = partidas
+        self.owner = owner
+        self.partida_id = partida_id
         self._last_balance = 0
 
     def balance(self) -> int:
@@ -49,6 +59,16 @@ class AccountAtTable:
         except Exception:
             log.exception("No se pudo leer el saldo")
         return self._last_balance
+
+    def chips_elsewhere(self) -> int:
+        """Fichas sentadas en las otras mesas de la cuenta: no se pueden traer a esta."""
+        return self.partidas.chips_elsewhere(self.owner, self.partida_id)
+
+    def add_chips(self, chips: int) -> None:
+        try:
+            self.store.add_chips(self.user, chips)
+        except Exception:
+            log.exception("No se pudo apuntar el resultado en el saldo")
 
     def hand_finished(self, outcome: HandOutcome) -> None:
         try:
@@ -71,10 +91,9 @@ def create_app(
     password_cost: Cost = DEFAULT_COST,
 ) -> FastAPI:
     app = FastAPI(title="mi-poker", description=NOTICE)
-    # Partidas en memoria, una por jugador: por cuenta o, sin ella, por
-    # identificador de invitado. Las partidas no se guardan en disco.
-    sessions: dict[str, GameSession] = {}
-    app.state.sessions = sessions
+    # Partidas en memoria, una por identidad y juego. No se guardan en disco.
+    partidas = Partidas()
+    app.state.partidas = partidas
     accounts = AccountStore(database, password_cost)
     app.state.accounts = accounts
     # Conexiones abiertas de cada sesión iniciada, para cortarlas al cerrarla.
@@ -88,35 +107,46 @@ def create_app(
             except RuntimeError:
                 pass  # ya estaba cerrada
 
+    def make_session(game: GameInfo, owner: str, partida_id: str, user: User | None) -> GameSession:
+        """La partida nueva de un juego, con la cuenta de su dueño si la tiene."""
+        assert game.create is not None
+        account = AccountAtTable(accounts, user, partidas, owner, partida_id) if user else None
+        context = SessionContext(
+            account=account,
+            player_name=user.username if user else None,
+            bot_delay=bot_delay,
+            simulations=simulations,
+        )
+        return game.create(context)
+
     app.include_router(account_routes(accounts, Throttle(), close_connections))
+    app.include_router(game_routes(accounts, partidas, make_session))
 
     @app.get("/api/health")
     def health() -> dict:
         return {"ok": True, "notice": NOTICE}
 
-    @app.websocket("/ws")
-    async def play(websocket: WebSocket, guest_id: str = "") -> None:
+    @app.websocket("/ws/{game_id}/{partida_id}")
+    async def play(websocket: WebSocket, game_id: str, partida_id: str, guest_id: str = "") -> None:
         if not same_origin(websocket.headers):
             await websocket.close(code=4403, reason="Origen no permitido")
             return
         token = websocket.cookies.get(SESSION_COOKIE)
         user = await asyncio.to_thread(accounts.user_for_token, token)
-        if user is None and not _GUEST_ID.fullmatch(guest_id):
+        owner = owner_key(user, guest_id)
+        if owner is None:
             await websocket.close(code=4400, reason="Identificador de invitado inválido")
+            return
+        partida = partidas.get(partida_id)
+        # Solo su dueño puede jugar una partida, y solo a su juego.
+        if partida is None or partida.owner != owner or partida.game != game_id:
+            await websocket.close(code=4404, reason="Partida no encontrada")
             return
         await websocket.accept()
         if user is not None and token:
             connections.setdefault(token_hash(token), set()).add(websocket)
 
-        # Los identificadores de invitado no llevan ":", así que no chocan con las cuentas.
-        key = f"user:{user.id}" if user else guest_id
-        session = sessions.get(key)
-        if session is None:
-            if len(sessions) >= MAX_SESSIONS:
-                sessions.pop(next(iter(sessions)))  # se descarta la partida más antigua
-            account = AccountAtTable(accounts, user) if user else None
-            session = sessions[key] = GameSession(bot_delay, simulations, account)
-
+        session = partida.session
         send_lock = asyncio.Lock()
 
         async def send(message: dict) -> None:
@@ -134,7 +164,8 @@ def create_app(
         await send(
             {
                 "type": "hello",
-                "options": options(),
+                "game": game_id,
+                "options": session.options(),
                 "user": await asyncio.to_thread(public_user, accounts, user),
                 "state": session.state(),
             }
@@ -144,19 +175,7 @@ def create_app(
             while True:
                 text = await websocket.receive_text()
                 try:
-                    message = CLIENT_MESSAGE.validate_json(text)
-                    if isinstance(message, NewGame):
-                        config = message.config
-                        if user is not None:
-                            # Con cuenta, el nombre en la mesa es el suyo, diga lo que diga el cliente.
-                            config = config.model_copy(update={"player_name": user.username})
-                        session.new_game(config)
-                    elif isinstance(message, PlayerAction):
-                        session.act(message.action, message.amount)
-                    elif isinstance(message, NextHand):
-                        session.next_hand()
-                    else:
-                        session.restart()
+                    session.handle(text)
                 except ValidationError as error:
                     await send({"type": "error", "message": _explain(error)})
                 except SessionError as error:

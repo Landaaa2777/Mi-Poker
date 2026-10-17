@@ -23,7 +23,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from server.app import create_app  # noqa: E402
 
-OUTPUT = ROOT / "frontend" / "src" / "timeline" / "fixtures" / "sessions.json"
+OUTPUT = ROOT / "frontend" / "src" / "games" / "poker" / "timeline" / "fixtures" / "sessions.json"
 MAX_ATTEMPTS = 400
 
 # nombre, configuración, manos, probabilidades del humano (all-in, subir, retirarse), casos exigidos
@@ -71,7 +71,10 @@ def record(config: dict, hands: int, odds: tuple[float, float, float], rng: rand
     states: list[dict] = []
     tags: set[str] = set()
     played = 0
-    with TestClient(app).websocket_connect("/ws?guest_id=grabadora-de-partidas") as socket:
+    client = TestClient(app)
+    guest = "grabadora-de-partidas"
+    partida = client.post("/api/partidas", json={"game": "poker", "guest_id": guest}).json()
+    with client.websocket_connect(f"/ws/poker/{partida['partida_id']}?guest_id={guest}") as socket:
         socket.receive_json()  # hello
         socket.send_json({"type": "new_game", "config": config})
         while True:

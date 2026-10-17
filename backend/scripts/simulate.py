@@ -19,8 +19,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from bots import LEVELS  # noqa: E402
-from bots.simulation import BotResult, run_match  # noqa: E402
+from games.poker.bots import LEVELS  # noqa: E402
+from games.poker.bots.simulation import BotResult, run_match  # noqa: E402
 
 LEVEL_NAMES = {level: bot.level_name for level, bot in LEVELS.items()}
 

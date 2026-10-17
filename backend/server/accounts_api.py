@@ -35,8 +35,8 @@ from accounts import (
     UsernameTaken,
     total,
 )
-from bots import LEVELS
-from poker_engine import CATEGORY_NAMES, HandCategory
+from games.poker.bots import LEVELS
+from games.poker.engine import CATEGORY_NAMES, HandCategory
 
 SESSION_COOKIE = "mi_poker_session"
 WRONG_CREDENTIALS = "Usuario o contraseña incorrectos"

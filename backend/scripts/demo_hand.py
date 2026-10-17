@@ -9,8 +9,20 @@ demostración; en el juego real cada jugador solo ve las suyas.
 from __future__ import annotations
 
 import random
+import sys
+from pathlib import Path
 
-from poker_engine import CATEGORY_NAMES, Action, ActionType, Game, GameConfig, Hand, LegalActions
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from games.poker.engine import (  # noqa: E402
+    CATEGORY_NAMES,
+    Action,
+    ActionType,
+    Game,
+    GameConfig,
+    Hand,
+    LegalActions,
+)
 
 STREET_NAMES = {"flop": "FLOP", "turn": "TURN", "river": "RIVER"}
 

@@ -5,16 +5,17 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "mi-poker"
 version = "0.1.0"
-description = "Texas Hold'em No-Limit contra bots. Solo para entretenimiento, sin dinero real."
+description = "Juegos de cartas contra bots: poker, blackjack y Prisma. Solo para entretenimiento, sin dinero real."
 requires-python = ">=3.12"
 dependencies = ["fastapi>=0.115", "uvicorn[standard]>=0.30"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "httpx>=0.27"]
 
-[tool.setuptools]
-packages = ["poker_engine", "bots", "accounts", "server"]
+[tool.setuptools.packages.find]
+include = ["core*", "games*", "accounts*", "server*"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
-pythonpath = [".", "tests"]
+# Tests de la plataforma en tests/ y los de cada juego en games/<juego>/tests/.
+testpaths = ["tests", "games"]
+pythonpath = ["."]
