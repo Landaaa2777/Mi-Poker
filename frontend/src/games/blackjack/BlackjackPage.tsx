@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { refill } from "../../shared/account";
 import { useAccount } from "../../shared/AccountContext";
 import { audio } from "../../shared/audio/engine";
 import { preloadFaces } from "../../shared/cards/CardFace";
@@ -7,6 +6,7 @@ import { formatChips } from "../../shared/format";
 import { HeaderContent } from "../../shared/Layout";
 import { usePlatformSettings } from "../../shared/SettingsContext";
 import { usePlayback } from "../../shared/timeline/usePlayback";
+import { useWhenDue } from "../../shared/useClock";
 import { useConnection } from "../../shared/useConnection";
 import { useDocumentTitle } from "../../shared/useDocumentTitle";
 import { useLeaveGuard } from "../../shared/useLeaveGuard";
@@ -66,15 +66,10 @@ export default function BlackjackPage() {
   }, [user, balance, setTableBalance]);
   useEffect(() => () => setTableBalance(undefined), [setTableBalance]);
 
-  async function askRefill(): Promise<string | null> {
-    const result = await refill();
-    if (!result.ok) return result.message;
-    reconnect();
-    void account.refresh();
-    return null;
-  }
-
   const showStart = options !== null && (server === null || configuring);
+  // En la pantalla de inicio, al llegar las fichas diarias se vuelve a conectar
+  // para enseñar el saldo nuevo.
+  useWhenDue(showStart ? user?.next_chips_at : null, reconnect);
   const settled = !busy;
   const me = server?.seats[server.human_seat];
   const myTurn = settled && server?.legal_actions != null && server.legal_actions.length > 0;
@@ -133,7 +128,7 @@ export default function BlackjackPage() {
           balance={user ? latestBalance : null}
           atStake={atStake}
           elsewhere={elsewhere}
-          onRefill={askRefill}
+          nextChipsAt={user?.next_chips_at ?? null}
           onStart={(config) => {
             send({ type: "new_game", config });
             setConfiguring(false);

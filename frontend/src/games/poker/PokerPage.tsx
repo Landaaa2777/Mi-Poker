@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { refill } from "../../shared/account";
 import { useAccount } from "../../shared/AccountContext";
 import { audio } from "../../shared/audio/engine";
 import { preloadFaces } from "../../shared/cards/CardFace";
 import { HeaderContent } from "../../shared/Layout";
 import { usePlatformSettings } from "../../shared/SettingsContext";
+import { useWhenDue } from "../../shared/useClock";
 import { useConnection } from "../../shared/useConnection";
 import { useDocumentTitle } from "../../shared/useDocumentTitle";
 import { useLeaveGuard } from "../../shared/useLeaveGuard";
@@ -62,16 +62,10 @@ export default function PokerPage() {
   // Al salir de la mesa, la cabecera vuelve a enseñar el saldo de la cuenta.
   useEffect(() => () => setTableBalance(undefined), [setTableBalance]);
 
-  // Recarga gratis. El saldo nuevo llega al volver a conectar.
-  async function askRefill(): Promise<string | null> {
-    const result = await refill();
-    if (!result.ok) return result.message;
-    reconnect();
-    void account.refresh();
-    return null;
-  }
-
   const showStart = options !== null && (server === null || configuring);
+  // En la pantalla de inicio, al llegar las fichas diarias se vuelve a conectar:
+  // el servidor las entrega al mirar el saldo y la pantalla enseña el nuevo.
+  useWhenDue(showStart ? user?.next_chips_at : null, reconnect);
 
   const settled = !busy;
   const myTurn = settled && server?.legal_actions != null;
@@ -134,7 +128,7 @@ export default function PokerPage() {
           balance={user ? latestBalance : null}
           atStake={atStake}
           elsewhere={elsewhere}
-          onRefill={askRefill}
+          nextChipsAt={user?.next_chips_at ?? null}
           initial={server?.config ?? options.defaults}
           onStart={(config) => {
             send({ type: "new_game", config });

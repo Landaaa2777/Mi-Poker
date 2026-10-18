@@ -8,13 +8,13 @@
     POST /api/logout                                             sale
     GET  /api/me                                                 la cuenta de esta sesión
     GET  /api/profile                                            la cuenta y sus estadísticas
-    POST /api/refill                                             recarga gratis de fichas
 
-Todas responden {"user": {"username": "...", "balance": 10000} | null}, o
-{"message": "..."} con un código de error. El perfil añade "member_since",
-"email" (o null) y "stats": el total y el desglose por nivel de los rivales. La recarga responde
-{"balance": 10000}; solo se concede a quien se ha quedado sin fichas. La sesión viaja en una cookie que los scripts de la página
-no pueden leer; la contraseña no se guarda ni se devuelve nunca.
+Todas responden {"user": {"username": "...", "balance": 10000, "next_chips_at": ...} | null},
+o {"message": "..."} con un código de error. "next_chips_at" dice cuándo llegan
+las próximas fichas diarias (segundos desde 1970). El perfil añade
+"member_since", "email" (o null) y "stats": el total y el desglose por nivel de
+los rivales. La sesión viaja en una cookie que los scripts de la página no
+pueden leer; la contraseña no se guarda ni se devuelve nunca.
 """
 
 from __future__ import annotations
@@ -72,8 +72,19 @@ def same_origin(headers: Headers) -> bool:
 
 
 def public_user(store: AccountStore, user: User | None) -> dict | None:
-    """Lo que el cliente puede saber de una cuenta: su nombre y su saldo de fichas."""
-    return {"username": user.username, "balance": store.balance(user)} if user else None
+    """Lo que el cliente puede saber de una cuenta: su nombre, su saldo y sus fichas diarias.
+
+    Mirar el saldo cuenta como entrar: entrega las fichas diarias que ya tocaban
+    y pone en camino las siguientes (ver `AccountStore.wallet`).
+    """
+    if user is None:
+        return None
+    wallet = store.wallet(user)
+    return {
+        "username": user.username,
+        "balance": wallet.balance,
+        "next_chips_at": wallet.next_chips_at,
+    }
 
 
 def public_stats(stats: LevelStats) -> dict:
@@ -177,17 +188,5 @@ def account_routes(store: AccountStore, throttle: Throttle, on_logout: OnLogout)
                 "stats": {"total": public_stats(total(played.values())), "levels": levels},
             }
         )
-
-    @router.post("/refill")
-    def refill(request: Request) -> JSONResponse:
-        if not same_origin(request.headers):
-            return failure(403, "Petición rechazada")
-        user = store.user_for_token(request.cookies.get(SESSION_COOKIE))
-        if user is None:
-            return failure(401, "Inicia sesión para recibir fichas")
-        try:
-            return JSONResponse({"balance": store.refill(user)})
-        except AccountError as error:
-            return failure(400, str(error))
 
     return router

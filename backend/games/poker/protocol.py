@@ -24,7 +24,6 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, model_validator
 
-from accounts import REFILL_BELOW, STARTING_BALANCE
 from core import NOTICE
 from games.poker.bots import LEVELS
 from games.poker.engine import MAX_PLAYERS, ActionType
@@ -112,8 +111,5 @@ def options() -> dict:
         "levels": [{"id": level, "name": bot.level_name} for level, bot in LEVELS.items()],
         "max_bots": MAX_BOTS,
         "max_stack": MAX_STACK,
-        # Saldo de las cuentas: con cuánto empiezan y por debajo de cuánto hay recarga gratis.
-        "starting_balance": STARTING_BALANCE,
-        "refill_below": REFILL_BELOW,
         "defaults": defaults.model_dump(),
     }

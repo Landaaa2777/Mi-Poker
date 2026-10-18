@@ -148,9 +148,14 @@ nombre y empieza en 10.000. Poker y blackjack usan el mismo saldo: para jugar
 eliges cuántas fichas llevas a la mesa, y lo que ganas o pierdes en cada mano o
 ronda cambia el saldo al terminarla. Las fichas sentadas en una mesa no se
 pueden llevar a otra a la vez. Si empiezas otra partida con una mano o ronda a
-medias, pierdes lo que llevabas apostado en ella. Con menos de 100 fichas, la
-pantalla de inicio te ofrece reponer el saldo a 10.000, gratis. Prisma no usa
-fichas.
+medias, pierdes lo que llevabas apostado en ella. Prisma no usa fichas.
+
+**Fichas diarias**: cada vez que entras, si no tienes ya unas en camino, se
+ponen en camino 10.000 fichas que llegan 24 horas después, aunque no estés
+conectado. Si un día no entras, al día siguiente no llega nada. El menú, tu
+perfil y la pantalla de inicio de cada mesa dicen cuándo llegan las próximas;
+si pierdes todas tus fichas, toca esperar a esa entrega. No hay otra forma de
+conseguir fichas.
 
 Las cuentas se guardan en `backend/data/mi-poker.db` (SQLite), que se crea
 solo la primera vez y no se sube a git. Para usar otro archivo, define la

@@ -3,6 +3,8 @@
 Estos tests usan el servidor como de verdad: sin `require_account=False`.
 """
 
+from unittest.mock import ANY
+
 import pytest
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
@@ -99,7 +101,9 @@ def test_the_email_is_optional(client):
     response = client.post("/api/register", json={**JOKER, "email": " Joker@Ejemplo.com"})
     assert response.status_code == 201
     # Lo que se sabe de la cuenta en cada respuesta no cambia: el correo solo sale en el perfil.
-    assert response.json() == {"user": {"username": "Joker", "balance": 10_000}}
+    assert response.json() == {
+        "user": {"username": "Joker", "balance": 10_000, "next_chips_at": ANY}
+    }
     assert client.get("/api/profile").json()["user"]["email"] == "joker@ejemplo.com"
     for name, extra in (("Harley", {}), ("Ivy", {"email": None}), ("Selina", {"email": ""})):
         browser = TestClient(client.app)

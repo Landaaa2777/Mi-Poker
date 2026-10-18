@@ -90,8 +90,6 @@ export interface Options {
   levels: { id: string; name: string }[];
   max_bots: number;
   max_stack: number;
-  starting_balance: number; // fichas con las que empieza una cuenta
-  refill_below: number; // con menos saldo que este hay recarga gratis
   defaults: TableConfig;
 }
 

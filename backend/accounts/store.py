@@ -22,7 +22,8 @@ PASSWORD_MIN, PASSWORD_MAX = 8, 128
 EMAIL_MAX = 254
 SESSION_SECONDS = 30 * 24 * 3600  # una sesión dura 30 días
 STARTING_BALANCE = 10_000  # fichas virtuales con las que empieza una cuenta
-REFILL_BELOW = 100  # con menos saldo que este se puede pedir la recarga gratis
+DAILY_CHIPS = 10_000  # fichas diarias: llegan un día después de entrar
+DAILY_WAIT = 24 * 3600  # lo que tardan en llegar, en segundos
 
 _USERNAME = re.compile(r"[A-Za-z0-9_-]+")
 # Un correo con pinta de correo: algo@algo.algo. No se verifica (no hay servicio de correo).
@@ -36,8 +37,11 @@ CREATE TABLE IF NOT EXISTS users (
     email         TEXT,                       -- opcional, en minúsculas: también sirve para entrar
     password_hash TEXT    NOT NULL,
     created_at    INTEGER NOT NULL,
-    balance       INTEGER NOT NULL DEFAULT {STARTING_BALANCE}  -- fichas virtuales, mesa incluida
+    balance       INTEGER NOT NULL DEFAULT {STARTING_BALANCE}, -- fichas virtuales (mesa incluida)
+    chips_due_at  INTEGER                     -- cuándo llegan las fichas diarias (NULL: ninguna en camino)
 );
+-- Ojo: sin comas en los comentarios de las columnas. SQLite busca la coma hacia atrás al
+-- borrar la última columna (ALTER TABLE ... DROP COLUMN) y no sabe saltarse los comentarios.
 CREATE TABLE IF NOT EXISTS sessions (
     token_hash TEXT    PRIMARY KEY,           -- el token solo lo tiene el navegador
     user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -58,13 +62,21 @@ CREATE TABLE IF NOT EXISTS stats (
 """
 # Cada tabla se crea solo si falta, y las columnas nuevas se añaden al abrir:
 # una base de datos de una versión anterior se pone al día sola.
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 
 @dataclass(frozen=True)
 class User:
     id: int
     username: str
+
+
+@dataclass(frozen=True)
+class Wallet:
+    """El saldo de una cuenta y cuándo le llegan las próximas fichas diarias."""
+
+    balance: int
+    next_chips_at: int | None  # segundos desde 1970; None = no hay ninguna entrega en camino
 
 
 class AccountError(Exception):
@@ -259,29 +271,41 @@ class AccountStore:
 
     # --- Saldo ---
 
+    def wallet(self, user: User) -> Wallet:
+        """El saldo y las próximas fichas diarias. Mirarlos cuenta como entrar.
+
+        Al entrar llegan las fichas diarias que ya tocaban (aunque no se
+        estuviera conectado cuando llegó la hora) y, si no queda ninguna entrega
+        en camino, se pone en camino la siguiente: DAILY_CHIPS fichas dentro de
+        DAILY_WAIT segundos. Quien no entra un día no tiene nada en camino al
+        día siguiente.
+        """
+        now = int(self.clock())
+        with self._connect() as db:
+            # Las dos condiciones del WHERE hacen que cada entrega llegue una sola
+            # vez, aunque varias peticiones miren el saldo a la vez.
+            db.execute(
+                "UPDATE users SET balance = balance + ?, chips_due_at = NULL"
+                " WHERE id = ? AND chips_due_at IS NOT NULL AND chips_due_at <= ?",
+                (DAILY_CHIPS, user.id, now),
+            )
+            db.execute(
+                "UPDATE users SET chips_due_at = ? WHERE id = ? AND chips_due_at IS NULL",
+                (now + DAILY_WAIT, user.id),
+            )
+            row = db.execute(
+                "SELECT balance, chips_due_at FROM users WHERE id = ?", (user.id,)
+            ).fetchone()
+        return Wallet(row[0], row[1]) if row else Wallet(0, None)
+
     def balance(self, user: User) -> int:
         """Fichas virtuales de la cuenta, contando las que tenga en la mesa."""
-        with self._connect() as db:
-            row = db.execute("SELECT balance FROM users WHERE id = ?", (user.id,)).fetchone()
-        return row[0] if row else 0
+        return self.wallet(user).balance
 
     def add_chips(self, user: User, chips: int) -> int:
         """Suma fichas al saldo, o las resta si `chips` es negativo. Devuelve el saldo."""
         with self._connect() as db:
             return self._add_chips(db, user, chips)
-
-    def refill(self, user: User) -> int:
-        """Recarga gratis: repone el saldo inicial, solo a quien se ha quedado sin fichas."""
-        with self._connect() as db:
-            refilled = db.execute(
-                "UPDATE users SET balance = ? WHERE id = ? AND balance < ?",
-                (STARTING_BALANCE, user.id, REFILL_BELOW),
-            ).rowcount
-        if not refilled:
-            raise AccountError(
-                f"La recarga gratis es para cuando te quedan menos de {REFILL_BELOW} fichas"
-            )
-        return STARTING_BALANCE
 
     @staticmethod
     def _add_chips(db: sqlite3.Connection, user: User, chips: int) -> int:
@@ -334,6 +358,9 @@ class AccountStore:
                         )
                     if "email" not in columns:
                         db.execute("ALTER TABLE users ADD COLUMN email TEXT")  # cuentas sin correo
+                    if "chips_due_at" not in columns:
+                        # Nada en camino: las primeras fichas diarias se ponen en camino al entrar.
+                        db.execute("ALTER TABLE users ADD COLUMN chips_due_at INTEGER")
                     db.execute(
                         "CREATE UNIQUE INDEX IF NOT EXISTS users_email ON users (email)"
                         " WHERE email IS NOT NULL"

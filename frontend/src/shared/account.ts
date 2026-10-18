@@ -8,6 +8,7 @@
 export interface User {
   username: string;
   balance: number; // fichas virtuales de la cuenta, contando las que tenga en la mesa
+  next_chips_at: number | null; // cuándo llegan las próximas fichas diarias (segundos desde 1970)
 }
 
 /** Lo acumulado en las manos jugadas con la cuenta. */
@@ -35,8 +36,6 @@ export interface Profile {
 
 export type ProfileResult = { ok: true; profile: Profile } | { ok: false; message: string };
 
-export type RefillResult = { ok: true; balance: number } | { ok: false; message: string };
-
 export type AccountMode = "login" | "register";
 
 export type AccountResult = { ok: true; user: User | null } | { ok: false; message: string };
@@ -47,6 +46,8 @@ export const USERNAME_MAX = 16;
 export const PASSWORD_MIN = 8;
 export const PASSWORD_MAX = 128;
 export const EMAIL_MAX = 254;
+// Fichas diarias: cada vez que entras, si no hay unas en camino, llegan estas un día después.
+export const DAILY_CHIPS = 10_000;
 // Un correo con pinta de correo: algo@algo.algo. No se verifica.
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 // Este navegador ya entró alguna vez: la pantalla de entrada abre en "Entrar".
@@ -170,24 +171,6 @@ export async function fetchMe(fetcher: Fetcher = fetch): Promise<User | null> {
   } catch {
     return null; // sin conexión: hasta que vuelva, se pide entrar
   }
-}
-
-/** Recarga gratis de fichas. El servidor solo la concede a quien se ha quedado sin ellas. */
-export async function refill(fetcher: Fetcher = fetch): Promise<RefillResult> {
-  let response: Response;
-  try {
-    response = await fetcher("/api/refill", { method: "POST", credentials: "same-origin" });
-  } catch {
-    return { ok: false, message: NO_CONNECTION };
-  }
-  let data: { balance?: unknown; message?: unknown } | null = null;
-  try {
-    data = await response.json();
-  } catch {
-    // Respuesta sin JSON: se trata abajo como un fallo inesperado.
-  }
-  if (response.ok && typeof data?.balance === "number") return { ok: true, balance: data.balance };
-  return { ok: false, message: typeof data?.message === "string" ? data.message : UNEXPECTED };
 }
 
 /** El perfil de la cuenta con la que hay sesión: quién es y sus estadísticas. */

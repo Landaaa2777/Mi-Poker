@@ -1,14 +1,16 @@
 """Cuentas: contraseñas, usuarios, sesiones, estadísticas y saldo en SQLite, y freno de intentos."""
 
 import sqlite3
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 
 import pytest
 
 import accounts.store
 from accounts import (
+    DAILY_CHIPS,
+    DAILY_WAIT,
     DEFAULT_COST,
-    REFILL_BELOW,
     SESSION_SECONDS,
     STARTING_BALANCE,
     AccountError,
@@ -19,6 +21,7 @@ from accounts import (
     LevelStats,
     Throttle,
     UsernameTaken,
+    Wallet,
     hash_password,
     total,
     verify_password,
@@ -26,6 +29,7 @@ from accounts import (
 
 FAST = Cost(n=16, r=1, p=1)  # los tests no necesitan un hash caro
 PASSWORD = "una clave de prueba"
+DAY = 24 * 3600
 
 
 class Clock:
@@ -380,7 +384,7 @@ def test_a_database_from_before_the_stats_is_upgraded_in_place(tmp_path):
 
 
 def test_a_new_account_starts_with_the_starting_balance(store):
-    assert STARTING_BALANCE == 10_000 and REFILL_BELOW == 100
+    assert STARTING_BALANCE == 10_000
     assert store.balance(store.register("joker", PASSWORD)) == STARTING_BALANCE
 
 
@@ -402,20 +406,77 @@ def test_chips_can_be_added_or_taken_but_never_owed(store):
     assert store.balance(ana) == STARTING_BALANCE
 
 
-@pytest.mark.parametrize("left, allowed", [(0, True), (99, True), (100, False), (5_000, False)])
-def test_the_free_refill_is_only_for_who_ran_out(store, left, allowed):
+# --- Fichas diarias ---
+
+
+def test_entering_puts_the_next_daily_chips_on_their_way(store, clock):
+    assert DAILY_CHIPS == 10_000 and DAILY_WAIT == DAY
     user = store.register("joker", PASSWORD)
-    store.add_chips(user, left - STARTING_BALANCE)
-    assert store.balance(user) == left
-    if allowed:
-        assert store.refill(user) == STARTING_BALANCE
-        assert store.balance(user) == STARTING_BALANCE
-        with pytest.raises(AccountError):
-            store.refill(user)  # ya no le hace falta
-    else:
-        with pytest.raises(AccountError):
-            store.refill(user)
-        assert store.balance(user) == left
+    entered = int(clock.now)
+    assert store.wallet(user) == Wallet(STARTING_BALANCE, entered + DAY)
+    # Volver a entrar mientras hay unas en camino no pone en camino otras.
+    for _ in range(5):
+        clock.now += 3600
+        assert store.wallet(user) == Wallet(STARTING_BALANCE, entered + DAY)
+
+
+def test_who_enters_every_day_gets_chips_every_day(store, clock):
+    user = store.register("joker", PASSWORD)
+    store.wallet(user)  # entra el jueves
+    clock.now += DAY  # el viernes, a la misma hora, llegan; y vuelve a entrar
+    assert store.wallet(user) == Wallet(STARTING_BALANCE + DAILY_CHIPS, int(clock.now) + DAY)
+    clock.now += DAY + 3600  # el sábado, una hora más tarde
+    assert store.balance(user) == STARTING_BALANCE + 2 * DAILY_CHIPS
+
+
+def test_a_day_without_entering_means_no_chips_the_next(store, clock):
+    user = store.register("joker", PASSWORD)
+    store.wallet(user)  # entra el jueves y no vuelve hasta el domingo
+    clock.now += 3 * DAY
+    # Llegaron las del viernes (aunque no estuviera), pero ni las del sábado ni las del domingo.
+    assert store.wallet(user) == Wallet(STARTING_BALANCE + DAILY_CHIPS, int(clock.now) + DAY)
+
+
+def test_who_lost_everything_waits_for_the_next_delivery(store, clock):
+    user = store.register("joker", PASSWORD)
+    store.wallet(user)
+    store.add_chips(user, -STARTING_BALANCE)
+    clock.now += DAY - 60
+    assert store.balance(user) == 0  # todavía no
+    clock.now += 60
+    assert store.balance(user) == DAILY_CHIPS
+
+
+def test_each_delivery_arrives_once_even_if_many_look_at_once(store, clock):
+    user = store.register("joker", PASSWORD)
+    store.wallet(user)
+    clock.now += DAY
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        wallets = list(pool.map(lambda _: store.wallet(user), range(24)))
+    assert {wallet.balance for wallet in wallets} == {STARTING_BALANCE + DAILY_CHIPS}
+    assert store.balance(user) == STARTING_BALANCE + DAILY_CHIPS
+
+
+def test_daily_chips_are_per_account(store, clock):
+    joker, ana = store.register("joker", PASSWORD), store.register("ana", PASSWORD)
+    store.wallet(joker)  # solo entra Joker
+    clock.now += DAY
+    assert store.balance(joker) == STARTING_BALANCE + DAILY_CHIPS
+    assert store.balance(ana) == STARTING_BALANCE  # Ana empieza a esperar ahora
+
+
+def test_a_database_from_before_the_daily_chips_is_upgraded_in_place(store, clock, tmp_path):
+    """Una base de datos del hito anterior: cuentas sin fichas diarias en camino."""
+    user = store.register("joker", PASSWORD)
+    old = tmp_path / "sin-fichas-diarias.db"
+    with closing(sqlite3.connect(store.path)) as source, closing(sqlite3.connect(old)) as target:
+        source.backup(target)
+        with target:
+            target.execute("ALTER TABLE users DROP COLUMN chips_due_at")
+            target.execute("PRAGMA user_version = 4")
+    reopened = AccountStore(old, FAST, clock)
+    assert reopened.wallet(user) == Wallet(STARTING_BALANCE, int(clock.now) + DAY)
+    assert rows(reopened, "PRAGMA user_version") == [(accounts.store.SCHEMA_VERSION,)]
 
 
 def test_a_database_from_before_the_balance_keeps_its_stats(store, tmp_path):

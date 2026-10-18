@@ -7,10 +7,11 @@ está en `server/`; aquí no hay nada de FastAPI.
 from .passwords import DEFAULT_COST, Cost, hash_password, verify_password
 from .stats import HandOutcome, LevelStats, total
 from .store import (
+    DAILY_CHIPS,
+    DAILY_WAIT,
     EMAIL_MAX,
     PASSWORD_MAX,
     PASSWORD_MIN,
-    REFILL_BELOW,
     SESSION_SECONDS,
     STARTING_BALANCE,
     USERNAME_MAX,
@@ -20,6 +21,7 @@ from .store import (
     EmailTaken,
     User,
     UsernameTaken,
+    Wallet,
     check_email,
     check_password,
     check_username,
@@ -28,11 +30,12 @@ from .store import (
 from .throttle import Throttle
 
 __all__ = [
+    "DAILY_CHIPS",
+    "DAILY_WAIT",
     "DEFAULT_COST",
     "EMAIL_MAX",
     "PASSWORD_MAX",
     "PASSWORD_MIN",
-    "REFILL_BELOW",
     "SESSION_SECONDS",
     "STARTING_BALANCE",
     "USERNAME_MAX",
@@ -46,6 +49,7 @@ __all__ = [
     "Throttle",
     "User",
     "UsernameTaken",
+    "Wallet",
     "check_email",
     "check_password",
     "check_username",

@@ -238,8 +238,12 @@ def test_chips_seated_at_poker_cannot_also_go_to_blackjack(joker):
         socket.receive_json()
         socket.send_json({"type": "new_game", "config": {"bots": 1, "starting_stack": 6000}})
         socket.receive_json()
+    # 6000, o algo más si el bot se retiró enseguida y me llevé las ciegas. Lo ganado
+    # sube igual el saldo, así que lo libre para el blackjack sigue siendo 4000.
+    seated = joker.app.state.partidas.get(poker).session.seated_chips()
+    assert 6000 <= seated <= 6010
     with joker.websocket_connect(blackjack_url(joker, None)) as socket:
-        assert socket.receive_json()["elsewhere"] == 6000  # el "hello" ya lo avisa
+        assert socket.receive_json()["elsewhere"] == seated  # el "hello" ya lo avisa
         table = Table(socket)
         message = table.error(type="new_game", config={"bots": 1, "starting_stack": 5000})
         assert "hasta 4000" in message

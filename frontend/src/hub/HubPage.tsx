@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { hasPage } from "../games";
+import { DAILY_CHIPS } from "../shared/account";
 import { useAccount } from "../shared/AccountContext";
 import { Emblem } from "../shared/components/Emblem";
+import { describeArrival, formatChips } from "../shared/format";
+import { useNow, useWhenDue } from "../shared/useClock";
 import { useDocumentTitle } from "../shared/useDocumentTitle";
 import { GameCard } from "./GameCard";
 import {
@@ -15,7 +18,9 @@ import {
 
 /** Menú principal: una tarjeta por juego del registro del servidor. */
 export function HubPage() {
-  const { identity, refresh } = useAccount();
+  const { user, identity, refresh } = useAccount();
+  const now = useNow();
+  const nextChipsAt = user?.next_chips_at ?? null;
   const [games, setGames] = useState<GameEntry[] | null>(null);
   const [partidas, setPartidas] = useState<PartidaInfo[]>([]);
   const [problem, setProblem] = useState<string | null>(null);
@@ -26,6 +31,8 @@ export function HubPage() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+  // Y al llegar las fichas diarias: el servidor las entrega al mirar el saldo.
+  useWhenDue(nextChipsAt, () => void refresh());
 
   useEffect(() => {
     let closed = false;
@@ -57,6 +64,12 @@ export function HubPage() {
             <p className="mt-1 text-sm text-emerald-50/85 sm:text-base">
               Juegos de cartas contra bots, con fichas virtuales.
             </p>
+            {nextChipsAt !== null && (
+              <p className="mt-2 text-sm font-semibold text-amber-200">
+                Tus próximas {formatChips(DAILY_CHIPS)} fichas llegan{" "}
+                {describeArrival(nextChipsAt, now)}.
+              </p>
+            )}
           </div>
         </div>
       </section>

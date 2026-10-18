@@ -1,5 +1,7 @@
 """Servidor: registro, inicio y cierre de sesión, y la partida de cada cuenta."""
 
+from unittest.mock import ANY
+
 import pytest
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
@@ -12,7 +14,8 @@ from games.poker.tests.test_server import poker_url
 GUEST = "invitado-de-prueba"
 PASSWORD = "una clave de prueba"
 JOKER = {"username": "Joker", "password": PASSWORD}
-JOKER_USER = {"username": "Joker", "balance": 10_000}  # lo que el cliente sabe de la cuenta
+# Lo que el cliente sabe de la cuenta. Las fichas diarias llegan según la hora: cualquiera vale.
+JOKER_USER = {"username": "Joker", "balance": 10_000, "next_chips_at": ANY}
 
 
 @pytest.fixture

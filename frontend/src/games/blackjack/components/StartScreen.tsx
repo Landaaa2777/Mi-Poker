@@ -1,7 +1,7 @@
 import { useState, type CSSProperties, type FormEvent } from "react";
 import { PlayingCard } from "../../../shared/cards/PlayingCard";
 import { ConfigPanel } from "../../../shared/components/ConfigPanel";
-import { Field, INPUT, RefillOffer } from "../../../shared/components/form";
+import { DailyChipsNote, Field, INPUT } from "../../../shared/components/form";
 import { formatChips } from "../../../shared/format";
 import { numberProblem, type OptionValues } from "../../../shared/options";
 import { BlackjackIcon } from "../icon";
@@ -14,7 +14,7 @@ interface Props {
   balance: number | null; // con cuenta, las fichas de la mesa salen de este saldo
   atStake: number; // lo apostado en una ronda a medias: se pierde al empezar otra partida
   elsewhere: number; // fichas sentadas en otras mesas: no se pueden traer a esta
-  onRefill: () => Promise<string | null>;
+  nextChipsAt: number | null; // con cuenta, cuándo llegan las próximas fichas diarias
   onStart: (config: BlackjackConfig) => void;
   onCancel?: () => void; // hay una partida a la que se puede volver
 }
@@ -27,7 +27,7 @@ export function StartScreen({
   balance,
   atStake,
   elsewhere,
-  onRefill,
+  nextChipsAt,
   onStart,
   onCancel,
 }: Props) {
@@ -37,15 +37,7 @@ export function StartScreen({
     if (available === null || initial.starting_stack <= available) return initial;
     return { ...initial, starting_stack: Math.max(available - (available % 10), 10) };
   });
-  const [refilling, setRefilling] = useState(false);
-  const [refillProblem, setRefillProblem] = useState<string | null>(null);
-  const canRefill = balance !== null && balance < options.refill_below;
-
-  async function refill() {
-    setRefilling(true);
-    setRefillProblem(await onRefill());
-    setRefilling(false);
-  }
+  const noChips = available !== null && available < config.min_bet;
 
   const fieldProblem = options.fields
     .map((field) =>
@@ -58,15 +50,14 @@ export function StartScreen({
         : null,
     )
     .find((problem) => problem !== null);
-  const problem =
-    available !== null && available < config.min_bet
-      ? "No te quedan fichas libres para sentarte a una mesa."
-      : (fieldProblem ??
-        (config.min_bet > config.max_bet
-          ? "La apuesta mínima no puede superar a la máxima."
-          : config.starting_stack < config.min_bet
-            ? "Las fichas iniciales deben cubrir al menos la apuesta mínima."
-            : null));
+  const problem = noChips
+    ? "No te quedan fichas libres para sentarte a una mesa."
+    : (fieldProblem ??
+      (config.min_bet > config.max_bet
+        ? "La apuesta mínima no puede superar a la máxima."
+        : config.starting_stack < config.min_bet
+          ? "Las fichas iniciales deben cubrir al menos la apuesta mínima."
+          : null));
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -138,14 +129,8 @@ export function StartScreen({
             }
           />
 
-          {canRefill && (
-            <RefillOffer
-              refillBelow={options.refill_below}
-              startingBalance={options.starting_balance}
-              refilling={refilling}
-              problem={refillProblem}
-              onRefill={refill}
-            />
+          {balance !== null && (
+            <DailyChipsNote nextAt={nextChipsAt} outOfChips={noChips ? problem : null} />
           )}
 
           {atStake > 0 && balance !== null && (
@@ -161,7 +146,8 @@ export function StartScreen({
             </p>
           )}
 
-          {problem && <p className="text-sm font-semibold text-amber-300">{problem}</p>}
+          {/* Sin fichas, el motivo ya sale en el aviso de las fichas diarias. */}
+          {problem && !noChips && <p className="text-sm font-semibold text-amber-300">{problem}</p>}
 
           <div className="flex flex-wrap gap-3">
             <button

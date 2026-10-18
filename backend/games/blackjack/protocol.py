@@ -18,7 +18,6 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, model_validator
 
-from accounts import REFILL_BELOW, STARTING_BALANCE
 from core.bots import LEVEL_NAMES
 from core.options import describe_options
 
@@ -133,9 +132,6 @@ def options() -> dict:
         "levels": [{"id": level, "name": name} for level, name in LEVEL_NAMES.items()],
         "max_bots": MAX_BOTS,
         "max_stack": MAX_STACK,
-        # Saldo de las cuentas: con cuánto empiezan y por debajo de cuánto hay recarga gratis.
-        "starting_balance": STARTING_BALANCE,
-        "refill_below": REFILL_BELOW,
         "defaults": BlackjackConfig().model_dump(),
         "fields": describe_options(BlackjackConfig),
     }

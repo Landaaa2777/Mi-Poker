@@ -5,10 +5,10 @@ import {
   CARD_CHOSEN,
   CHOICE,
   CHOSEN,
+  DailyChipsNote,
   Field,
   INPUT,
   NOT_CHOSEN,
-  RefillOffer,
 } from "../../../shared/components/form";
 import { formatChips } from "../format";
 import type { Options, TableConfig } from "../types";
@@ -20,7 +20,7 @@ interface Props {
   balance: number | null; // con cuenta, las fichas de la mesa salen de este saldo
   atStake: number; // lo que llevo apostado en una mano a medias: se pierde al empezar otra partida
   elsewhere: number; // fichas de mi cuenta sentadas en otras mesas: no se pueden traer a esta
-  onRefill: () => Promise<string | null>; // pide la recarga gratis; devuelve el motivo si se niega
+  nextChipsAt: number | null; // con cuenta, cuándo llegan las próximas fichas diarias
   onStart: (config: TableConfig) => void;
   onCancel?: () => void; // hay una partida en curso a la que se puede volver
 }
@@ -50,7 +50,7 @@ export function StartScreen({
   balance,
   atStake,
   elsewhere,
-  onRefill,
+  nextChipsAt,
   onStart,
   onCancel,
 }: Props) {
@@ -61,15 +61,7 @@ export function StartScreen({
       ? { ...initial, starting_stack: available }
       : initial,
   );
-  const [refillProblem, setRefillProblem] = useState<string | null>(null);
-  const [refilling, setRefilling] = useState(false);
-  const canRefill = balance !== null && balance < options.refill_below;
-
-  async function refill() {
-    setRefilling(true);
-    setRefillProblem(await onRefill());
-    setRefilling(false);
-  }
+  const noChips = available !== null && available < 1;
 
   function update(changes: Partial<TableConfig>) {
     setConfig((current) => ({ ...current, ...changes }));
@@ -92,16 +84,15 @@ export function StartScreen({
     );
   }
 
-  const problem =
-    available !== null && available < 1
-      ? "No te quedan fichas para sentarte a una mesa."
-      : available !== null && config.starting_stack > available
-        ? `No puedes llevar más fichas de las que tienes: como mucho, ${formatChips(available)}.`
-        : config.small_blind > config.big_blind
-          ? "La ciega pequeña no puede superar a la grande."
-          : config.starting_stack < config.big_blind
-            ? "Las fichas iniciales deben cubrir al menos la ciega grande."
-            : null;
+  const problem = noChips
+    ? "No te quedan fichas para sentarte a una mesa."
+    : available !== null && config.starting_stack > available
+      ? `No puedes llevar más fichas de las que tienes: como mucho, ${formatChips(available)}.`
+      : config.small_blind > config.big_blind
+        ? "La ciega pequeña no puede superar a la grande."
+        : config.starting_stack < config.big_blind
+          ? "Las fichas iniciales deben cubrir al menos la ciega grande."
+          : null;
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -252,14 +243,8 @@ export function StartScreen({
             </Field>
           </div>
 
-          {canRefill && (
-            <RefillOffer
-              refillBelow={options.refill_below}
-              startingBalance={options.starting_balance}
-              refilling={refilling}
-              problem={refillProblem}
-              onRefill={refill}
-            />
+          {balance !== null && (
+            <DailyChipsNote nextAt={nextChipsAt} outOfChips={noChips ? problem : null} />
           )}
 
           {atStake > 0 && balance !== null && (
@@ -276,7 +261,8 @@ export function StartScreen({
             </p>
           )}
 
-          {problem && <p className="text-sm font-semibold text-amber-300">{problem}</p>}
+          {/* Sin fichas, el motivo ya sale en el aviso de las fichas diarias. */}
+          {problem && !noChips && <p className="text-sm font-semibold text-amber-300">{problem}</p>}
 
           <div className="flex flex-wrap gap-3">
             <button

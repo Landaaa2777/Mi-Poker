@@ -103,7 +103,7 @@ originales (no copiar marca, assets ni textos de ningún sitio existente).
 - Side pots correctos cuando hay all-ins de distinto tamaño.
 - Empates: el bote se divide; resto indivisible a la posición según reglas.
 - Jugadores sin fichas quedan eliminados. Si el humano se queda sin fichas,
-  ofrecer "Reiniciar partida" con fichas virtuales gratis.
+  ofrecer "Reiniciar partida" (con fichas de su saldo).
 - Configurable antes de empezar: número de bots, dificultad, fichas
   iniciales y blinds.
 
@@ -442,12 +442,14 @@ Decisiones del 2026-10-17:
   que no existen se frenan.
 
 ### Hitos de la etapa 5
-1. Cuentas obligatorias y más fáciles: sin cuenta no se juega (el menú pide
-   entrar o crear una cuenta); crear cuenta con usuario y contraseña (correo
-   opcional); entrar con usuario o correo.
-2. Fichas diarias: 10.000 fichas 24 h después de entrar, si no hay unas
-   pendientes; fuera la recarga gratis; las pantallas dicen cuándo llegan las
-   próximas.
+1. Cuentas obligatorias y más fáciles (completado): sin cuenta no se juega
+   (cualquier dirección enseña la pantalla de entrada); crear cuenta con
+   usuario y contraseña (correo opcional, sin repetir la contraseña y con
+   botón para verla); entrar con usuario o correo.
+2. Fichas diarias (completado): 10.000 fichas 24 h después de entrar, si no
+   hay unas pendientes; fuera la recarga gratis; el menú, el perfil y la
+   pantalla de inicio de cada mesa dicen cuándo llegan las próximas. Mirar el
+   saldo cuenta como entrar (`AccountStore.wallet`).
 3. Salas en el servidor: crear, unirse por código o enlace, sala de espera en
    tiempo real, anfitrión, salir y volver.
 4. Partidas con varias personas en los tres juegos: una vista por persona,

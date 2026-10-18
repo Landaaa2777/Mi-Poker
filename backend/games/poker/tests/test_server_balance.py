@@ -1,9 +1,12 @@
 """Servidor: el saldo de fichas de una cuenta se lleva a la mesa y cambia con cada mano."""
 
+import time
+from unittest.mock import ANY
+
 import pytest
 from fastapi.testclient import TestClient
 
-from accounts import REFILL_BELOW, STARTING_BALANCE, Cost
+from accounts import DAILY_CHIPS, DAILY_WAIT, STARTING_BALANCE, Cost
 from server.app import create_app
 from games.poker.protocol import MAX_STACK
 from games.poker.tests.test_server import Table, facing_a_bet, my_turn, poker_url
@@ -37,7 +40,8 @@ def joker(app):
 @pytest.fixture
 def table(joker):
     with joker.websocket_connect(poker_url(joker, None)) as socket:
-        assert socket.receive_json()["user"] == {"username": "Joker", "balance": STARTING_BALANCE}
+        user = socket.receive_json()["user"]
+        assert user == {"username": "Joker", "balance": STARTING_BALANCE, "next_chips_at": ANY}
         yield Table(socket, None)
 
 
@@ -89,13 +93,6 @@ def play_out(table, state, action="all_in"):
 
 
 # --- Qué se dice del saldo ---
-
-
-def test_the_options_explain_the_balance_rules(joker):
-    with joker.websocket_connect(poker_url(joker, None)) as socket:
-        options = socket.receive_json()["options"]
-    assert options["starting_balance"] == STARTING_BALANCE == 10_000
-    assert options["refill_below"] == REFILL_BELOW == 100
 
 
 def test_the_profile_shows_the_balance(joker):
@@ -233,33 +230,24 @@ def test_leaving_between_hands_costs_nothing(table):
     assert fresh["balance"] == after_hand
 
 
-# --- Recarga gratis ---
+# --- Fichas diarias ---
 
 
-def test_the_refill_needs_a_session_and_our_own_page(app, joker):
-    assert TestClient(app).post("/api/refill").status_code == 401
+def test_the_account_says_when_the_next_daily_chips_arrive(joker):
+    me = joker.get("/api/me").json()["user"]
+    assert me["balance"] == STARTING_BALANCE
+    assert 0 < me["next_chips_at"] - time.time() <= DAILY_WAIT
+    # Volver a mirar no pone en camino otras.
+    assert joker.get("/api/me").json()["user"]["next_chips_at"] == me["next_chips_at"]
+
+
+def test_there_is_no_free_refill_anymore(joker):
     set_balance(joker, 0)
-    assert joker.post("/api/refill", headers={"Origin": "http://otra-web.example"}).status_code == 403
+    assert joker.post("/api/refill").status_code == 404
     assert balance(joker) == 0
 
 
-def test_the_refill_is_refused_while_there_are_chips(joker):
-    response = joker.post("/api/refill")
-    assert response.status_code == 400 and "menos de 100" in response.json()["message"]
-    set_balance(joker, REFILL_BELOW)
-    assert joker.post("/api/refill").status_code == 400
-    assert balance(joker) == REFILL_BELOW
-
-
-def test_the_refill_gives_back_the_starting_balance_once(joker):
-    set_balance(joker, REFILL_BELOW - 1)
-    response = joker.post("/api/refill")
-    assert response.status_code == 200 and response.json() == {"balance": STARTING_BALANCE}
-    assert balance(joker) == STARTING_BALANCE
-    assert joker.post("/api/refill").status_code == 400  # no se acumula
-
-
-def test_after_going_broke_a_refill_lets_me_play_again(joker):
+def test_after_going_broke_the_daily_chips_let_me_play_again(app, joker):
     set_balance(joker, 20)
     with joker.websocket_connect(poker_url(joker, None)) as socket:
         socket.receive_json()
@@ -270,9 +258,10 @@ def test_after_going_broke_a_refill_lets_me_play_again(joker):
             final = play_out(table, table.request(type="new_game", config=TINY))
         assert final["balance"] == 0
         assert "No te quedan fichas" in table.error(type="restart")
-        assert joker.post("/api/refill").json() == {"balance": STARTING_BALANCE}
+        # Pasa un día: han llegado las fichas diarias y se puede volver a jugar.
+        app.state.accounts.clock = lambda: time.time() + DAILY_WAIT
         state = just_dealt(table, type="restart")
-        assert state["hand_number"] == 1 and state["balance"] == STARTING_BALANCE
+        assert state["hand_number"] == 1 and state["balance"] == DAILY_CHIPS
 
 
 # --- La base de datos falla ---

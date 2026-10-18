@@ -5,7 +5,6 @@ import {
   login,
   logout,
   percent,
-  refill,
   register,
   rememberSignedIn,
   signedInBefore,
@@ -89,7 +88,13 @@ describe("percent", () => {
 
 describe("perfil", () => {
   const profile = {
-    user: { username: "Joker", balance: 10000, member_since: 1760000000, email: null },
+    user: {
+      username: "Joker",
+      balance: 10000,
+      next_chips_at: 1760086400,
+      member_since: 1760000000,
+      email: null,
+    },
     stats: {
       total: { hands_played: 3, hands_won: 1, biggest_win: 40, best_hand: "Color", games_played: 1, games_won: 0 },
       levels: [],
@@ -110,26 +115,6 @@ describe("perfil", () => {
   it("una respuesta incompleta no se da por buena", async () => {
     expect((await fetchProfile(reply(200, { user: profile.user }))).ok).toBe(false);
     expect((await fetchProfile(reply(200, {}))).ok).toBe(false);
-  });
-});
-
-describe("recarga", () => {
-  it("devuelve el saldo nuevo", async () => {
-    const fetcher = reply(200, { balance: 10000 });
-    expect(await refill(fetcher)).toEqual({ ok: true, balance: 10000 });
-    expect(fetcher.mock.calls[0]).toEqual([
-      "/api/refill",
-      { method: "POST", credentials: "same-origin" },
-    ]);
-  });
-
-  it("si el servidor la niega, da su motivo", async () => {
-    const message = "La recarga gratis es para cuando te quedan menos de 100 fichas";
-    expect(await refill(reply(400, { message }))).toEqual({ ok: false, message });
-  });
-
-  it("una respuesta sin saldo no se da por buena", async () => {
-    expect((await refill(reply(200, {}))).ok).toBe(false);
   });
 });
 

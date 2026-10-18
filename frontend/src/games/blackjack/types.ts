@@ -100,8 +100,6 @@ export interface Options {
   levels: { id: string; name: string }[];
   max_bots: number;
   max_stack: number;
-  starting_balance: number;
-  refill_below: number;
   defaults: BlackjackConfig;
   fields: GameOption[];
 }

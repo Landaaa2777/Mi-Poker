@@ -1,6 +1,7 @@
 import { useEffect, useId, useState, type ReactNode } from "react";
-import { fetchProfile, percent, type Profile, type User } from "../account";
-import { formatChips } from "../format";
+import { DAILY_CHIPS, fetchProfile, percent, type Profile, type User } from "../account";
+import { describeArrival, formatChips } from "../format";
+import { useNow } from "../useClock";
 import { Avatar } from "./Avatar";
 
 interface Props {
@@ -29,6 +30,7 @@ export function ProfileDialog({ user, balance, onClose, onSignOut }: Props) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const title = useId();
+  const now = useNow();
 
   // Se pide cada vez que se abre: las estadísticas cambian con cada mano.
   useEffect(() => {
@@ -96,6 +98,13 @@ export function ProfileDialog({ user, balance, onClose, onSignOut }: Props) {
               <span className="ml-1.5 text-xs font-semibold text-stone-400">fichas virtuales</span>
             </span>
           </div>
+        )}
+        {user.next_chips_at !== null && (
+          <p className="mt-2 text-xs text-stone-400">
+            Fichas diarias: cada día que entras, al día siguiente te llegan{" "}
+            {formatChips(DAILY_CHIPS)} fichas. Las próximas llegan{" "}
+            {describeArrival(user.next_chips_at, now)}.
+          </p>
         )}
 
         {problem && (
