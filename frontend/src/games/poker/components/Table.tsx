@@ -1,9 +1,10 @@
-import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import type { CSSProperties } from "react";
 import type { Frame, SeatFrame } from "../timeline/frame";
 import { Avatar } from "../../../shared/components/Avatar";
 import { ChipStack } from "../../../shared/components/Chips";
 import { Emblem } from "../../../shared/components/Emblem";
 import { PlayingCard } from "../../../shared/cards/PlayingCard";
+import { useFit } from "../../../shared/useFit";
 
 // La mesa se dibuja sobre un lienzo de tamaño fijo y se escala entera para
 // ocupar el sitio disponible, como un tablero: así nada se descoloca al cambiar
@@ -55,43 +56,11 @@ const PORTRAIT: Layout = {
   humanDrop: 22,
 };
 
-const PORTRAIT_BELOW = 620; // ancho disponible por debajo del cual se usa el lienzo vertical
-const MAX_HEIGHT_SHARE = 0.68; // en apaisado, parte del alto de la ventana que puede ocupar
-const MIN_SCALE = 0.72; // por debajo, el texto se vuelve ilegible: mejor desplazar la página
 const FULL_ART_FROM = 44; // ancho en pantalla (px) desde el que una carta luce su dibujo completo
 const REST_FLOAT = 0.15; // flotación de las cartas en reposo: apenas un respiro
-
-/** Elige el lienzo y la escala para el ancho disponible. */
-function useFit() {
-  const ref = useRef<HTMLElement>(null);
-  const [fit, setFit] = useState({ layout: LANDSCAPE, scale: 1 });
-
-  useLayoutEffect(() => {
-    const element = ref.current;
-    if (!element) return;
-    const update = () => {
-      const width = element.clientWidth;
-      const layout = width < PORTRAIT_BELOW ? PORTRAIT : LANDSCAPE;
-      const byWidth = width / layout.width;
-      const byHeight =
-        layout === LANDSCAPE ? (window.innerHeight * MAX_HEIGHT_SHARE) / layout.height : byWidth;
-      const scale = Math.min(byWidth, Math.max(byHeight, MIN_SCALE));
-      setFit((current) =>
-        current.layout === layout && current.scale === scale ? current : { layout, scale },
-      );
-    };
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(element);
-    window.addEventListener("resize", update);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", update);
-    };
-  }, []);
-
-  return { ref, ...fit };
-}
+// Lienzo vertical por debajo de 620 px; en apaisado, como mucho el 68 % del alto de
+// la ventana; y nunca más pequeño que el 72 %, para que el texto se pueda leer.
+const FIT = { portraitBelow: 620, maxHeightShare: 0.68, minScale: 0.72 };
 
 /** Sitio de cada jugador: tú abajo y los demás en el sentido de las agujas del reloj. */
 function seatPoint(layout: Layout, index: number, count: number, human: boolean): Point {
@@ -294,7 +263,7 @@ interface Props {
 
 /** La mesa: tapete, cartas comunitarias, bote y los jugadores alrededor. */
 export function Table({ frame, settled }: Props) {
-  const { ref, layout, scale } = useFit();
+  const { ref, layout, scale } = useFit(LANDSCAPE, PORTRAIT, FIT);
   const count = frame.seats.length;
   const emptySlots = Array.from({ length: 5 - frame.board.length });
   const boardHeight = layout.boardCard * 1.4;

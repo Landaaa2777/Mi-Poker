@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { hasPage } from "../games";
 import { useAccount } from "../shared/AccountContext";
 import { Emblem } from "../shared/components/Emblem";
+import { useDocumentTitle } from "../shared/useDocumentTitle";
 import { GameCard } from "./GameCard";
 import {
   cardState,
@@ -19,6 +20,7 @@ export function HubPage() {
   const [partidas, setPartidas] = useState<PartidaInfo[]>([]);
   const [problem, setProblem] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
+  useDocumentTitle("mi-poker · Elige tu mesa");
 
   // Al volver al menú, el saldo puede haber cambiado en alguna mesa.
   useEffect(() => {

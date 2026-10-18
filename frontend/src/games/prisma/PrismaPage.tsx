@@ -6,6 +6,7 @@ import { HeaderContent } from "../../shared/Layout";
 import { usePlatformSettings } from "../../shared/SettingsContext";
 import { usePlayback } from "../../shared/timeline/usePlayback";
 import { useConnection } from "../../shared/useConnection";
+import { useDocumentTitle } from "../../shared/useDocumentTitle";
 import { useLeaveGuard } from "../../shared/useLeaveGuard";
 import { ColorPicker } from "./components/ColorPicker";
 import { Controls } from "./components/Controls";
@@ -42,6 +43,7 @@ function logLines(frame: Frame, me: number): LogLine[] {
 export default function PrismaPage() {
   const { animations } = usePlatformSettings();
   const account = useAccount();
+  useDocumentTitle("Prisma · mi-poker");
 
   const myself = useRef(0);
   const [effects] = useState(() => tableEffects(() => myself.current));

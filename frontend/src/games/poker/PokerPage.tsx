@@ -6,6 +6,7 @@ import { preloadFaces } from "../../shared/cards/CardFace";
 import { HeaderContent } from "../../shared/Layout";
 import { usePlatformSettings } from "../../shared/SettingsContext";
 import { useConnection } from "../../shared/useConnection";
+import { useDocumentTitle } from "../../shared/useDocumentTitle";
 import { useLeaveGuard } from "../../shared/useLeaveGuard";
 import { tableSounds } from "./audio/tableSounds";
 import { Controls } from "./components/Controls";
@@ -33,6 +34,7 @@ const tableEffects: PlaybackListener = {
 export default function PokerPage() {
   const { animations } = usePlatformSettings();
   const account = useAccount();
+  useDocumentTitle("Poker Hold'em · mi-poker");
 
   // `frame` es lo que se dibuja; `server`, lo último que dijo el servidor. Mientras
   // `busy`, la mesa todavía está reproduciendo pasos y no se puede actuar.

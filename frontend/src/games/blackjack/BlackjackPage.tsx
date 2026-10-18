@@ -8,19 +8,33 @@ import { HeaderContent } from "../../shared/Layout";
 import { usePlatformSettings } from "../../shared/SettingsContext";
 import { usePlayback } from "../../shared/timeline/usePlayback";
 import { useConnection } from "../../shared/useConnection";
+import { useDocumentTitle } from "../../shared/useDocumentTitle";
 import { useLeaveGuard } from "../../shared/useLeaveGuard";
 import { BlackjackTable } from "./components/BlackjackTable";
 import { ActionControls, BetControls, InsurancePrompt, RoundSummary } from "./components/Controls";
-import { RoundLog } from "./components/RoundLog";
+import { EventLog } from "../../shared/components/EventLog";
+import { describeEvent } from "./describe";
+import type { Frame } from "./timeline";
 import { StartScreen } from "./components/StartScreen";
 import { tableEffects } from "./effects";
 import { BLACKJACK_TIMELINE } from "./timeline";
 import type { ClientMessage, GameState, Options } from "./types";
 
+/** Las líneas del registro de la ronda que se ve ahora en la mesa. */
+function logLines(frame: Frame, me: number) {
+  return frame.events.flatMap((event, index) => {
+    const text = describeEvent(index, frame, me);
+    if (text === null) return [];
+    const tone = event.kind === "settle" ? "highlight" : event.seat === me ? "mine" : "others";
+    return [{ text, tone } as const];
+  });
+}
+
 /** La mesa de blackjack, con su pantalla de inicio y su panel de jugadas. */
 export default function BlackjackPage() {
   const { animations } = usePlatformSettings();
   const account = useAccount();
+  useDocumentTitle("Blackjack · mi-poker");
 
   // Mi asiento, para los sonidos (el de ganar solo suena con lo mío).
   const myself = useRef(0);
@@ -191,7 +205,7 @@ export default function BlackjackPage() {
                 </p>
               )}
             </section>
-            <RoundLog frame={frame} me={server.human_seat} />
+            <EventLog lines={logLines(frame, server.human_seat)} />
           </div>
         </>
       )}

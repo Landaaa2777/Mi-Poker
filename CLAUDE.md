@@ -6,15 +6,16 @@ blackjack y un juego de descarte. Inspirado en la idea general de los sitios
 de juego social con fichas virtuales, pero con nombre, diseño y textos 100%
 originales (no copiar marca, assets ni textos de ningún sitio existente).
 
-## ESTADO ACTUAL: ETAPA 4 (plataforma de juegos) EN CURSO
-- Etapas 1, 2 y 3 completas. Aprobé el último hito de la etapa 3 el
-  2026-10-10.
-- Etapa 4 aprobada el 2026-10-17: menú principal, el poker de siempre dentro
-  de él, blackjack y un juego de descarte con las reglas del UNO clásico,
-  sin su nombre ni su logo.
-- En la etapa 4 pedí trabajar los hitos seguidos, sin parar a pedir
-  aprobación (2026-10-17): al cerrar cada hito se corren TODOS los tests y se
-  hace su commit.
+## ESTADO ACTUAL
+- Etapas 1, 2, 3 y 4 completas. La etapa 4 (plataforma de juegos: menú
+  principal, el poker de siempre, blackjack y el juego de descarte "Prisma")
+  se aprobó el 2026-10-17 y se trabajó de seguido, sin parar a pedir
+  aprobación entre hitos, como pedí; se cerró el 2026-10-17.
+- NINGUNA etapa en curso. La siguiente (etapa 5) no se empieza hasta que yo
+  lo pida; antes de tocar código, su plan se escribe en este archivo y lo
+  apruebo.
+- Pendiente de decidir: el nombre definitivo de "Prisma" (propuestas: Matiz,
+  Vórtice, Facetas).
 
 ## Reglas innegociables
 - NO se usa dinero real en ninguna parte. Las fichas son virtuales y no
@@ -429,9 +430,24 @@ Referencias que di (se toma la idea, nunca la marca ni los assets):
    los comodines); en miles de partidas a cuatro Experto > Difícil > Medio >
    Fácil; mesa con mazo, descarte, color en juego y sentido, mi mano en
    grande, selector de color, desafío, "¡Última!" y "¡Pillado!".
-5. Revisión de conjunto: navegación, estilo coherente, configuración
-   compartida, responsive y pasada de seguridad (el cliente no puede ver
-   cartas ocultas ni forzar acciones ilegales). README al día.
+5. Revisión de conjunto (completado): pasada de seguridad en los tres juegos
+   (partidas ajenas, otras webs, mensajes rotos o inventados, el mazo nunca
+   viaja), títulos de pestaña, registro y escalado de mesa comunes, todo
+   comprobado en Chrome en ordenador y en móvil, y README al día. El poker
+   conserva su pantalla de inicio (con las ciegas por parejas), hecha con las
+   mismas piezas comunes que el panel de opciones de los demás juegos.
+
+### Decisiones tomadas durante la etapa 4
+- Blackjack: el humano se sienta en medio de la mesa; los bots deciden el
+  seguro en el momento en que se ofrece (sin pausa), y su orden de niveles se
+  mide jugando todos las mismas rondas.
+- Prisma: como en el clásico, se puede robar aunque se tenga jugada; el
+  desafío del +4 solo enseña el resultado, nunca la mano; con "acumular +4"
+  activado no hay desafío. El nivel Medio suelta primero las cartas de más
+  valor, comodines incluidos (así se separa de Difícil, que los guarda).
+- Los bots de Prisma, mientras "piensan", dejan al humano decir "¡Última!" o
+  pillar a quien no lo dijo; justo antes de jugar, los demás bots pueden
+  pillar al despistado, cada uno con la probabilidad de su nivel.
 
 ## Historial de etapas
 ### Etapa 1: motor, bots, servidor e interfaz simple (completa)
