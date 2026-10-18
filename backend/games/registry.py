@@ -12,13 +12,9 @@ from .blackjack.info import GAME as BLACKJACK
 from .poker.info import GAME as POKER
 from .prisma.info import GAME as PRISMA
 
-COMING_SOON = (
-    GameInfo(
-        id="salas",
-        name="Salas con amigos",
-        description="Partidas en línea con otras personas.",
-    ),
-)
+# Juegos que se enseñan como "Próximamente" (una ficha sin `create`). Ahora no
+# hay ninguno: las salas con amigos ya existen y tienen su propia tarjeta.
+COMING_SOON: tuple[GameInfo, ...] = ()
 
 # El orden es el del menú: primero los que se pueden jugar.
 REGISTRY: tuple[GameInfo, ...] = (POKER, BLACKJACK, PRISMA, *COMING_SOON)

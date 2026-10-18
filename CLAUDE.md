@@ -465,8 +465,14 @@ Decisiones del 2026-10-17:
    por persona, tiempo por decisión, desconexiones y abandonos, saldo de cada
    cuenta. Lo común está en `backend/core/room.py` y cada juego tiene su mesa
    de sala en `games/<juego>/room.py`, con el mismo motor de siempre.
-5. Interfaz: crear sala y unirse, animación de "¡Partida encontrada!", sala de
-   espera y las mesas de los tres juegos con varias personas.
+5. Interfaz (completado): `/salas` para crear una sala o unirse con el código
+   y `/sala/{código}` para entrar con el enlace, con la animación ("Buscando la
+   sala…" y "¡Partida encontrada!"); sala de espera con el código en fichas,
+   copiar código y enlace, quién está conectado y las opciones del anfitrión;
+   las mesas de los tres juegos con varias personas (`<Juego>Room.tsx`, con las
+   mismas piezas que contra bots: yo siempre abajo, cuenta atrás y "Se ha
+   ido"), y la tarjeta "Salas con amigos" del menú, que lleva a tu sala si
+   estás en una. Lo de la web está en `frontend/src/salas/`.
 6. Red local, túnel y repaso: pasada de seguridad, pruebas con dos
    navegadores, README y este archivo al día.
 

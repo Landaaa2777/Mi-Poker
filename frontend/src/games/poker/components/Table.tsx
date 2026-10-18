@@ -62,7 +62,7 @@ const REST_FLOAT = 0.15; // flotación de las cartas en reposo: apenas un respir
 // la ventana; y nunca más pequeño que el 72 %, para que el texto se pueda leer.
 const FIT = { portraitBelow: 620, maxHeightShare: 0.68, minScale: 0.72 };
 
-/** Sitio de cada jugador: tú abajo y los demás en el sentido de las agujas del reloj. */
+/** Sitio de cada jugador: `index` 0 abajo y los demás en el sentido de las agujas del reloj. */
 function seatPoint(layout: Layout, index: number, count: number, human: boolean): Point {
   const angle = ((90 + (360 * index) / count) * Math.PI) / 180; // 90° = abajo en pantalla
   return {
@@ -125,9 +125,12 @@ function SeatPlaque({ seat, frame, size, scale, avatarSide, thinking }: SeatProp
   const ring = seat.won > 0 ? "ring-emerald-400" : acting ? "ring-amber-300" : "ring-white/25";
 
   // Línea pequeña bajo la placa: lo más importante que haya que saber del jugador.
-  let note = seat.isHuman ? "" : `${seat.level} · ${seat.style}`;
+  let note = seat.isHuman || seat.person ? "" : `${seat.level} · ${seat.style}`;
   let noteColor = "text-emerald-50/55";
-  if (seat.handName) {
+  if (seat.gone) {
+    note = "Se ha ido";
+    noteColor = "text-white/50";
+  } else if (seat.handName) {
     note = seat.handName;
     noteColor = "font-semibold text-amber-200";
   } else if (STATUS_LABEL[seat.status]) {
@@ -267,9 +270,12 @@ export function Table({ frame, settled }: Props) {
   const count = frame.seats.length;
   const emptySlots = Array.from({ length: 5 - frame.board.length });
   const boardHeight = layout.boardCard * 1.4;
+  // Yo siempre abajo; los demás, en el orden de la mesa a partir de mí. Contra
+  // bots soy el asiento 0, pero en una sala puedo estar en cualquiera.
+  const mine = Math.max(0, frame.seats.findIndex((seat) => seat.isHuman));
   const seats = frame.seats.map((seat, index) => ({
     seat,
-    point: seatPoint(layout, index, count, seat.isHuman),
+    point: seatPoint(layout, (index - mine + count) % count, count, seat.isHuman),
   }));
   const spotlight = seats.find(({ seat }) => seat.won > 0 || seat.seat === frame.actingSeat);
 

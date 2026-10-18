@@ -7,7 +7,9 @@ import type { GameState, HandEvent, Seat, SeatStatus } from "../types";
 export interface SeatFrame {
   seat: number;
   name: string;
-  isHuman: boolean;
+  isHuman: boolean; // soy yo
+  person?: boolean; // en una sala: lo juega una persona
+  gone?: boolean; // en una sala: esa persona se ha ido
   level: string;
   style: string;
   stack: number;
@@ -81,6 +83,8 @@ export function frameFromState(state: GameState): Frame {
       seat: seat.seat,
       name: seat.name,
       isHuman: seat.is_human,
+      person: seat.person,
+      gone: seat.gone,
       level: seat.level,
       style: seat.style,
       stack: seat.stack,
@@ -113,6 +117,8 @@ export function newHandFrame(state: GameState): Frame {
       seat: seat.seat,
       name: seat.name,
       isHuman: seat.is_human,
+      person: seat.person,
+      gone: seat.gone,
       level: seat.level,
       style: seat.style,
       // Fichas al empezar: las de ahora, más lo aportado, menos lo ya cobrado.

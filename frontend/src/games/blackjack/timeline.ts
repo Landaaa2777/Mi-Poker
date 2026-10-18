@@ -23,7 +23,9 @@ export interface HandFrame {
 export interface SeatFrame {
   seat: number;
   name: string;
-  isHuman: boolean;
+  isHuman: boolean; // soy yo
+  person?: boolean; // en una sala: lo juega una persona
+  gone?: boolean; // en una sala: esa persona se ha ido
   level: string;
   stack: number;
   hands: HandFrame[];
@@ -87,6 +89,8 @@ export function frameFromState(state: GameState): Frame {
       seat: seat.seat,
       name: seat.name,
       isHuman: seat.is_human,
+      person: seat.person,
+      gone: seat.gone,
       level: seat.level,
       stack: seat.stack,
       hands: seat.hands.map((hand) => ({
@@ -193,6 +197,8 @@ export function frameAt(state: GameState, count: number): Frame {
     seat: seat.seat,
     name: seat.name,
     isHuman: seat.is_human,
+    person: seat.person,
+    gone: seat.gone,
     level: seat.level,
     // Las fichas de antes de la ronda: las de ahora, deshaciendo apuestas y pagos.
     stack: seat.stack + out[seat.seat] - back[seat.seat],

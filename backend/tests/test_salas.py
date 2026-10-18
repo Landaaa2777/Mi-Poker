@@ -7,7 +7,9 @@ import pytest
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
+import games.registry
 from accounts import Cost, User
+from core.registry import GameInfo
 from games.registry import find_game
 from server.app import create_app
 from server.salas import (
@@ -180,14 +182,16 @@ def test_the_sala_limit_is_respected():
 # --- Por HTTP ---
 
 
-def test_creating_a_sala_needs_an_account_and_our_own_page(browser):
+def test_creating_a_sala_needs_an_account_and_our_own_page(browser, monkeypatch):
     guest = browser()
     assert guest.post("/api/salas", json={"game": "poker"}).status_code == 401
     ana = browser("Ana")
     foreign = {"Origin": "http://otra-web.example"}
     assert ana.post("/api/salas", json={"game": "poker"}, headers=foreign).status_code == 403
-    assert ana.post("/api/salas", json={"game": "ajedrez"}).status_code == 404
-    soon = ana.post("/api/salas", json={"game": "salas"})
+    assert ana.post("/api/salas", json={"game": "damas"}).status_code == 404
+    coming = GameInfo(id="ajedrez", name="Ajedrez", description="Pronto.")
+    monkeypatch.setattr(games.registry, "REGISTRY", (*games.registry.REGISTRY, coming))
+    soon = ana.post("/api/salas", json={"game": "ajedrez"})
     assert soon.status_code == 409 and "no se puede jugar en una sala" in soon.json()["message"]
     for body in ({}, {"game": 7}, {"game": "poker", "x": 1}):
         assert ana.post("/api/salas", json=body).status_code == 422
@@ -373,6 +377,5 @@ def test_signing_out_disconnects_but_keeps_the_place(browser):
 
 
 def test_the_menu_knows_which_games_have_salas(browser):
-    games = {game["id"]: game for game in browser().get("/api/juegos").json()}
-    assert games["poker"]["rooms"] and games["blackjack"]["rooms"] and games["prisma"]["rooms"]
-    assert not games["salas"]["rooms"]
+    listed = {game["id"]: game for game in browser().get("/api/juegos").json()}
+    assert listed["poker"]["rooms"] and listed["blackjack"]["rooms"] and listed["prisma"]["rooms"]

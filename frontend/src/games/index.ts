@@ -7,6 +7,7 @@
 // abra rápido.
 
 import { lazy, type ComponentType, type JSX, type LazyExoticComponent } from "react";
+import type { RoomViewProps } from "../shared/room";
 import { BlackjackIcon } from "./blackjack/icon";
 import { PokerIcon } from "./poker/icon";
 import { PrismaIcon } from "./prisma/icon";
@@ -18,6 +19,13 @@ export const GAME_PAGES: Record<string, LazyExoticComponent<ComponentType>> = {
   poker: lazy(() => import("./poker/PokerPage")),
   blackjack: lazy(() => import("./blackjack/BlackjackPage")),
   prisma: lazy(() => import("./prisma/PrismaPage")),
+};
+
+/** La mesa de cada juego en una sala con amigos, con varias personas. */
+export const GAME_ROOMS: Record<string, LazyExoticComponent<ComponentType<RoomViewProps>>> = {
+  poker: lazy(() => import("./poker/PokerRoom")),
+  blackjack: lazy(() => import("./blackjack/BlackjackRoom")),
+  prisma: lazy(() => import("./prisma/PrismaRoom")),
 };
 
 /** Ícono de cada juego en el menú (también de los que aún son "Próximamente"). */

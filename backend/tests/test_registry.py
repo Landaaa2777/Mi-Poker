@@ -6,7 +6,9 @@ import pytest
 from fastapi.testclient import TestClient
 from pydantic import BaseModel, Field
 
+import server.games_api
 from core.options import describe_options
+from core.registry import GameInfo
 from games.poker.protocol import TableConfig
 from games.registry import REGISTRY, find_game
 from server.app import create_app
@@ -34,15 +36,17 @@ def test_poker_is_registered_and_playable():
     assert find_game("no-existe") is None
 
 
-def test_the_menu_reads_the_registry(client):
+def test_the_menu_reads_the_registry(client, monkeypatch):
     games = client.get("/api/juegos").json()
-    assert [game["id"] for game in games] == [game.id for game in REGISTRY]
+    assert [game["id"] for game in games] == [game.id for game in REGISTRY] == ["poker", "blackjack", "prisma"]
     poker = games[0]
     assert poker["id"] == "poker" and poker["available"]
     assert poker["min_players"] == 2 and poker["max_players"] == 6
-    # Las tarjetas "Próximamente" también vienen del registro.
-    soon = {game["id"] for game in games if not game["available"]}
-    assert "salas" in soon
+    # Las tarjetas "Próximamente" también vendrían del registro: una ficha sin partida.
+    soon = GameInfo(id="ajedrez", name="Ajedrez", description="Pronto.")
+    monkeypatch.setattr(server.games_api, "REGISTRY", (*REGISTRY, soon))
+    listed = client.get("/api/juegos").json()[-1]
+    assert listed["id"] == "ajedrez" and not listed["available"] and not listed["rooms"]
 
 
 def test_poker_options_are_described_for_the_panel(client):

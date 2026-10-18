@@ -8,27 +8,15 @@ import { useWhenDue } from "../../shared/useClock";
 import { useConnection } from "../../shared/useConnection";
 import { useDocumentTitle } from "../../shared/useDocumentTitle";
 import { useLeaveGuard } from "../../shared/useLeaveGuard";
-import { tableSounds } from "./audio/tableSounds";
 import { Controls } from "./components/Controls";
 import { HandLog } from "./components/HandLog";
 import { ResultPanel } from "./components/ResultPanel";
 import { StartScreen } from "./components/StartScreen";
 import { Table } from "./components/Table";
-import { tableMotion } from "./director";
+import { tableEffects } from "./effects";
 import { streetName } from "./format";
-import type { PlaybackListener } from "./timeline/playback";
 import type { ClientMessage, GameState, Options } from "./types";
 import { usePlayback } from "./usePlayback";
-
-// Lo que acompaña a cada paso de la mano: primero el movimiento y después su sonido.
-const tableEffects: PlaybackListener = {
-  onStep(step, speed) {
-    tableMotion.onStep?.(step, speed);
-    tableSounds.onStep?.(step, speed);
-  },
-  onJump: tableMotion.onJump,
-  onSkip: tableSounds.onSkip,
-};
 
 /** La mesa de poker, con su pantalla de inicio y su panel de acciones. */
 export default function PokerPage() {

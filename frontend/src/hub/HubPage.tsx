@@ -6,7 +6,9 @@ import { Emblem } from "../shared/components/Emblem";
 import { describeArrival, formatChips } from "../shared/format";
 import { useNow, useWhenDue } from "../shared/useClock";
 import { useDocumentTitle } from "../shared/useDocumentTitle";
+import { fetchMySala, type SalaSummary } from "../salas/salas";
 import { GameCard } from "./GameCard";
+import { RoomsCard } from "./RoomsCard";
 import {
   cardState,
   fetchGames,
@@ -23,6 +25,7 @@ export function HubPage() {
   const nextChipsAt = user?.next_chips_at ?? null;
   const [games, setGames] = useState<GameEntry[] | null>(null);
   const [partidas, setPartidas] = useState<PartidaInfo[]>([]);
+  const [sala, setSala] = useState<SalaSummary | null>(null); // la sala en la que estoy, si estoy en alguna
   const [problem, setProblem] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   useDocumentTitle("mi-poker · Elige tu mesa");
@@ -37,11 +40,12 @@ export function HubPage() {
   useEffect(() => {
     let closed = false;
     setProblem(null);
-    Promise.all([fetchGames(), fetchMyPartidas()]).then(
-      ([registry, mine]) => {
+    Promise.all([fetchGames(), fetchMyPartidas(), fetchMySala()]).then(
+      ([registry, mine, mySala]) => {
         if (closed) return;
         setGames(registry);
         setPartidas(mine);
+        setSala(mySala);
       },
       () => {
         if (!closed) setProblem("No se pudo conectar con el servidor.");
@@ -62,7 +66,7 @@ export function HubPage() {
               Elige tu mesa
             </h1>
             <p className="mt-1 text-sm text-emerald-50/85 sm:text-base">
-              Juegos de cartas contra bots, con fichas virtuales.
+              Juegos de cartas contra bots o con tus amigos, con fichas virtuales.
             </p>
             {nextChipsAt !== null && (
               <p className="mt-2 text-sm font-semibold text-amber-200">
@@ -91,6 +95,9 @@ export function HubPage() {
               <GameCard game={game} state={cardState(game, partidas, hasPage(game.id))} />
             </li>
           ))}
+          <li>
+            <RoomsCard mine={sala} />
+          </li>
         </ul>
       )}
     </>

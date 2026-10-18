@@ -107,7 +107,7 @@ function Seat({ player, turn, thinking, compact }: SeatProps) {
         key={player.action ?? (thinking ? "pensando" : player.level)}
         className={`h-4 text-center text-[11px] ${player.action || thinking ? "pop-in font-semibold text-amber-200" : "text-emerald-50/55"}`}
       >
-        {player.action ?? (thinking ? "Pensando…" : player.isHuman ? "" : player.level)}
+        {player.action ?? (thinking ? "Pensando…" : player.isHuman || player.person ? "" : player.level)}
       </div>
     </div>
   );

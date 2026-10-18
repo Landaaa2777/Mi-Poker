@@ -1,6 +1,6 @@
-// Íconos del menú para lo que todavía no tiene página propia ("Próximamente").
-// Los de cada juego viven con su juego (games/<juego>/icon.tsx). Todos son SVG
-// dibujados por código, con diseño propio.
+// Íconos del menú que no son de un juego: las salas con amigos y lo que todavía
+// es "Próximamente". Los de cada juego viven con su juego (games/<juego>/icon.tsx).
+// Todos son SVG dibujados por código, con diseño propio.
 
 export interface IconProps {
   className?: string;
@@ -28,6 +28,5 @@ export function GenericGameIcon({ className = "" }: IconProps) {
   );
 }
 
-export const COMING_SOON_ICONS: Record<string, (props: IconProps) => React.JSX.Element> = {
-  salas: RoomsIcon,
-};
+/** Íconos de lo que aparezca en el menú como "Próximamente", por su id. */
+export const COMING_SOON_ICONS: Record<string, (props: IconProps) => React.JSX.Element> = {};

@@ -6,14 +6,16 @@ interface Props {
   settled: boolean; // la mesa ya enseña el último estado
   waiting: boolean; // hay una intención enviada sin respuesta
   send: (type: "draw" | "pass" | "challenge" | "accept" | "last" | "catch" | "next_round" | "restart") => void;
-  onConfigure: () => void;
+  onConfigure?: () => void;
+  /** En una sala: las rondas siguen solas y no hay botones para ellas. */
+  room?: boolean;
 }
 
 /**
  * El panel de decisiones: lo que puedo hacer ahora mismo. "¡Última!" y
  * "¡Pillado!" no esperan a la animación: hay que ser rápido.
  */
-export function Controls({ state, settled, waiting, send, onConfigure }: Props) {
+export function Controls({ state, settled, waiting, send, onConfigure, room = false }: Props) {
   const { legal } = state;
   const me = state.players[state.human_seat];
   const current = state.players[state.turn];
@@ -40,7 +42,13 @@ export function Controls({ state, settled, waiting, send, onConfigure }: Props) 
     return (
       <div className="flex flex-col gap-3 text-center">
         <p className={`pop-in rounded-lg px-3 py-2 text-lg font-black ${won ? "bg-emerald-900/60 text-emerald-100" : "bg-black/40 text-amber-100"}`}>
-          {won ? "¡Has ganado la ronda!" : `${winner.name} gana la ronda`}
+          {room && state.game_over
+            ? won
+              ? "¡Has ganado la partida!"
+              : `${winner.name} gana la partida`
+            : won
+              ? "¡Has ganado la ronda!"
+              : `${winner.name} gana la ronda`}
         </p>
         {state.rules.scoring && (
           <ul className="text-sm text-stone-300">
@@ -53,20 +61,23 @@ export function Controls({ state, settled, waiting, send, onConfigure }: Props) 
               ))}
           </ul>
         )}
-        <div className="flex flex-wrap justify-center gap-2">
-          {!state.game_over ? (
-            <button className="btn-gold h-12 px-6" disabled={waiting} onClick={() => send("next_round")}>
-              Siguiente ronda
+        {room && !state.game_over && <p className="text-sm text-amber-100/70">La ronda siguiente empieza enseguida…</p>}
+        {!room && (
+          <div className="flex flex-wrap justify-center gap-2">
+            {!state.game_over ? (
+              <button className="btn-gold h-12 px-6" disabled={waiting} onClick={() => send("next_round")}>
+                Siguiente ronda
+              </button>
+            ) : (
+              <button className="btn-gold h-12 px-6" disabled={waiting} onClick={() => send("restart")}>
+                Jugar otra
+              </button>
+            )}
+            <button className="btn-dark h-12 px-5" onClick={onConfigure}>
+              Cambiar configuración
             </button>
-          ) : (
-            <button className="btn-gold h-12 px-6" disabled={waiting} onClick={() => send("restart")}>
-              Jugar otra
-            </button>
-          )}
-          <button className="btn-dark h-12 px-5" onClick={onConfigure}>
-            Cambiar configuración
-          </button>
-        </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -124,7 +135,7 @@ export function Controls({ state, settled, waiting, send, onConfigure }: Props) 
         </>
       ) : (
         <p className="flex min-h-12 items-center text-amber-100/60">
-          {settled && current && !current.is_human ? `Turno de ${current.name}…` : " "}
+          {settled && current && !current.is_human && !(room && current.person) ? `Turno de ${current.name}…` : " "}
         </p>
       )}
       {me.count === 2 && legal.declare && (

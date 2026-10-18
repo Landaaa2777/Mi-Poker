@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useAccount } from "../../shared/AccountContext";
 import { audio } from "../../shared/audio/engine";
-import { EventLog, type LogLine } from "../../shared/components/EventLog";
+import { EventLog } from "../../shared/components/EventLog";
 import { HeaderContent } from "../../shared/Layout";
 import { usePlatformSettings } from "../../shared/SettingsContext";
 import { usePlayback } from "../../shared/timeline/usePlayback";
@@ -13,31 +13,10 @@ import { Controls } from "./components/Controls";
 import { Hand } from "./components/Hand";
 import { PrismaTable } from "./components/PrismaTable";
 import { StartScreen } from "./components/StartScreen";
-import { describeEvent } from "./describe";
+import { logLines } from "./describe";
 import { tableEffects } from "./effects";
-import { PRISMA_TIMELINE, type Frame } from "./timeline";
+import { PRISMA_TIMELINE } from "./timeline";
 import type { Card, ClientMessage, GameState, Options } from "./types";
-
-const HIGHLIGHT = new Set(["round_over", "caught", "challenge"]);
-const NOTE = new Set(["start", "reshuffle", "reverse", "return"]);
-
-/** Las líneas del registro de la ronda que se ve ahora en la mesa. */
-function logLines(frame: Frame, me: number): LogLine[] {
-  const lines: LogLine[] = [];
-  frame.events.forEach((event, index) => {
-    const text = describeEvent(index, frame, me);
-    if (text === null) return;
-    const tone = HIGHLIGHT.has(event.kind)
-      ? "highlight"
-      : NOTE.has(event.kind)
-        ? "note"
-        : event.seat === me
-          ? "mine"
-          : "others";
-    lines.push({ text, tone });
-  });
-  return lines;
-}
 
 /** La mesa de Prisma, con su pantalla de inicio, mi mano y el panel de decisiones. */
 export default function PrismaPage() {

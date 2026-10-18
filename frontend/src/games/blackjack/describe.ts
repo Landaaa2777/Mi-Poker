@@ -1,5 +1,6 @@
 // Textos del blackjack: el registro de la ronda y las etiquetas de la mesa.
 
+import type { LogLine } from "../../shared/components/EventLog";
 import { cardLabel } from "../../shared/format";
 import { handTotal, type Frame, type HandFrame } from "./timeline";
 import type { ActionName, HandResult } from "./types";
@@ -124,4 +125,15 @@ export function describeEvent(index: number, frame: Frame, me: number): string |
       }
     }
   }
+}
+
+
+/** Las líneas del registro de la ronda que se ve ahora en la mesa. */
+export function logLines(frame: Frame, me: number): LogLine[] {
+  return frame.events.flatMap((event, index) => {
+    const text = describeEvent(index, frame, me);
+    if (text === null) return [];
+    const tone = event.kind === "settle" ? "highlight" : event.seat === me ? "mine" : "others";
+    return [{ text, tone } as const];
+  });
 }

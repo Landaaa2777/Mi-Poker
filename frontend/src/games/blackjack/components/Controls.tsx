@@ -42,10 +42,11 @@ interface BetProps {
   lastBet: number;
   disabled: boolean;
   onBet: (amount: number) => void;
+  label?: string; // el botón de apostar: "Repartir" contra bots, "Apostar" en una sala
 }
 
 /** Apostar: fichas que suman, borrar y repartir. Empieza con la última apuesta. */
-export function BetControls({ state, lastBet, disabled, onBet }: BetProps) {
+export function BetControls({ state, lastBet, disabled, onBet, label = "Repartir" }: BetProps) {
   const { min_bet: low, max_bet: high, bet_step: step } = state.rules;
   const stack = state.seats[state.human_seat].stack;
   const top = Math.min(high, stack - (stack % step));
@@ -82,7 +83,7 @@ export function BetControls({ state, lastBet, disabled, onBet }: BetProps) {
           disabled={disabled || !valid}
           onClick={() => onBet(bet)}
         >
-          Repartir
+          {label}
         </button>
         <button type="button" className="btn-dark h-12 px-4 text-sm" disabled={disabled} onClick={() => setBet(low)}>
           Mínima

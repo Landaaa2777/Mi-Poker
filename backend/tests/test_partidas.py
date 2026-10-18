@@ -4,7 +4,9 @@ import pytest
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
+import games.registry
 from accounts import Cost
+from core.registry import GameInfo
 from server.app import create_app
 from server.partidas import MAX_PARTIDAS, Partidas, owner_key
 
@@ -105,10 +107,12 @@ def test_asking_twice_gives_the_same_partida(client):
     assert first == second == {"game": "poker", "partida_id": first["partida_id"], "in_progress": False}
 
 
-def test_unknown_and_coming_soon_games_have_no_partida(client):
+def test_unknown_and_coming_soon_games_have_no_partida(client, monkeypatch):
     unknown = client.post("/api/partidas", json={"game": "ajedrez", "guest_id": GUEST})
     assert unknown.status_code == 404
-    soon = client.post("/api/partidas", json={"game": "salas", "guest_id": GUEST})
+    coming = GameInfo(id="ajedrez", name="Ajedrez", description="Pronto.")
+    monkeypatch.setattr(games.registry, "REGISTRY", (*games.registry.REGISTRY, coming))
+    soon = client.post("/api/partidas", json={"game": "ajedrez", "guest_id": GUEST})
     assert soon.status_code == 409 and "todavía" in soon.json()["message"]
 
 

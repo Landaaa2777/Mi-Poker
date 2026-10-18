@@ -1,5 +1,6 @@
 // Textos de Prisma: el registro de la ronda, en español.
 
+import type { LogLine } from "../../shared/components/EventLog";
 import { cardName } from "./cardArt";
 import { SUITS } from "./shapes";
 import type { Frame } from "./timeline";
@@ -71,4 +72,26 @@ export function describeEvent(index: number, frame: Frame, me: number): string |
         ? `¡Ganas la ronda!${event.count ? ` (${event.count} puntos)` : ""}`
         : `${name(event.seat)} gana la ronda${event.count ? ` (${event.count} puntos)` : ""}`;
   }
+}
+
+
+const HIGHLIGHT = new Set(["round_over", "caught", "challenge", "blocked"]);
+const NOTE = new Set(["start", "reshuffle", "reverse", "return"]);
+
+/** Las líneas del registro de la ronda que se ve ahora en la mesa. */
+export function logLines(frame: Frame, me: number): LogLine[] {
+  const lines: LogLine[] = [];
+  frame.events.forEach((event, index) => {
+    const text = describeEvent(index, frame, me);
+    if (text === null) return;
+    const tone = HIGHLIGHT.has(event.kind)
+      ? "highlight"
+      : NOTE.has(event.kind)
+        ? "note"
+        : event.seat === me
+          ? "mine"
+          : "others";
+    lines.push({ text, tone });
+  });
+  return lines;
 }

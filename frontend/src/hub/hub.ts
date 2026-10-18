@@ -14,6 +14,7 @@ export interface GameEntry {
   min_players: number;
   max_players: number;
   available: boolean; // false = "Próximamente"
+  rooms?: boolean; // se puede jugar en una sala con amigos
   options: GameOption[];
 }
 

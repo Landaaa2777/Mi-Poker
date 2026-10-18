@@ -12,7 +12,8 @@ import type { Card, GameEvent, GameState } from "./types";
 export interface PlayerFrame {
   seat: number;
   name: string;
-  isHuman: boolean;
+  isHuman: boolean; // soy yo
+  person?: boolean; // en una sala: lo juega una persona
   level: string;
   count: number;
   score: number;
@@ -55,6 +56,7 @@ export function frameFromState(state: GameState): Frame {
       seat: player.seat,
       name: player.name,
       isHuman: player.is_human,
+      person: player.person,
       level: player.level,
       count: player.count,
       score: player.score,
@@ -93,6 +95,7 @@ export function frameAt(state: GameState, count: number): Frame {
     seat: player.seat,
     name: player.name,
     isHuman: player.is_human,
+    person: player.person,
     level: player.level,
     count: 0,
     score: player.score,

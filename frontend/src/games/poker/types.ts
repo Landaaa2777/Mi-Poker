@@ -1,5 +1,6 @@
 // Formas de los mensajes del poker (ver backend/games/poker/protocol.py).
 
+import type { TurnTimer } from "../../shared/room";
 import type { ServerMessage as SharedServerMessage } from "../../shared/useConnection";
 
 export type ActionName = "fold" | "check" | "call" | "raise" | "all_in";
@@ -13,9 +14,11 @@ export interface Seat {
   contributed: number;
   status: SeatStatus;
   hole_cards: string[] | null; // null = ocultas
-  is_human: boolean;
+  is_human: boolean; // soy yo
   style: string;
   level: string;
+  person?: boolean; // en una sala: lo juega una persona (yo u otra)
+  gone?: boolean; // en una sala: esa persona se ha ido
 }
 
 export interface HandEvent {
@@ -83,6 +86,10 @@ export interface GameState {
   game_over: boolean;
   winner_seat: number | null;
   balance: number | null; // fichas de mi cuenta, contando las de la mesa; null si soy invitado
+  // Solo en las salas:
+  human_seat?: number; // mi asiento
+  timer?: TurnTimer | null; // la cuenta atrás de la decisión en curso
+  next_hand_in?: number | null; // segundos hasta la siguiente mano
 }
 
 export interface Options {

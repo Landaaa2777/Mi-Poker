@@ -1,6 +1,7 @@
 // Formas de los mensajes del blackjack (ver backend/games/blackjack/protocol.py).
 
 import type { GameOption } from "../../shared/options";
+import type { TurnTimer } from "../../shared/room";
 
 export type Phase = "betting" | "insurance" | "playing" | "complete";
 export type ActionName = "hit" | "stand" | "double" | "split" | "surrender";
@@ -27,8 +28,11 @@ export interface Seat {
   insurance: number;
   insurance_pending: boolean;
   can_bet: boolean;
-  is_human: boolean;
+  is_human: boolean; // soy yo
   level: string;
+  person?: boolean; // en una sala: lo juega una persona (yo u otra)
+  gone?: boolean; // en una sala: esa persona se ha ido
+  bet_ready?: boolean; // en una sala: ya ha apostado para la próxima ronda
 }
 
 /** Un suceso de la ronda. `card` es null para la carta tapada del crupier. */
@@ -94,6 +98,10 @@ export interface GameState {
   round_in_progress: boolean;
   human_out: boolean;
   balance: number | null; // fichas de mi cuenta, contando las de la mesa; null si soy invitado
+  // Solo en las salas:
+  my_bet?: number | null; // lo que he apostado para la próxima ronda
+  game_over?: boolean;
+  timer?: TurnTimer | null; // la cuenta atrás de la decisión en curso
 }
 
 export interface Options {

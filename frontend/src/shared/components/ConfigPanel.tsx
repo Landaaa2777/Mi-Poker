@@ -137,8 +137,9 @@ function OptionInput({ field, value, max, onChange }: InputProps) {
           <button
             key={option}
             type="button"
+            disabled={option > high}
             aria-pressed={value === option}
-            className={`${CHOICE} tabular-nums ${value === option ? CHOSEN : NOT_CHOSEN}`}
+            className={`${CHOICE} tabular-nums disabled:opacity-35 ${value === option ? CHOSEN : NOT_CHOSEN}`}
             onClick={() => onChange(option)}
           >
             {option}

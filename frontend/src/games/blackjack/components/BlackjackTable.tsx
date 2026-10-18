@@ -179,13 +179,15 @@ function SeatView({ seat, size, scale, acting, thinking }: SeatProps) {
   const ring = won ? "ring-emerald-400" : myTurn ? "ring-amber-300" : "ring-white/25";
   // Con varias manos (tras dividir), cartas un poco más pequeñas para que quepan.
   const card = seat.hands.length > 2 ? size.card * 0.72 : seat.hands.length === 2 ? size.card * 0.86 : size.card;
-  const note = thinking
-    ? "Pensando…"
-    : seat.action
-      ? DONE_LABEL[seat.action] ?? seat.action
-      : seat.isHuman
-        ? ""
-        : seat.level;
+  const note = seat.gone
+    ? "Se ha ido"
+    : thinking
+      ? "Pensando…"
+      : seat.action
+        ? DONE_LABEL[seat.action] ?? seat.action
+        : seat.isHuman || seat.person
+          ? ""
+          : seat.level;
 
   return (
     <div className="relative" style={{ width: size.width }}>

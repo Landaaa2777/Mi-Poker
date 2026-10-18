@@ -2,6 +2,7 @@
 
 import type { GameOption } from "../../shared/options";
 import type { PrismaColor } from "./shapes";
+import type { TurnTimer } from "../../shared/room";
 
 export type Kind = "number" | "pausa" | "remolino" | "carga" | "camaleon" | "camaleon4";
 export type Phase = "choose_color" | "playing" | "challenge" | "round_over";
@@ -20,8 +21,10 @@ export interface PlayerInfo {
   score: number;
   said_last: boolean;
   vulnerable: boolean; // se quedó con una carta sin decir "¡Última!"
-  is_human: boolean;
+  is_human: boolean; // soy yo
   level: string;
+  person?: boolean; // en una sala: lo juega una persona (yo u otra)
+  gone?: boolean; // en una sala: esa persona se fue y ahora juega un bot en su sitio
 }
 
 export interface Legal {
@@ -101,6 +104,9 @@ export interface GameState {
   events: GameEvent[];
   config: PrismaConfig;
   human_seat: number;
+  // Solo en las salas:
+  timer?: TurnTimer | null; // la cuenta atrás de la decisión en curso
+  next_round_in?: number | null; // segundos hasta la ronda siguiente (jugando a puntos)
 }
 
 export interface Options {
