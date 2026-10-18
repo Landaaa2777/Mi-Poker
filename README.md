@@ -1,5 +1,7 @@
 # mi-poker
 
+![Capturas de mi-poker: una mano de poker en una sala con amigos, blackjack contra el crupier, Prisma y la sala de espera con el código para invitar](docs/portada.jpg)
+
 Juegos de cartas para el navegador, contra bots o con tus amigos en salas
 privadas: **Poker Hold'em**, **Blackjack** y **Prisma**, un juego de descarte
 con las reglas del clásico y una identidad propia. Se elige a qué jugar en un
@@ -356,6 +358,7 @@ frontend/
   src/games/prisma/    la mesa de Prisma y sus cartas en SVG
   src/assets/          la baraja clásica (CC0) y la carpeta de música opcional
   tools/               graba partidas reales para los tests y prepara la baraja
+docs/                  la imagen del principio de este README (capturas del juego)
 ```
 
 Cada juego describe sus mensajes en su `protocol.py`; las rutas de partidas
