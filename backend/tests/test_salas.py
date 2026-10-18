@@ -334,6 +334,8 @@ def test_only_the_host_changes_the_options(browser):
         assert ana_socket.receive_json() == {"type": "error", "message": "Ese juego no existe"}
         ana_socket.send_json({"type": "dance"})
         assert ana_socket.receive_json()["type"] == "error"
+        ana_socket.send_json({"type": "configure", "options": {"x": "y" * 5000}})
+        assert ana_socket.receive_json()["message"] == "Mensaje inválido: demasiado largo"
 
 
 def test_leaving_passes_the_host_on_and_the_last_one_closes_the_sala(browser):

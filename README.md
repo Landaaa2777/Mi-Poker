@@ -1,8 +1,9 @@
 # mi-poker
 
-Juegos de cartas para el navegador, contra bots: **Poker Hold'em**,
-**Blackjack** y **Prisma**, un juego de descarte con las reglas del clásico y
-una identidad propia. Se elige a qué jugar en un menú principal.
+Juegos de cartas para el navegador, contra bots o con tus amigos en salas
+privadas: **Poker Hold'em**, **Blackjack** y **Prisma**, un juego de descarte
+con las reglas del clásico y una identidad propia. Se elige a qué jugar en un
+menú principal.
 
 **Solo para entretenimiento. Sin dinero real.** Las fichas son virtuales y no
 tienen ningún valor fuera del juego: no se compran, no se venden y no se
@@ -14,14 +15,16 @@ canjean por nada.
   servidor FastAPI + WebSocket e interfaz web.
 - Etapa 2 (completa): pulido visual y sonoro: mesa con colores de casino,
   baraja clásica, animaciones, efectos de sonido y música.
-- Etapa 3 (completa): cuentas opcionales, con perfil, estadísticas y saldo de
-  fichas virtuales.
+- Etapa 3 (completa): cuentas, con perfil, estadísticas y saldo de fichas
+  virtuales.
 - Etapa 4 (completa): plataforma de juegos. Menú principal, el poker de
   siempre, blackjack y Prisma, cada juego como un módulo enchufable.
+- Etapa 5 (completa): salas privadas para jugar con amigos (los tres juegos),
+  cuentas obligatorias y fichas diarias. Se juega en la red de casa o, con un
+  túnel, con amigos de fuera.
 
-Todavía no hay partidas entre personas: es la etapa siguiente (en el menú sale
-como "Próximamente"). Cada partida vive en la memoria del servidor y se pierde
-al cerrarlo; las cuentas sí se guardan.
+Las partidas y las salas viven en la memoria del servidor y se pierden al
+cerrarlo; las cuentas sí se guardan.
 
 ## Requisitos
 
@@ -56,10 +59,11 @@ cd ..\backend
 uvicorn server.app:app
 ```
 
-Abrir http://localhost:8000. Se abre el menú: una tarjeta por juego, con su
-descripción y cuántos jugadores admite. Cada juego tiene su dirección propia
-(`/poker`, `/blackjack`, `/prisma`), así que también se puede entrar directo o
-guardar el enlace.
+Abrir http://localhost:8000. La primera vez hay que crear una cuenta (ver
+[Cuentas](#cuentas)). Después se abre el menú: una tarjeta por juego, con su
+descripción y cuántos jugadores admite, y la tarjeta **Salas con amigos**. Cada
+juego tiene su dirección propia (`/poker`, `/blackjack`, `/prisma`), así que
+también se puede entrar directo o guardar el enlace.
 
 Para desarrollar, con recarga automática, en dos terminales:
 
@@ -79,6 +83,80 @@ Arriba está siempre la misma cabecera: el nombre (que lleva al menú), el botó
 curso, se pide confirmación; la partida no se pierde: queda en pausa y su
 tarjeta del menú ofrece **Continuar partida**. Cada cuenta tiene una partida
 por juego.
+
+## Salas con amigos
+
+Desde la tarjeta **Salas con amigos** del menú (o en `/salas`):
+
+- **Crear una sala**: eliges el juego y recibes un código de 6 letras y
+  números, por ejemplo `K7P2QX`, y un enlace (`/sala/K7P2QX`). Quien crea la
+  sala es el anfitrión.
+- **Unirse**: escribe el código en `/salas` (da igual en minúsculas o con
+  guiones) o abre el enlace. Mientras se busca la sala sale "Buscando la
+  sala…" y, al encontrarla, "¡Partida encontrada!".
+- **La sala de espera** se actualiza sola: quién está y si está conectado, el
+  código y el enlace para copiar, y las opciones. El anfitrión elige el juego,
+  sus opciones y cuántos bots rellenan los sitios libres (las personas tienen
+  preferencia), y empieza cuando hay al menos dos personas.
+- **Durante la partida** cada uno ve solo lo suyo y tiene **30 segundos** para
+  cada decisión. Si se acaban, el servidor juega por él lo más prudente: en el
+  poker pasa o se retira; en el blackjack se planta (sin seguro), y quien no
+  apuesta a tiempo no juega esa ronda; en Prisma roba y pasa. En el poker las
+  manos se reparten solas, con una pausa entre una y otra.
+- **Desconectarse no es irse**: si cierras la pestaña o se corta la conexión,
+  tu sitio se guarda y vuelves con el mismo enlace (la tarjeta del menú te
+  lleva a tu sala).
+- **Abandonar** (salir de la sala con la partida empezada) tiene sus
+  consecuencias: en el poker te retiras de la mano y pierdes lo apostado; en
+  el blackjack tu ronda se juega sola; en Prisma un bot ocupa tu sitio. No se
+  puede volver a esa partida.
+- **Fichas**: poker y blackjack se juegan con el saldo de cada cuenta, también
+  entre personas. Para empezar, cada uno tiene que tener libres las fichas
+  iniciales de la mesa.
+- Al terminar, la sala vuelve a la espera con la mesa final a la vista y el
+  anfitrión puede empezar otra partida, también con gente nueva.
+
+Cada persona está en una sola sala a la vez, y una sala sin nadie conectado
+durante media hora se cierra sola.
+
+## Jugar con otras personas
+
+### En la red de casa (misma WiFi)
+
+Desde `backend`, con el venv activado y la web compilada:
+
+```powershell
+python scripts\red_local.py
+```
+
+Dice dos direcciones: la de este ordenador y la de la red, por ejemplo
+`http://192.168.1.20:8000`. Los demás abren esa dirección en su navegador
+(móvil incluido). Ábrela tú también con esa dirección, no con `localhost`: el
+enlace de la sala usa la dirección por la que has entrado. La primera vez,
+Windows pregunta si Python puede recibir conexiones: permítelo solo en redes
+privadas.
+
+### Con amigos de fuera de casa (túnel)
+
+Un túnel https temporal da a tu servidor una dirección en internet mientras
+esté abierto. Por ejemplo, con Cloudflare, gratis y sin cuenta:
+
+1. Descarga `cloudflared` de la web de Cloudflare (es un solo programa).
+2. Con el servidor en marcha (`uvicorn server.app:app`), en otra terminal:
+
+   ```powershell
+   cloudflared tunnel --url http://localhost:8000
+   ```
+
+3. Al cabo de unos segundos escribe una dirección como
+   `https://palabras-al-azar.trycloudflare.com`. Ábrela tú también (y entra en
+   tu cuenta otra vez: cada dirección tiene su sesión), crea la sala desde ahí
+   y comparte su enlace.
+
+El túnel dura mientras esté abierta esa terminal; ciérralo al terminar. Quien
+tenga la dirección puede llegar a la página de entrada, así que compártela
+solo con tus amigos (para jugar hace falta cuenta igualmente). Otros túneles,
+como `ngrok http 8000`, funcionan igual.
 
 ## Los juegos
 
@@ -124,9 +202,11 @@ propios.
 - Al quedarte con una carta pulsa **¡Última!**. Si no lo haces y alguien te
   pilla antes de que juegue el siguiente, robas 2. Tú también puedes pillar a
   un bot despistado con **¡Pillado!**.
-- Gana la ronda quien se queda sin cartas. Opciones: jugar a puntos hasta una
-  meta, sin desafío del +4, y las opciones de la casa de acumular +2 y +4
-  (desactivadas por defecto).
+- Gana la ronda quien se queda sin cartas. Si se acaban las cartas que robar
+  (y no queda nada que rebarajar) y nadie juega en una vuelta entera, la ronda
+  se cierra y gana quien tiene menos cartas.
+- Opciones: jugar a puntos hasta una meta, sin desafío del +4, y las opciones
+  de la casa de acumular +2 y +4 (desactivadas por defecto).
 
 ## Cuentas
 
@@ -139,9 +219,10 @@ olvidada no se puede recuperar. **Entrar** acepta el nombre de usuario o el
 correo.
 
 Tu nombre de usuario es tu nombre en la mesa de todos los juegos. La sesión
-dura 30 días en ese navegador, hasta que pulses **Salir**. Al pulsar tu nombre se abre
-tu perfil, con las estadísticas del poker: manos jugadas y ganadas, mayor bote,
-mejor mano enseñada y partidas ganadas, en total y según el nivel de los rivales.
+dura 30 días en ese navegador, hasta que pulses **Salir**. Al pulsar tu nombre
+se abre tu perfil, con las estadísticas del poker: manos jugadas y ganadas,
+mayor bote, mejor mano enseñada y partidas ganadas, en total, según el nivel de
+los bots y, aparte, las jugadas en salas ("Con amigos").
 
 **Saldo**: cada cuenta tiene un saldo de fichas virtuales, que se ve junto a tu
 nombre y empieza en 10.000. Poker y blackjack usan el mismo saldo: para jugar
@@ -187,13 +268,16 @@ pytest
 ```
 
 Cubren los tres motores, sus bots (con simulaciones que comprueban el orden de
-los niveles), las partidas por WebSocket, las cuentas, el registro de juegos y
-una pasada de seguridad: entrar en partidas ajenas, mensajes rotos o inventados
-y cartas ocultas que nunca llegan al navegador. Usan bases de datos temporales:
-nunca tocan la de `backend/data`.
+los niveles), las partidas por WebSocket, las cuentas y las fichas diarias, el
+registro de juegos, las salas (crear, unirse, la sala de espera, varias
+personas en cada juego, tiempo por decisión y abandonos, con varios
+navegadores de prueba a la vez) y una pasada de seguridad: entrar en partidas
+o salas ajenas, mensajes rotos, inventados o enormes y cartas ocultas que
+nunca llegan al navegador. Usan bases de datos temporales: nunca tocan la de
+`backend/data`.
 
 Frontend (líneas de tiempo, cola de reproducción, menú, panel de opciones,
-textos, sonidos y la parte de cuentas que no necesita navegador), desde
+textos, sonidos, cuentas y salas: lo que no necesita navegador), desde
 `frontend`:
 
 ```powershell
@@ -218,6 +302,7 @@ python scripts\demo_hand.py            # una mano de poker al azar, con todo su 
 python scripts\simulate.py             # poker: bb/100 de cada nivel (medio minuto)
 python scripts\simulate_blackjack.py   # blackjack: lo que gana o pierde cada nivel
 python scripts\simulate_prisma.py      # Prisma: partidas ganadas por cada nivel
+python scripts\red_local.py            # el servidor para jugar en la red de casa
 ```
 
 En todos el orden esperado es Experto > Difícil > Medio > Fácil (en el
@@ -242,35 +327,40 @@ cambia la estrategia, nunca la información.
 ```
 backend/
   core/                piezas comunes en Python puro: baraja estándar, barajado
-                       seguro, bots, opciones y la ficha de un juego
+                       seguro, bots, opciones, la ficha de un juego y lo común
+                       de las mesas de las salas (room.py)
   games/
     registry.py        EL REGISTRO: la lista de juegos que ve el menú
-    poker/             engine/ (motor), bots/, session.py (la partida en el
-    blackjack/         servidor), protocol.py (mensajes), info.py (su ficha)
-    prisma/            y tests/, igual en cada juego
+    poker/             engine/ (motor), bots/, session.py (la partida contra
+    blackjack/         bots), room.py (la mesa de una sala), protocol.py
+    prisma/            (mensajes), info.py (su ficha) y tests/, en cada juego
   accounts/            cuentas en Python puro: contraseñas, sesiones,
-                       estadísticas y saldo (SQLite)
-  server/              FastAPI: partidas en memoria (partidas.py), WebSocket por
-                       partida, API de juegos (games_api.py) y de cuentas
+                       estadísticas, saldo y fichas diarias (SQLite)
+  server/              FastAPI: partidas en memoria (partidas.py), salas
+                       (salas.py y salas_api.py), WebSocket por partida y por
+                       sala, API de juegos (games_api.py) y de cuentas
   data/                la base de datos de cuentas (se crea sola; fuera de git)
-  scripts/             demos y simulaciones por consola
-  tests/               tests de la plataforma (registro, partidas, seguridad…)
+  scripts/             demos, simulaciones y el arranque en la red de casa
+  tests/               tests de la plataforma (registro, partidas, salas, seguridad…)
 frontend/
   src/hub/             el menú principal, construido con GET /api/juegos
+  src/salas/           las salas con amigos: /salas, /sala/{código}, la sala de
+                       espera y la animación de "¡Partida encontrada!"
   src/shared/          lo común: cabecera, cuenta, ajustes, sonido, movimiento,
                        baraja clásica, panel de opciones, cola de reproducción,
-                       conexión con las partidas y tokens de diseño
+                       conexión con las partidas, cuenta atrás y tokens de diseño
                        (styles/tokens.css: colores, tipografías y espacios)
-  src/games/index.ts   el mapa de juegos: id → página e ícono
-  src/games/poker/     la mesa de poker
-  src/games/blackjack/ la mesa de blackjack
+  src/games/index.ts   el mapa de juegos: id → página, mesa de sala e ícono
+  src/games/poker/     la mesa de poker (contra bots y en sala)
+  src/games/blackjack/ la mesa de blackjack (contra bots y en sala)
   src/games/prisma/    la mesa de Prisma y sus cartas en SVG
   src/assets/          la baraja clásica (CC0) y la carpeta de música opcional
   tools/               graba partidas reales para los tests y prepara la baraja
 ```
 
 Cada juego describe sus mensajes en su `protocol.py`; las rutas de partidas
-están en `backend/server/games_api.py` y las de cuentas en
+están en `backend/server/games_api.py`, las de salas en
+`backend/server/salas_api.py` y las de cuentas en
 `backend/server/accounts_api.py`.
 
 ### Añadir un juego
@@ -281,6 +371,10 @@ están en `backend/server/games_api.py` y las de cuentas en
    (`backend/games/registry.py`). El menú la mostrará solo.
 3. Escribir su página en `frontend/src/games/<juego>/` y añadir una línea
    (página e ícono) en `frontend/src/games/index.ts`.
+4. Para jugarlo en salas (opcional): sus opciones de sala (`RoomConfig` en
+   `protocol.py`), su mesa con varias personas (`room.py`, a partir de
+   `core/room.py`) en la ficha, y su vista `<Juego>Room.tsx` en el mapa de
+   juegos.
 
 El menú no se toca: se construye leyendo el registro.
 
@@ -300,10 +394,18 @@ envía intenciones ("pedir carta", "jugar la carta 17").
 - Nunca viajan las cartas ocultas: las de los rivales (hasta el showdown en el
   poker), la carta tapada del crupier, los mazos ni el zapato. Bots y
   navegador reciben la misma clase de vista, con solo lo público y lo suyo.
-- Las peticiones y las conexiones desde otras webs se rechazan.
+- Las peticiones y las conexiones desde otras webs se rechazan. Detrás de un
+  túnel, la dirección que vio el navegador llega en `X-Forwarded-Host`, que una
+  web ajena no puede poner.
+- Los mensajes de más de 4 KB se rechazan sin leerlos.
+- **Salas**: los códigos son al azar (casi 900 millones posibles) y, tras 10
+  códigos inexistentes en un minuto desde la misma dirección, hay que esperar.
+  A la sala en tiempo real solo se conectan sus miembros; cada persona recibe
+  solo su vista de la mesa, y solo el anfitrión cambia las opciones o empieza.
 
-Pensado para jugar en local. Antes de publicarlo en internet haría falta, como
-mínimo, servirlo por HTTPS y limitar cuántas cuentas se pueden crear.
+Pensado para jugar en casa o con amigos a través de un túnel temporal. Antes de
+publicarlo en internet de forma permanente haría falta, como mínimo, un
+servidor con HTTPS propio y limitar cuántas cuentas se pueden crear.
 
 ### Cuentas y sesión
 
@@ -312,8 +414,8 @@ mínimo, servirlo por HTTPS y limitar cuántas cuentas se pueden crear.
 - **Sesión**: al entrar, el servidor crea un token al azar y lo manda en una
   cookie `HttpOnly` y `SameSite=Lax`. En la base de datos solo queda el hash
   del token.
-- **Quién soy**: lo decide el servidor al abrir la conexión con una partida. El
-  nombre en la mesa lo pone el servidor.
+- **Quién soy**: lo decide el servidor al abrir la conexión con una partida o
+  una sala. El nombre en la mesa lo pone el servidor.
 - **Intentos fallidos**: el mensaje es el mismo exista o no el usuario, y tras
   cinco fallos en un minuto hay que esperar para volver a intentarlo.
 - **Cerrar sesión** borra la sesión en el servidor y corta sus conexiones.

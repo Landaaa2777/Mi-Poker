@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from pydantic import ValidationError
 
+# Ningún mensaje del juego se acerca a esto: lo más largo es un cambio de opciones.
+MAX_MESSAGE = 4096
+TOO_LONG = "Mensaje inválido: demasiado largo"
+
 
 def explain(error: ValidationError) -> str:
     """Primer problema de un mensaje mal formado, en una frase."""

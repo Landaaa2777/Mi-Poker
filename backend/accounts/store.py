@@ -281,9 +281,15 @@ class AccountStore:
         día siguiente.
         """
         now = int(self.clock())
+        query = "SELECT balance, chips_due_at FROM users WHERE id = ?"
         with self._connect() as db:
-            # Las dos condiciones del WHERE hacen que cada entrega llegue una sola
-            # vez, aunque varias peticiones miren el saldo a la vez.
+            row = db.execute(query, (user.id,)).fetchone()
+            if row is None:
+                return Wallet(0, None)
+            if row[1] is not None and row[1] > now:
+                return Wallet(row[0], row[1])  # lo normal: nada que entregar ni que poner en camino
+            # Las condiciones del WHERE hacen que cada entrega llegue una sola vez,
+            # aunque varias peticiones miren el saldo a la vez.
             db.execute(
                 "UPDATE users SET balance = balance + ?, chips_due_at = NULL"
                 " WHERE id = ? AND chips_due_at IS NOT NULL AND chips_due_at <= ?",
@@ -293,10 +299,8 @@ class AccountStore:
                 "UPDATE users SET chips_due_at = ? WHERE id = ? AND chips_due_at IS NULL",
                 (now + DAILY_WAIT, user.id),
             )
-            row = db.execute(
-                "SELECT balance, chips_due_at FROM users WHERE id = ?", (user.id,)
-            ).fetchone()
-        return Wallet(row[0], row[1]) if row else Wallet(0, None)
+            row = db.execute(query, (user.id,)).fetchone()
+        return Wallet(row[0], row[1])
 
     def balance(self, user: User) -> int:
         """Fichas virtuales de la cuenta, contando las que tenga en la mesa."""

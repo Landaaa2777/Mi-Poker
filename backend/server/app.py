@@ -35,7 +35,7 @@ from .games_api import game_routes
 from .partidas import Partidas, owner_key
 from .salas import Sala, SalaError, Salas
 from .salas_api import sala_routes
-from .validation import explain
+from .validation import MAX_MESSAGE, TOO_LONG, explain
 
 BACKEND = Path(__file__).resolve().parents[1]
 FRONTEND_DIST = BACKEND.parent / "frontend" / "dist"
@@ -253,6 +253,9 @@ def create_app(
         try:
             while True:
                 text = await websocket.receive_text()
+                if len(text) > MAX_MESSAGE:
+                    await send({"type": "error", "message": TOO_LONG})
+                    continue
                 try:
                     session.handle(text)
                 except ValidationError as error:

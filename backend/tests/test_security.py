@@ -82,6 +82,28 @@ def test_other_sites_cannot_open_a_table(app, game):
             socket.receive_json()
 
 
+def test_behind_a_tunnel_our_own_page_still_counts_as_ours(app):
+    """Un túnel https puede cambiar Host; la dirección que vio el navegador llega en X-Forwarded-Host."""
+    client = TestClient(app)
+    body = {"game": "poker", "guest_id": GUEST}
+    tunnel = "https://abc.trycloudflare.com"
+    ours = {"Origin": tunnel, "X-Forwarded-Host": "abc.trycloudflare.com"}
+    assert client.post("/api/partidas", json=body, headers=ours).status_code == 200
+    for headers in ({"Origin": tunnel}, {"Origin": tunnel, "X-Forwarded-Host": "otra-web.example"}):
+        assert client.post("/api/partidas", json=body, headers=headers).status_code == 403
+    with client.websocket_connect(url(client, "poker"), headers=ours) as socket:
+        assert socket.receive_json()["type"] == "hello"
+
+
+@pytest.mark.parametrize("game", GAMES)
+def test_huge_messages_are_refused_without_reading_them(app, game):
+    client = TestClient(app)
+    with client.websocket_connect(url(client, game)) as socket:
+        socket.receive_json()
+        socket.send_text(json.dumps({"type": "action", "action": "x" * 10_000}))
+        assert socket.receive_json() == {"type": "error", "message": "Mensaje inválido: demasiado largo"}
+
+
 GARBAGE = [
     "",
     "esto no es JSON",

@@ -67,9 +67,18 @@ def same_origin(headers: Headers) -> bool:
     Los navegadores dicen en `Origin` qué página hace la petición. Si es otra,
     se rechaza: así una web ajena no puede actuar con la sesión del usuario.
     Los clientes que no son navegadores no mandan `Origin` y pasan.
+
+    Detrás de un túnel https (para jugar con amigos de fuera), el túnel puede
+    cambiar `Host` por la dirección local del servidor; la que vio el navegador
+    llega en `X-Forwarded-Host`. Una web ajena no puede poner esa cabecera (el
+    navegador lo impide), así que aceptarla no abre ningún hueco.
     """
     origin = headers.get("origin")
-    return origin is None or urlsplit(origin).netloc == headers.get("host")
+    if origin is None:
+        return True
+    seen = urlsplit(origin).netloc
+    forwarded = headers.get("x-forwarded-host", "").split(",")[0].strip()
+    return seen == headers.get("host") or (bool(forwarded) and seen == forwarded)
 
 
 def public_user(store: AccountStore, user: User | None) -> dict | None:

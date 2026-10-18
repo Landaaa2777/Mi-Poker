@@ -7,14 +7,14 @@ de juego social con fichas virtuales, pero con nombre, diseño y textos 100%
 originales (no copiar marca, assets ni textos de ningún sitio existente).
 
 ## ESTADO ACTUAL
-- Etapas 1, 2, 3 y 4 completas. La etapa 4 (plataforma de juegos: menú
+- Etapas 1, 2, 3, 4 y 5 completas. La etapa 4 (plataforma de juegos: menú
   principal, el poker de siempre, blackjack y el juego de descarte "Prisma")
-  se aprobó el 2026-10-17 y se trabajó de seguido, sin parar a pedir
-  aprobación entre hitos, como pedí; se cerró el 2026-10-17.
-- ETAPA 5 EN CURSO (aprobada el 2026-10-17): jugar online con amigos en salas
-  privadas, cuentas obligatorias y fichas diarias. Pedí trabajarla de seguido,
-  sin parar entre hitos: al cerrar cada hito se corren TODOS los tests y se
-  hace su commit.
+  se aprobó el 2026-10-17 y se cerró el mismo día. La etapa 5 (salas privadas
+  para jugar con amigos, cuentas obligatorias y fichas diarias) se aprobó el
+  2026-10-17 y se cerró el 2026-10-18. Las dos se trabajaron de seguido, sin
+  parar a pedir aprobación entre hitos, como pedí.
+- No hay ninguna etapa en curso: la siguiente empieza cuando yo la pida, con
+  su plan escrito antes en este archivo.
 - El juego de descarte se llama Prisma: lo decidí el 2026-10-17 (probé a
   llamarlo ONE y volví a Prisma).
 
@@ -56,21 +56,21 @@ originales (no copiar marca, assets ni textos de ningún sitio existente).
   página y su ícono al mapa de juegos del frontend (`frontend/src/games/index.ts`),
   sin tocar el menú.
 - El menú tiene tarjetas grandes con nombre, una línea de descripción, ícono
-  SVG propio dibujado por código y rango de jugadores, y tarjetas
-  "Próximamente" deshabilitadas (salas con amigos), que también vienen del
-  registro.
+  SVG propio dibujado por código y rango de jugadores, y la tarjeta "Salas
+  con amigos" (etapa 5). Un juego del registro sin partida saldría como
+  "Próximamente" (ahora no hay ninguno).
 - Partidas: en memoria, una por identidad (cuenta o invitado) y por juego.
   `POST /api/partidas` da el id de la partida (largo, al azar y ligado a esa
   identidad) y el WebSocket es `/ws/{juego}/{partida_id}`. El servidor
   rechaza a quien no es su dueño.
 - Volver al menú con una partida en curso pide confirmación. La partida
   queda en pausa en el servidor y el menú ofrece "Continuar" (decidido el
-  2026-10-17). En el futuro online, salir de una partida con otras personas
-  será abandonarla, con sus consecuencias.
-- Saldo compartido (decidido el 2026-10-17): con cuenta, poker y blackjack
-  usan el mismo saldo. Las fichas sentadas en una mesa no se pueden llevar a
-  otra a la vez. Los invitados juegan con fichas gratis en cada mesa. El
-  juego de descarte no usa fichas.
+  2026-10-17). En una sala, salir de la página no es abandonar (el sitio se
+  guarda); abandonar es salir de la sala, con sus consecuencias (etapa 5).
+- Saldo compartido (decidido el 2026-10-17): poker y blackjack usan el mismo
+  saldo, también en las salas. Las fichas sentadas en una mesa (contra bots o
+  en una sala) no se pueden llevar a otra a la vez. El juego de descarte no
+  usa fichas.
 - Todo con el estilo de casino del poker. Colores, tipografías y espaciados
   centralizados en tokens (`frontend/src/shared/styles/tokens.css`). Responsive,
   usable con teclado y respetando `prefers-reduced-motion`.
@@ -81,18 +81,21 @@ originales (no copiar marca, assets ni textos de ningún sitio existente).
 ### Estructura
 - Backend:
   - `core/`: piezas compartidas en Python puro (carta y mazo estándar de 52,
-    barajado seguro, ritmo e identidad de los bots, esquema de opciones y
-    ficha del registro).
+    barajado seguro, ritmo e identidad de los bots, esquema de opciones,
+    ficha del registro y `room.py`: lo común de las mesas de las salas).
   - `games/<juego>/`: `engine/` (Python puro, sin FastAPI), `bots/`,
-    `session.py` (la partida en el servidor), `protocol.py` (mensajes),
-    `info.py` (su ficha) y `tests/`.
-  - `server/`: FastAPI. Partidas genéricas, WebSocket por partida, API de
-    juegos y de cuentas.
+    `session.py` (la partida contra bots), `room.py` (la mesa de una sala),
+    `protocol.py` (mensajes y opciones), `info.py` (su ficha) y `tests/`.
+  - `server/`: FastAPI. Partidas genéricas, salas (`salas.py`,
+    `salas_api.py`), WebSocket por partida y por sala, API de juegos y de
+    cuentas.
 - Frontend:
   - `src/hub/`: el menú.
+  - `src/salas/`: las salas con amigos (`/salas`, `/sala/{código}`).
   - `src/shared/`: lo común (cabecera, cuenta, ajustes, sonido, movimiento,
-    baraja clásica, panel de opciones, tokens).
-  - `src/games/<juego>/`: la interfaz de cada juego.
+    baraja clásica, panel de opciones, cuenta atrás, tokens).
+  - `src/games/<juego>/`: la interfaz de cada juego, contra bots y en sala
+    (`<Juego>Room.tsx`).
 
 ## Reglas del poker
 - Texas Hold'em No-Limit, de 2 a 6 jugadores (1 humano + 1 a 5 bots).
@@ -406,7 +409,7 @@ Referencias que di (se toma la idea, nunca la marca ni los assets):
 
 ## Cómo trabajar
 - Cada etapa se divide en hitos. Por defecto, detenerse al final de cada hito
-  y esperar mi aprobación (en la etapa 4 pedí no parar: ver arriba).
+  y esperar mi aprobación (en las etapas 4 y 5 pedí no parar: ver arriba).
 - Al cerrar cada hito: ejecutar TODOS los tests (backend y frontend), indicar
   cómo correr el proyecto y qué debería verse en pantalla.
 - Soy principiante-intermedio en Python: comentar el código en español y, al
@@ -473,8 +476,13 @@ Decisiones del 2026-10-17:
    mismas piezas que contra bots: yo siempre abajo, cuenta atrás y "Se ha
    ido"), y la tarjeta "Salas con amigos" del menú, que lleva a tu sala si
    estás en una. Lo de la web está en `frontend/src/salas/`.
-6. Red local, túnel y repaso: pasada de seguridad, pruebas con dos
-   navegadores, README y este archivo al día.
+6. Red local, túnel y repaso (completado): `scripts/red_local.py` arranca el
+   servidor para la red de casa y dice la dirección para los demás; guía del
+   túnel (cloudflared) en el README; el origen se comprueba también con
+   `X-Forwarded-Host` (los túneles pueden cambiar `Host`); mensajes de más de
+   4 KB rechazados; mirar el saldo ya no escribe en la base de datos si no hay
+   nada que entregar; probado con dos navegadores a la vez; README y este
+   archivo al día.
 
 ### Decisiones tomadas durante la etapa 5
 - Para empezar una partida de poker o blackjack en una sala, cada persona
@@ -565,6 +573,14 @@ Solo cambió el frontend. Única excepción en el backend, aprobada el
    con cada mano; recarga gratis.
 4. Cierre: repaso y README. Se igualó lo que tarda el primer intento de
    inicio de sesión, exista o no la cuenta.
+
+### Etapa 4: plataforma de juegos (completa el 2026-10-17)
+Menú principal, poker, blackjack y Prisma como módulos enchufables (ver
+"Hitos de la etapa 4").
+
+### Etapa 5: online con amigos (completa el 2026-10-18)
+Cuentas obligatorias, fichas diarias y salas privadas en los tres juegos, en
+la red de casa o con un túnel (ver "Etapa 5: online con amigos").
 
 ## Visión futura (solo referencia, NO implementar todavía)
 - Publicar la plataforma en un servidor (HTTPS, límites de cuentas) para

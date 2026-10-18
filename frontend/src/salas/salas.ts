@@ -59,6 +59,11 @@ export function salaLink(code: string, origin = location.origin): string {
   return `${origin}/sala/${code}`;
 }
 
+/** ¿Es una dirección que solo funciona en este ordenador (localhost)? */
+export function onlyHere(hostname: string): boolean {
+  return hostname === "localhost" || hostname === "::1" || hostname === "[::1]" || hostname.startsWith("127.");
+}
+
 /** Dirección del WebSocket de la sala. */
 export function salaSocketUrl(code: string, where: Pick<Location, "protocol" | "host"> = location): string {
   const scheme = where.protocol === "https:" ? "wss" : "ws";

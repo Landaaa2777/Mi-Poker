@@ -37,7 +37,7 @@ from games.registry import find_game
 from .accounts_api import SESSION_COOKIE, same_origin
 from .connections import SIGNED_OUT, Connections
 from .salas import MakeRoom, Sala, SalaError, SalaNotFound, Salas, Viewer
-from .validation import explain
+from .validation import MAX_MESSAGE, TOO_LONG, explain
 
 NEED_ACCOUNT = "Entra en tu cuenta para jugar con amigos"
 
@@ -212,6 +212,9 @@ def sala_routes(
         try:
             while True:
                 text = await websocket.receive_text()
+                if len(text) > MAX_MESSAGE:
+                    await send({"type": "error", "message": TOO_LONG})
+                    continue
                 try:
                     if message_type(text) not in SALA_TYPES:
                         # Una jugada: la partida la valida y la aplica, y todos ven el cambio.

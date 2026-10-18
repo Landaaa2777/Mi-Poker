@@ -5,7 +5,7 @@ import { Avatar } from "../../shared/components/Avatar";
 import { ConfigPanel } from "../../shared/components/ConfigPanel";
 import { CHOICE, CHOSEN, NOT_CHOSEN } from "../../shared/components/form";
 import { numberProblem, type OptionValues } from "../../shared/options";
-import { describeOptions, salaLink, type SalaView } from "../salas";
+import { describeOptions, onlyHere, salaLink, type SalaView } from "../salas";
 import { CodeTiles, CopyButton } from "./CodeTiles";
 
 interface Props {
@@ -58,6 +58,13 @@ export function Lobby({ sala, send, onLeave }: Props) {
             Comparte el código o el enlace. Cuando estéis todos,{" "}
             {host ? "empieza la partida." : `${sala.host} empezará la partida.`}
           </p>
+          {onlyHere(location.hostname) && (
+            <p className="max-w-md rounded-lg bg-black/40 px-3 py-2 text-xs text-amber-100">
+              Este enlace solo funciona en este ordenador. Para invitar a otros, abre la web con la
+              dirección de tu red (la que dice <code>scripts/red_local.py</code> al arrancar) o la del
+              túnel; el código sirve igual.
+            </p>
+          )}
         </div>
       </section>
 

@@ -7,6 +7,7 @@ import {
   fetchMySala,
   joinSala,
   normalizeCode,
+  onlyHere,
   salaLink,
   salaSocketUrl,
 } from "./salas";
@@ -36,6 +37,13 @@ describe("enlaces", () => {
     expect(salaLink("K7P2QX", "https://abc.trycloudflare.com")).toBe(
       "https://abc.trycloudflare.com/sala/K7P2QX",
     );
+  });
+
+  it("sabe cuándo el enlace solo sirve en este ordenador", () => {
+    expect(onlyHere("localhost")).toBe(true);
+    expect(onlyHere("127.0.0.1")).toBe(true);
+    expect(onlyHere("192.168.1.20")).toBe(false);
+    expect(onlyHere("abc.trycloudflare.com")).toBe(false);
   });
 
   it("el WebSocket va cifrado si la página lo está", () => {
