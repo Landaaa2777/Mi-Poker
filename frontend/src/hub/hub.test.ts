@@ -24,7 +24,7 @@ describe("playersLabel", () => {
   });
 
   it("no dice nada de un juego sin mesa", () => {
-    expect(playersLabel(game("minijuegos", { min_players: 1, max_players: 1 }))).toBeNull();
+    expect(playersLabel(game("puzle", { min_players: 1, max_players: 1 }))).toBeNull();
   });
 });
 
@@ -49,15 +49,15 @@ describe("menuOrder", () => {
       game("poker"),
       game("blackjack", { available: false }),
       game("prisma"),
-      game("minijuegos", { available: false }),
+      game("salas", { available: false }),
     ];
     const ids = menuOrder(games, (id) => id !== "prisma").map((entry) => entry.id);
-    expect(ids).toEqual(["poker", "blackjack", "prisma", "minijuegos"]);
+    expect(ids).toEqual(["poker", "blackjack", "prisma", "salas"]);
     expect(menuOrder(games, () => true).map((entry) => entry.id)).toEqual([
       "poker",
       "prisma",
       "blackjack",
-      "minijuegos",
+      "salas",
     ]);
   });
 });

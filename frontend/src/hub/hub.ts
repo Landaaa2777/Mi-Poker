@@ -45,7 +45,7 @@ export async function fetchMyPartidas(fetcher: Fetcher = fetch): Promise<Partida
 /** Cuántos juegan, en palabras: "2 a 6 jugadores". Sin dato útil, null. */
 export function playersLabel(game: GameEntry): string | null {
   const { min_players: low, max_players: high } = game;
-  if (high <= 1) return null; // un juego sin mesa (los minijuegos, por ejemplo)
+  if (high <= 1) return null; // un juego sin mesa: no hay nada que contar
   if (low === high) return `${low} jugadores`;
   return `${low} a ${high} jugadores`;
 }

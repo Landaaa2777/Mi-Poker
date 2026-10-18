@@ -14,11 +14,6 @@ from .prisma.info import GAME as PRISMA
 
 COMING_SOON = (
     GameInfo(
-        id="minijuegos",
-        name="Minijuegos",
-        description="Juegos rápidos para ganar fichas.",
-    ),
-    GameInfo(
         id="salas",
         name="Salas con amigos",
         description="Partidas en línea con otras personas.",

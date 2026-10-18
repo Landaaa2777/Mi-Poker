@@ -42,7 +42,7 @@ def test_the_menu_reads_the_registry(client):
     assert poker["min_players"] == 2 and poker["max_players"] == 6
     # Las tarjetas "Próximamente" también vienen del registro.
     soon = {game["id"] for game in games if not game["available"]}
-    assert {"minijuegos", "salas"} <= soon
+    assert "salas" in soon
 
 
 def test_poker_options_are_described_for_the_panel(client):

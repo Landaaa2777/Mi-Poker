@@ -6,25 +6,6 @@ export interface IconProps {
   className?: string;
 }
 
-/** Minijuegos: un dado con una chispa. */
-export function MinigamesIcon({ className = "" }: IconProps) {
-  return (
-    <svg viewBox="0 0 64 64" className={className} aria-hidden>
-      <rect x="10" y="16" width="34" height="34" rx="8" fill="none" stroke="currentColor" strokeWidth="3.5" transform="rotate(-10 27 33)" />
-      {[
-        [20, 26],
-        [27, 33],
-        [34, 40],
-        [34, 26],
-        [20, 40],
-      ].map(([x, y]) => (
-        <circle key={`${x}-${y}`} cx={x} cy={y} r="3" fill="currentColor" transform="rotate(-10 27 33)" />
-      ))}
-      <path d="M50 8l2.6 6.4L59 17l-6.4 2.6L50 26l-2.6-6.4L41 17l6.4-2.6z" fill="currentColor" />
-    </svg>
-  );
-}
-
 /** Salas con amigos: dos personas, una delante de otra. */
 export function RoomsIcon({ className = "" }: IconProps) {
   return (
@@ -48,6 +29,5 @@ export function GenericGameIcon({ className = "" }: IconProps) {
 }
 
 export const COMING_SOON_ICONS: Record<string, (props: IconProps) => React.JSX.Element> = {
-  minijuegos: MinigamesIcon,
   salas: RoomsIcon,
 };

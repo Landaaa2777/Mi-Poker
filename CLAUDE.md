@@ -34,8 +34,9 @@ originales (no copiar marca, assets ni textos de ningún sitio existente).
   4 se mueven de carpeta y cambian sus `import`, nada más.
 - Recuperación de contraseña, verificación por correo e inicio de sesión con
   terceros (Google y similares): no hay servicio de correo ni despliegue.
-- Minijuegos, bono diario y economía de fichas (etapa 5).
-- Multijugador entre humanos, lobby, chat (etapa 6).
+- Minijuegos, bono diario y recompensas diarias: descartados el 2026-10-17
+  (no los quiero).
+- Multijugador entre humanos (etapa 5).
 - Estadísticas de blackjack y del juego de descarte: el perfil sigue siendo
   del poker.
 - Despliegue.
@@ -52,8 +53,8 @@ originales (no copiar marca, assets ni textos de ningún sitio existente).
   sin tocar el menú.
 - El menú tiene tarjetas grandes con nombre, una línea de descripción, ícono
   SVG propio dibujado por código y rango de jugadores, y tarjetas
-  "Próximamente" deshabilitadas (minijuegos y salas con amigos), que también
-  vienen del registro.
+  "Próximamente" deshabilitadas (salas con amigos), que también vienen del
+  registro.
 - Partidas: en memoria, una por identidad (cuenta o invitado) y por juego.
   `POST /api/partidas` da el id de la partida (largo, al azar y ligado a esa
   identidad) y el WebSocket es `/ws/{juego}/{partida_id}`. El servidor
@@ -370,8 +371,7 @@ Referencias que di (se toma la idea, nunca la marca ni los assets):
   perdido en cada mano o ronda cambia el saldo al terminarla. El saldo
   incluye las fichas que el jugador tiene en las mesas.
 - Recarga gratis: solo cuando el saldo baja de 100 fichas, un botón lo repone
-  a 10.000. Sin límite por ahora; la etapa 5 podrá convertirlo en un bono
-  diario.
+  a 10.000. Sin límite.
 - Dejar una mano o ronda a medias (empezar otra partida de ese juego antes de
   que termine) cuesta lo ya apostado en ella, como si el jugador se retirase.
 - Los invitados no tienen saldo: juegan con las fichas que elijan, gratis.
@@ -478,7 +478,6 @@ Solo cambió el frontend. Única excepción en el backend, aprobada el
    inicio de sesión, exista o no la cuenta.
 
 ## Visión futura (solo referencia, NO implementar todavía)
-- Etapa 5: minijuegos para ganar fichas, bono diario, límite diario.
-- Etapa 6: multijugador entre humanos, online para jugadores de todo el
-  mundo, con lobby y chat. Salir de una partida online será abandonarla, con
-  sus consecuencias.
+- Etapa 5: multijugador entre humanos, online para jugadores de todo el
+  mundo. Salir de una partida online será abandonarla, con sus consecuencias.
+- Los minijuegos y las recompensas diarias quedan descartados (2026-10-17).

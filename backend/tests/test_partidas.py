@@ -107,7 +107,7 @@ def test_asking_twice_gives_the_same_partida(client):
 def test_unknown_and_coming_soon_games_have_no_partida(client):
     unknown = client.post("/api/partidas", json={"game": "ajedrez", "guest_id": GUEST})
     assert unknown.status_code == 404
-    soon = client.post("/api/partidas", json={"game": "minijuegos", "guest_id": GUEST})
+    soon = client.post("/api/partidas", json={"game": "salas", "guest_id": GUEST})
     assert soon.status_code == 409 and "todavía" in soon.json()["message"]
 
 

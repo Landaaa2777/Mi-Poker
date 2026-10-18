@@ -19,9 +19,9 @@ canjean por nada.
 - Etapa 4 (completa): plataforma de juegos. Menú principal, el poker de
   siempre, blackjack y Prisma, cada juego como un módulo enchufable.
 
-Todavía no hay minijuegos ni partidas entre personas: son etapas futuras (en el
-menú salen como "Próximamente"). Cada partida vive en la memoria del servidor y
-se pierde al cerrarlo; las cuentas sí se guardan.
+Todavía no hay partidas entre personas: es la etapa siguiente (en el menú sale
+como "Próximamente"). Cada partida vive en la memoria del servidor y se pierde
+al cerrarlo; las cuentas sí se guardan.
 
 ## Requisitos
 
