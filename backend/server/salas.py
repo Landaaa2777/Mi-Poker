@@ -5,9 +5,15 @@ código corto, por ejemplo `K7P2QX`. Los demás entran con el código o abriendo
 el enlace `/sala/K7P2QX`. Mientras se espera, todos ven en tiempo real quién
 está; el anfitrión decide las opciones y cuándo se empieza.
 
+Cuando el anfitrión empieza, la sala crea la partida del juego (`create_room`
+de su ficha), con todas las personas sentadas. Al terminar, la sala vuelve a
+la espera y se puede jugar otra.
+
 Cada persona está como mucho en una sala. Desconectarse no es salir: el sitio
-se guarda y se puede volver con el mismo enlace. Una sala en la que no queda
-nadie conectado se cierra sola al cabo de un rato.
+se guarda y se puede volver con el mismo enlace. Salir con la partida empezada
+es abandonarla, con las consecuencias de cada juego, y ya no se puede volver a
+ella. Una sala en la que no queda nadie conectado se cierra sola al cabo de un
+rato.
 
 Todo vive en memoria, como las partidas contra bots: al apagar el servidor, las
 salas desaparecen. Este módulo no sabe nada de FastAPI.
@@ -29,6 +35,7 @@ from pydantic import BaseModel
 from accounts import User
 from core.options import describe_options
 from core.registry import GameInfo
+from core.room import RoomSession
 
 # Sin 0, O, 1, I ni L: no se confunden al leerlos o dictarlos.
 CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
@@ -70,10 +77,13 @@ def new_code(taken: Callable[[str], bool]) -> str:
             return code
 
 
-# Le manda a una conexión lo que ve ahora mismo.
+# Le manda a una conexión lo que ve ahora mismo (de la sala, o de la partida).
 Push = Callable[[], Awaitable[None]]
 # Cierra una conexión, con su código y su motivo.
 Close = Callable[[int, str], Awaitable[None]]
+# Crea la partida de una sala; si no se puede (por ejemplo, alguien no tiene
+# fichas suficientes), lanza `SalaError`.
+MakeRoom = Callable[["Sala"], RoomSession]
 
 LEFT = 4000  # código de cierre: has salido de la sala (o se ha cerrado)
 
@@ -83,7 +93,8 @@ class Viewer:
     """Una conexión abierta a la sala: de quién es y cómo se le avisa."""
 
     user_id: int
-    push: Push
+    push: Push  # lo que ve de la sala
+    push_state: Push  # lo que ve de la partida
     close: Close
 
 
@@ -103,6 +114,7 @@ class Sala:
     options: BaseModel
     members: dict[int, Member] = field(default_factory=dict)  # por id, en orden de llegada
     status: SalaStatus = SalaStatus.WAITING
+    session: RoomSession | None = None  # la partida en curso, o la última que se jugó
     viewers: list[Viewer] = field(default_factory=list)
     idle_since: float | None = None  # desde cuándo no hay nadie conectado
 
@@ -163,11 +175,20 @@ class Sala:
             "options": self.options.model_dump(exclude={"player_name"}),
             "fields": describe_options(type(self.options)),
             "can_start": self.status == SalaStatus.WAITING and len(self.members) >= MIN_PEOPLE,
+            # Ya se jugó una partida: su mesa final se sigue viendo hasta la siguiente.
+            "game_over": self.session is not None and self.session.finished,
         }
 
     async def broadcast(self) -> None:
-        """Cada conexión recibe lo que ve ahora. Una conexión que falla no frena a las demás."""
+        """Cada conexión recibe lo que ve de la sala. Una conexión que falla no frena a las demás."""
         await asyncio.gather(*(viewer.push() for viewer in list(self.viewers)))
+
+    async def broadcast_state(self) -> None:
+        """Cada conexión recibe lo que ve de la partida. Si ha terminado, la sala vuelve a la espera."""
+        await asyncio.gather(*(viewer.push_state() for viewer in list(self.viewers)))
+        if self.status == SalaStatus.PLAYING and self.session is not None and self.session.finished:
+            self.status = SalaStatus.WAITING
+            await self.broadcast()
 
     async def close_viewers(self, user_id: int | None, reason: str) -> None:
         """Cierra las conexiones de una persona (o de todas, con None)."""
@@ -195,6 +216,18 @@ class Salas:
     def of_user(self, user_id: int) -> Sala | None:
         """La sala en la que está una persona, si está en alguna."""
         return next((sala for sala in self._by_code.values() if user_id in sala.members), None)
+
+    def seated_chips(self, user_id: int) -> int:
+        """Fichas de su cuenta sentadas en partidas de salas.
+
+        Se mira en todas, no solo en la suya: quien acaba de irse puede tener
+        aún fichas en juego en la mano que se termina sin él.
+        """
+        return sum(
+            sala.session.seated_chips(user_id)
+            for sala in self._by_code.values()
+            if sala.session is not None
+        )
 
     async def create(self, game: GameInfo, host: User) -> Sala:
         """Una sala nueva con `host` de anfitrión. Si estaba esperando en otra, sale de ella."""
@@ -229,12 +262,35 @@ class Salas:
         await sala.broadcast()
         return sala
 
-    async def leave(self, sala: Sala, user_id: int) -> None:
-        """Sale de la sala. Si era el anfitrión, lo pasa a ser quien llegó antes."""
-        if user_id not in sala.members:
-            return
+    async def start(self, sala: Sala, user_id: int, make_room: MakeRoom) -> None:
+        """El anfitrión empieza la partida, con todas las personas de la sala sentadas."""
+        if user_id != sala.host_id:
+            raise SalaError("Solo el anfitrión puede empezar la partida")
         if sala.status != SalaStatus.WAITING:
             raise SalaError("La partida ya ha empezado")
+        if len(sala.members) < MIN_PEOPLE:
+            raise SalaError("Hacen falta al menos dos personas para empezar")
+        if sala.game.create_room is None:
+            raise SalaError("Ese juego no se puede jugar en una sala")
+        session = make_room(sala)  # salta con SalaError si alguien no puede sentarse
+        if sala.session is not None:
+            sala.session.close()  # la partida anterior, ya terminada
+        session.listener = sala.broadcast_state
+        sala.session = session
+        sala.status = SalaStatus.PLAYING
+        await sala.broadcast()
+        session.start()
+
+    async def leave(self, sala: Sala, user_id: int) -> None:
+        """Sale de la sala. Si era el anfitrión, lo pasa a ser quien llegó antes.
+
+        Con la partida empezada, salir es abandonarla: cada juego decide qué pasa
+        con su sitio, y ya no se puede volver a ella.
+        """
+        if user_id not in sala.members:
+            return
+        if sala.status == SalaStatus.PLAYING and sala.session is not None:
+            sala.session.abandon(user_id)
         del sala.members[user_id]
         await sala.close_viewers(user_id, "Has salido de la sala")
         if not sala.members:
@@ -246,6 +302,8 @@ class Salas:
 
     async def close(self, sala: Sala, reason: str) -> None:
         self._by_code.pop(sala.code, None)
+        if sala.session is not None:
+            sala.session.close()
         await sala.close_viewers(None, reason)
 
     def connect(self, sala: Sala, viewer: Viewer) -> None:
@@ -264,6 +322,8 @@ class Salas:
         for code, sala in list(self._by_code.items()):
             if not sala.viewers and sala.idle_since is not None and now - sala.idle_since > IDLE_SECONDS:
                 del self._by_code[code]
+                if sala.session is not None:
+                    sala.session.close()
 
     async def _leave_waiting_room(self, user: User) -> None:
         """Cada persona está en una sola sala: para entrar en otra, sale de la que esperaba."""

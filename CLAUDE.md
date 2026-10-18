@@ -223,6 +223,10 @@ clásico. Su nombre es Prisma (decidido el 2026-10-17).
     probabilidad cuanto más nivel tienen.
 - **Mazo agotado:** si se acaba el mazo de robo, se rebaraja el descarte
   dejando la carta de arriba.
+- **Ronda trancada** (añadida en la etapa 5): si no queda nada que robar ni
+  que rebarajar y nadie juega en una vuelta entera, la ronda termina y la gana
+  quien tiene menos cartas (si empatan, quien suma menos puntos). Pasaba en
+  las salas cuando alguien ausente solo robaba y pasaba.
 - **Final de la ronda:** gana quien se queda sin cartas. Si su última carta
   hace robar, el siguiente roba igualmente.
 - **Puntuación** (opcional, desactivada por defecto): el ganador suma las
@@ -457,12 +461,33 @@ Decisiones del 2026-10-17:
    persona está en una sola sala; una sala sin nadie conectado media hora se
    cierra. Las opciones de cada sala son las del juego con los bots opcionales
    (`RoomConfig` en el `protocol.py` de cada juego).
-4. Partidas con varias personas en los tres juegos: una vista por persona,
-   tiempo por decisión, desconexiones y abandonos, saldo de cada cuenta.
+4. Partidas con varias personas en los tres juegos (completado): una vista
+   por persona, tiempo por decisión, desconexiones y abandonos, saldo de cada
+   cuenta. Lo común está en `backend/core/room.py` y cada juego tiene su mesa
+   de sala en `games/<juego>/room.py`, con el mismo motor de siempre.
 5. Interfaz: crear sala y unirse, animación de "¡Partida encontrada!", sala de
    espera y las mesas de los tres juegos con varias personas.
 6. Red local, túnel y repaso: pasada de seguridad, pruebas con dos
    navegadores, README y este archivo al día.
+
+### Decisiones tomadas durante la etapa 5
+- Para empezar una partida de poker o blackjack en una sala, cada persona
+  tiene que tener libres las fichas iniciales; si no, el anfitrión ve a quién
+  no le llegan y puede bajarlas.
+- Poker en salas: las manos se reparten solas, con una pausa de 6 segundos
+  entre una y otra. Quien se va se retira en cuanto le toca y deja la mesa al
+  acabar la mano, con sus fichas. Si todos los rivales de una mano se han ido,
+  quien queda pasa o iguala al momento. Las manos jugadas en salas cuentan en
+  el perfil como "Con amigos".
+- Blackjack en salas: la mesa espera sin prisa a la primera apuesta; desde
+  ella, los demás tienen 30 segundos, y quien no apuesta no juega esa ronda. El
+  seguro también tiene 30 segundos (al acabarse, sin seguro).
+- Prisma en salas: al acabarse el tiempo, roba y pasa (y si tenía que elegir,
+  acepta el +4 o elige el color del que más cartas tiene). Jugando a puntos,
+  la ronda siguiente empieza sola tras la pausa. Si se van todas las personas,
+  la partida termina.
+- Al terminar una partida, la sala vuelve a la espera con la mesa final a la
+  vista, y el anfitrión puede empezar otra (también con gente nueva).
 
 ## Hitos de la etapa 4
 0. Plan (completado el 2026-10-17).

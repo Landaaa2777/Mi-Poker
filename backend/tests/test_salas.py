@@ -162,7 +162,7 @@ def test_an_idle_sala_closes_on_its_own():
     async def nothing(*_):
         return None
 
-    salas.connect(busy, Viewer(2, nothing, nothing))
+    salas.connect(busy, Viewer(2, nothing, nothing, nothing))
     clock.now += IDLE_SECONDS + 1
     salas.sweep()
     assert salas.get(quiet.code) is None  # nadie conectado en media hora: se cierra

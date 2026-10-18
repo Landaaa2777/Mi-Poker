@@ -11,14 +11,19 @@ fallido: si se repiten, se frenan, para que no se puedan ir probando códigos.
 
 Por el WebSocket:
     servidor -> {"type": "sala", "sala": {...}}          lo que veo de la sala, en cada cambio
+                {"type": "state", "state": {...}}        lo que veo de la partida, en cada cambio
                 {"type": "error", "message": "..."}
     cliente  -> {"type": "configure", "game": "poker", "options": {...}}   solo el anfitrión
-                {"type": "leave"}                        salir de la sala
+                {"type": "start"}                        empezar la partida (el anfitrión)
+                {"type": "leave"}                        salir de la sala (o abandonar la partida)
+                cualquier otro mensaje es una jugada: va a la partida, como en la
+                partida contra bots ({"type": "action", ...}, {"type": "bet", ...}…)
 """
 
 from __future__ import annotations
 
 import asyncio
+import json
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect
@@ -26,11 +31,12 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
 
 from accounts import AccountStore, Throttle, User
+from core.session import SessionError
 from games.registry import find_game
 
 from .accounts_api import SESSION_COOKIE, same_origin
 from .connections import SIGNED_OUT, Connections
-from .salas import Sala, SalaError, SalaNotFound, Salas, Viewer
+from .salas import MakeRoom, Sala, SalaError, SalaNotFound, Salas, Viewer
 from .validation import explain
 
 NEED_ACCOUNT = "Entra en tu cuenta para jugar con amigos"
@@ -48,12 +54,27 @@ class Configure(BaseModel):
     options: dict[str, Any] = {}
 
 
+class Start(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    type: Literal["start"]
+
+
 class Leave(BaseModel):
     model_config = ConfigDict(extra="forbid")
     type: Literal["leave"]
 
 
-SALA_MESSAGE = TypeAdapter(Annotated[Configure | Leave, Field(discriminator="type")])
+SALA_MESSAGE = TypeAdapter(Annotated[Configure | Start | Leave, Field(discriminator="type")])
+SALA_TYPES = {"configure", "start", "leave"}  # lo demás son jugadas de la partida
+
+
+def message_type(text: str) -> str | None:
+    """El "type" de un mensaje JSON, sin validar nada más; None si no se entiende."""
+    try:
+        data = json.loads(text)
+    except ValueError:
+        return None
+    return data.get("type") if isinstance(data, dict) and isinstance(data.get("type"), str) else None
 
 
 def summary(sala: Sala) -> dict[str, Any]:
@@ -61,7 +82,9 @@ def summary(sala: Sala) -> dict[str, Any]:
     return {"code": sala.code, "game": sala.game.id, "status": sala.status.value}
 
 
-def sala_routes(store: AccountStore, salas: Salas, connections: Connections) -> APIRouter:
+def sala_routes(
+    store: AccountStore, salas: Salas, connections: Connections, make_room: MakeRoom
+) -> APIRouter:
     router = APIRouter()
     # Códigos que no existen: tras 10 en un minuto desde la misma dirección, a esperar.
     throttle = Throttle(max_failures=10, window=60.0)
@@ -167,23 +190,44 @@ def sala_routes(store: AccountStore, salas: Salas, connections: Connections) -> 
             except (WebSocketDisconnect, RuntimeError):
                 pass  # se fue: se limpia al salir del bucle
 
+        async def push_state() -> None:
+            session = sala.session
+            if session is None:
+                return
+            try:
+                await send({"type": "state", "state": session.state(user.id)})
+            except (WebSocketDisconnect, RuntimeError):
+                pass
+
         async def close(code: int, reason: str) -> None:
             try:
                 await websocket.close(code=code, reason=reason)
             except RuntimeError:
                 pass  # ya estaba cerrada
 
-        viewer = Viewer(user.id, push, close)
+        viewer = Viewer(user.id, push, push_state, close)
         salas.connect(sala, viewer)
         await sala.broadcast()  # todos ven que ha llegado (o que ha vuelto)
+        await push_state()  # y quien vuelve a una partida empezada, ve su mesa
         try:
             while True:
                 text = await websocket.receive_text()
                 try:
+                    if message_type(text) not in SALA_TYPES:
+                        # Una jugada: la partida la valida y la aplica, y todos ven el cambio.
+                        session = sala.session
+                        if session is None or session.finished:
+                            raise SalaError("La partida no ha empezado")
+                        session.handle(user.id, text)
+                        await sala.broadcast_state()
+                        continue
                     message = SALA_MESSAGE.validate_json(text)
                     if isinstance(message, Leave):
                         await salas.leave(sala, user.id)  # también cierra esta conexión
                         break
+                    if isinstance(message, Start):
+                        await salas.start(sala, user.id, make_room)
+                        continue
                     game = find_game(message.game) if message.game else sala.game
                     if game is None:
                         raise SalaError("Ese juego no existe")
@@ -191,7 +235,7 @@ def sala_routes(store: AccountStore, salas: Salas, connections: Connections) -> 
                     await sala.broadcast()
                 except ValidationError as error:
                     await send({"type": "error", "message": explain(error)})
-                except SalaError as error:
+                except (SalaError, SessionError) as error:
                     await send({"type": "error", "message": str(error)})
         except WebSocketDisconnect:
             pass

@@ -39,6 +39,7 @@ from accounts import (
     UsernameTaken,
     total,
 )
+from core.room import ROOM_LEVEL
 from games.poker.bots import LEVELS
 from games.poker.engine import CATEGORY_NAMES, HandCategory
 
@@ -172,12 +173,17 @@ def account_routes(store: AccountStore, throttle: Throttle, on_logout: OnLogout)
         if user is None:
             return failure(401, "Inicia sesión para ver tu perfil")
         played = {stats.difficulty: stats for stats in store.stats(user)}
-        # Del nivel más flojo al más fuerte, y solo los que ha jugado.
+        # Del nivel más flojo al más fuerte, y solo los que ha jugado. Al final,
+        # las manos jugadas en salas con amigos.
         levels = [
             {"difficulty": level, "name": bot.level_name, **public_stats(played[level])}
             for level, bot in LEVELS.items()
             if level in played
         ]
+        if ROOM_LEVEL in played:
+            levels.append(
+                {"difficulty": ROOM_LEVEL, "name": "Con amigos", **public_stats(played[ROOM_LEVEL])}
+            )
         return JSONResponse(
             {
                 "user": {

@@ -402,3 +402,37 @@ def test_random_games_never_lose_or_create_cards(players):
             card.id for player in game.players for card in player.hand
         ]
         assert sorted(ids) == list(range(108))
+
+
+def test_a_round_nobody_can_finish_goes_to_whoever_has_fewest_cards():
+    """Sin nada que robar ni que rebarajar, una vuelta entera sin jugar tranca la ronda."""
+    game = PrismaGame(["Ana", "Luis", "Eva"], rng=random.Random(3))
+    game.start_round()
+    if game.phase == Phase.CHOOSE_COLOR:
+        game.choose_color(game.turn, "halo")
+    # Todas las cartas en las manos; Luis se queda con las suyas, que son las menos.
+    rest = game.draw_pile + game.discard[:-1]
+    game.draw_pile, game.discard = [], game.discard[-1:]
+    for index, card in enumerate(rest):
+        game.players[0 if index % 2 else 2].hand.append(card)
+    fewest = min(game.players, key=lambda player: len(player.hand)).seat
+    for _ in range(2):
+        game.draw(game.turn)  # se puede robar aunque se tenga jugada: aquí no sale nada
+        assert game.phase == Phase.PLAYING
+    game.draw(game.turn)
+    assert game.phase == Phase.ROUND_OVER and game.winner == fewest == 1
+    assert [event.kind for event in game.events[-2:]] == ["blocked", "round_over"]
+    assert game.total_cards() == 108 and game.game_over
+
+
+def test_playing_a_card_resets_the_count_of_dry_turns():
+    game = PrismaGame(["Ana", "Luis"], rng=random.Random(5))
+    game.start_round()
+    game.dry_turns = 1
+    if game.phase == Phase.CHOOSE_COLOR:
+        game.choose_color(game.turn, "halo")
+    playable = game.legal_plays(game.turn)
+    if playable:
+        card = playable[0]
+        game.play(game.turn, card.id, "halo" if card.is_wild else None)
+        assert game.dry_turns == 0

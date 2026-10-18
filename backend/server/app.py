@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+from collections.abc import Callable
 from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -25,13 +26,14 @@ from accounts import DEFAULT_COST, AccountStore, Cost, HandOutcome, Throttle, Us
 from core import NOTICE
 from core.bots import BOT_DELAY
 from core.registry import GameInfo
+from core.room import PAUSE_SECONDS, TURN_SECONDS, Person, RoomContext, RoomSession
 from core.session import GameSession, SessionContext, SessionError
 
 from .accounts_api import SESSION_COOKIE, account_routes, public_user, same_origin
 from .connections import Connections
 from .games_api import game_routes
 from .partidas import Partidas, owner_key
-from .salas import Salas
+from .salas import Sala, SalaError, Salas
 from .salas_api import sala_routes
 from .validation import explain
 
@@ -64,20 +66,17 @@ class SinglePageApp(StaticFiles):
 
 
 class AccountAtTable:
-    """La cuenta de un jugador vista desde una de sus partidas: su saldo y dónde apuntar cada mano.
+    """La cuenta de un jugador vista desde una de sus mesas: su saldo y dónde apuntar cada mano.
 
-    Una partida no se estropea porque falle la base de datos: el fallo se
-    anota en el registro del servidor y la mano sigue.
+    `elsewhere` dice cuántas fichas tiene sentadas en sus otras mesas (contra
+    bots o en una sala). Una partida no se estropea porque falle la base de
+    datos: el fallo se anota en el registro del servidor y la mano sigue.
     """
 
-    def __init__(
-        self, store: AccountStore, user: User, partidas: Partidas, owner: str, partida_id: str
-    ) -> None:
+    def __init__(self, store: AccountStore, user: User, elsewhere: Callable[[], int]) -> None:
         self.store = store
         self.user = user
-        self.partidas = partidas
-        self.owner = owner
-        self.partida_id = partida_id
+        self._elsewhere = elsewhere
         self._last_balance = 0
 
     def balance(self) -> int:
@@ -89,7 +88,7 @@ class AccountAtTable:
 
     def chips_elsewhere(self) -> int:
         """Fichas sentadas en las otras mesas de la cuenta: no se pueden traer a esta."""
-        return self.partidas.chips_elsewhere(self.owner, self.partida_id)
+        return self._elsewhere()
 
     def add_chips(self, chips: int) -> None:
         try:
@@ -118,9 +117,13 @@ def create_app(
     password_cost: Cost = DEFAULT_COST,
     frontend_dist: Path = FRONTEND_DIST,
     require_account: bool = True,
+    turn_seconds: float = TURN_SECONDS,
+    pause_seconds: float = PAUSE_SECONDS,
 ) -> FastAPI:
     """La aplicación. `require_account` en falso deja jugar como invitado (solo
-    para desarrollo y tests: el juego de verdad exige cuenta)."""
+    para desarrollo y tests: el juego de verdad exige cuenta). `turn_seconds` y
+    `pause_seconds` son el tiempo por decisión y la pausa entre manos de las
+    salas; los tests los acortan."""
     app = FastAPI(title="mi-poker", description=NOTICE)
     # Partidas en memoria, una por identidad y juego. No se guardan en disco.
     partidas = Partidas()
@@ -134,10 +137,18 @@ def create_app(
     connections = Connections()
     app.state.connections = connections
 
+    def elsewhere(user: User, owner: str, partida_id: str = "") -> int:
+        """Fichas de una cuenta sentadas en sus mesas contra bots (menos `partida_id`) y en salas."""
+        return partidas.chips_elsewhere(owner, partida_id) + salas.seated_chips(user.id)
+
     def make_session(game: GameInfo, owner: str, partida_id: str, user: User | None) -> GameSession:
         """La partida nueva de un juego, con la cuenta de su dueño si la tiene."""
         assert game.create is not None
-        account = AccountAtTable(accounts, user, partidas, owner, partida_id) if user else None
+        account = (
+            AccountAtTable(accounts, user, lambda: elsewhere(user, owner, partida_id))
+            if user
+            else None
+        )
         context = SessionContext(
             account=account,
             player_name=user.username if user else None,
@@ -148,7 +159,42 @@ def create_app(
 
     app.include_router(account_routes(accounts, Throttle(), connections.close_session))
     app.include_router(game_routes(accounts, partidas, make_session, require_account))
-    app.include_router(sala_routes(accounts, salas, connections))
+    def make_room(sala: Sala) -> RoomSession:
+        """La partida de una sala, con todas sus personas sentadas.
+
+        En los juegos con fichas, cada persona lleva a la mesa las fichas
+        iniciales desde su saldo: si a alguien no le llegan, no se empieza.
+        """
+        assert sala.game.create_room is not None
+        stake = getattr(sala.options, "starting_stack", 0)  # los juegos con fichas lo tienen
+        people = []
+        for member in sala.members.values():
+            user = member.user
+            owner = owner_key(user, None)
+            assert owner is not None
+            # Al sentarse en la sala, solo cuentan como "en otra mesa" las de sus partidas contra bots.
+            account = AccountAtTable(
+                accounts, user, lambda owner=owner: partidas.chips_elsewhere(owner, "")
+            )
+            if stake:
+                free = account.balance() - account.chips_elsewhere()
+                if free < stake:
+                    raise SalaError(
+                        f"A {user.username} no le llegan las fichas: tiene {free} libres"
+                        f" y la mesa pide {stake}"
+                    )
+            people.append(Person(user.id, user.username, account))
+        context = RoomContext(
+            people=tuple(people),
+            options=sala.options,
+            bot_delay=bot_delay,
+            simulations=simulations,
+            turn_seconds=turn_seconds,
+            pause_seconds=pause_seconds,
+        )
+        return sala.game.create_room(context)
+
+    app.include_router(sala_routes(accounts, salas, connections, make_room))
 
     @app.get("/api/health")
     def health() -> dict:
@@ -199,7 +245,7 @@ def create_app(
                 "options": session.options(),
                 "user": await asyncio.to_thread(public_user, accounts, user),
                 # Con cuenta, fichas sentadas en sus otras mesas: no se pueden traer a esta.
-                "elsewhere": partidas.chips_elsewhere(owner, partida_id) if user else 0,
+                "elsewhere": elsewhere(user, owner, partida_id) if user else 0,
                 "state": session.state(),
             }
         )

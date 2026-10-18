@@ -49,6 +49,7 @@ export interface GameEvent {
     | "caught"
     | "challenge"
     | "reshuffle"
+    | "blocked"
     | "round_over";
   seat: number | null;
   card: Card | null; // carta jugada o volteada

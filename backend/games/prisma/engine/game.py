@@ -108,6 +108,9 @@ class PrismaGame:
         self.vulnerable: int | None = None  # se quedó con una carta sin decir "¡Última!"
         self.armed: set[int] = set()  # dijeron "¡Última!" antes de jugar su penúltima carta
         self.winner: int | None = None
+        # Turnos seguidos en los que no se pudo robar nada (sin mazo ni descarte que
+        # rebarajar) y nadie jugó: con una vuelta entera, la ronda está trancada.
+        self.dry_turns = 0
 
     # --- Consultas ---
 
@@ -183,6 +186,7 @@ class PrismaGame:
         self.pending_draw, self.pending_kind = 0, None
         self.drawn = self.wild4 = self.winner = self.vulnerable = None
         self.armed = set()
+        self.dry_turns = 0
         cards = list(deck) if deck is not None else full_deck()
         if deck is None:
             self.rng.shuffle(cards)
@@ -288,6 +292,7 @@ class PrismaGame:
         self.drawn = None
         self.color = chosen
         self.events.append(Event("play", seat, card=card, color=chosen))
+        self.dry_turns = 0
         if declare:
             self.events.append(Event("last", seat))
         if len(player.hand) == 1:
@@ -314,7 +319,10 @@ class PrismaGame:
             self.turn = self.next_seat(seat)
             return
         drawn = self._draw_cards(seat, 1, "turno")
-        if drawn and self.can_play(seat, drawn[0]):
+        self.dry_turns = 0 if drawn else self.dry_turns + 1
+        if self.dry_turns >= len(self.players):
+            self._block_round()  # nadie ha podido jugar ni robar en una vuelta entera
+        elif drawn and self.can_play(seat, drawn[0]):
             self.drawn = drawn[0]  # puede jugarla ahora o quedársela
         else:
             self.events.append(Event("pass", seat))
@@ -474,6 +482,21 @@ class PrismaGame:
         penalty = {Kind.CARGA: 2, Kind.CAMALEON4: 4}.get(last.kind, 0)
         if penalty or self.pending_draw:
             self._draw_cards(victim, self.pending_draw + penalty, "final")
+        self._close_round(winner)
+
+    def _block_round(self) -> None:
+        """Ronda trancada: no queda nada que robar y nadie ha jugado en una vuelta entera.
+
+        Gana quien tiene menos cartas; si empatan, quien suma menos puntos, y si
+        siguen empatados, el primero de la mesa.
+        """
+        winner = min(
+            self.players, key=lambda p: (len(p.hand), sum(card.points for card in p.hand), p.seat)
+        )
+        self.events.append(Event("blocked", winner.seat))
+        self._close_round(winner.seat)
+
+    def _close_round(self, winner: int) -> None:
         self.pending_draw, self.pending_kind = 0, None
         self.drawn = None
         self.vulnerable = None

@@ -15,6 +15,7 @@ Ejemplo:
         options=BlackjackConfig,   # el modelo con las opciones configurables
         create=create_session,     # crea la partida en el servidor
         room_options=RoomConfig,   # las opciones de una sala con amigos
+        create_room=create_room,   # crea la partida de una sala, con varias personas
     )
 """
 
@@ -42,6 +43,8 @@ class GameInfo:
     # Modelo con las opciones de una sala con amigos (las elige el anfitrión).
     # Sin él, el juego no se puede jugar en salas.
     room_options: type | None = None
+    # Crea la partida de una sala. Recibe un `RoomContext` (ver `core/room.py`).
+    create_room: Callable[[Any], Any] | None = None
 
     @property
     def available(self) -> bool:

@@ -64,6 +64,8 @@ export function describeEvent(index: number, frame: Frame, me: number): string |
         : `${does("desafía", "Desafías")} el +4 de ${name(event.target)}, pero era legal`;
     case "reshuffle":
       return "— Se acabó el mazo: se rebaraja el descarte —";
+    case "blocked":
+      return "— Nadie puede jugar ni robar: gana quien tiene menos cartas —";
     case "round_over":
       return mine
         ? `¡Ganas la ronda!${event.count ? ` (${event.count} puntos)` : ""}`

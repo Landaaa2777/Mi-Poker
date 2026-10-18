@@ -186,6 +186,9 @@ export function frameAt(state: GameState, count: number): Frame {
         frame.discardCount = 1;
         frame.note = "Se acabó el mazo: se rebaraja el descarte";
         break;
+      case "blocked":
+        frame.note = "Ronda trancada: gana quien tiene menos cartas";
+        break;
       case "round_over":
         frame.turn = null;
         break;
