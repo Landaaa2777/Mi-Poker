@@ -17,6 +17,7 @@ export type GameIcon = (props: { className?: string }) => JSX.Element;
 export const GAME_PAGES: Record<string, LazyExoticComponent<ComponentType>> = {
   poker: lazy(() => import("./poker/PokerPage")),
   blackjack: lazy(() => import("./blackjack/BlackjackPage")),
+  prisma: lazy(() => import("./prisma/PrismaPage")),
 };
 
 /** Ícono de cada juego en el menú (también de los que aún son "Próximamente"). */

@@ -424,7 +424,11 @@ Referencias que di (se toma la idea, nunca la marca ni los assets):
    impresas en el tapete. La cola de reproducción paso a paso y el panel de
    opciones construido con el esquema del servidor pasan a ser comunes.
 4. Prisma: motor y tests, luego bots con simulación, luego interfaz y arte
-   SVG original.
+   SVG original (completado). Motor con las reglas del clásico; bots con
+   memoria de colores (Medio suelta primero las cartas que más valen, también
+   los comodines); en miles de partidas a cuatro Experto > Difícil > Medio >
+   Fácil; mesa con mazo, descarte, color en juego y sentido, mi mano en
+   grande, selector de color, desafío, "¡Última!" y "¡Pillado!".
 5. Revisión de conjunto: navegación, estilo coherente, configuración
    compartida, responsive y pasada de seguridad (el cliente no puede ver
    cartas ocultas ni forzar acciones ilegales). README al día.

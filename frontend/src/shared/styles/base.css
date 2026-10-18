@@ -326,3 +326,67 @@ input[type="range"] {
 [data-motion="on"] .chip-button {
   transition: transform 140ms ease-out;
 }
+
+/* --- Prisma --- */
+
+/* El reverso de sus cartas va en la cara de atrás del giro 3D. */
+.card-side.prisma-back {
+  transform: rotateY(180deg);
+}
+
+/* Mi mano: las cartas que puedo jugar se levantan y brillan; al pasar el ratón, un poco más. */
+.hand-card.playable {
+  transform: translateY(-10px);
+  box-shadow:
+    0 0 0 3px rgb(245 197 66 / 0.85),
+    0 0 18px rgb(245 197 66 / 0.45);
+}
+.hand-card.just-drawn {
+  box-shadow:
+    0 0 0 3px rgb(56 189 248 / 0.9),
+    0 0 18px rgb(56 189 248 / 0.45);
+}
+[data-motion="on"] .hand-card {
+  transition: transform 180ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.hand-card.playable:hover,
+.hand-card.playable:focus-visible {
+  transform: translateY(-20px);
+  z-index: 60 !important;
+}
+
+/* El mazo late cuando me toca robar; el botón de "¡Última!", también. Solo opacidad y escala. */
+.deck-ready::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: 12px;
+  box-shadow:
+    0 0 0 3px rgb(245 197 66 / 0.8),
+    0 0 22px rgb(245 197 66 / 0.5);
+  pointer-events: none;
+}
+[data-motion="on"] .deck-ready::after {
+  animation: glow-pulse 1.6s ease-in-out infinite;
+}
+[data-motion="on"] .last-call {
+  animation: last-call 1.1s ease-in-out infinite;
+}
+@keyframes last-call {
+  50% {
+    transform: scale(1.06);
+  }
+}
+
+/* Quien se quedó con una carta sin avisar: un aro rojo que late. */
+.vulnerable-pulse::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border-radius: 999px;
+  box-shadow: 0 0 0 3px rgb(244 63 94 / 0.85);
+  pointer-events: none;
+}
+[data-motion="on"] .vulnerable-pulse::after {
+  animation: glow-pulse 1s ease-in-out infinite;
+}
