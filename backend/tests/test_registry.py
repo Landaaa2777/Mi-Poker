@@ -6,10 +6,10 @@ import pytest
 from fastapi.testclient import TestClient
 from pydantic import BaseModel, Field
 
+from core.options import describe_options
 from games.poker.protocol import TableConfig
 from games.registry import REGISTRY, find_game
 from server.app import create_app
-from server.options import describe_options
 
 
 @pytest.fixture

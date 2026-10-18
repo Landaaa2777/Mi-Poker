@@ -417,7 +417,12 @@ Referencias que di (se toma la idea, nunca la marca ni los assets):
    plataforma, confirmación al salir de una partida, "Continuar partida" en
    el menú, tokens de diseño y el servidor devuelve la web en /poker y demás
    rutas.
-3. Blackjack: motor y tests, luego bots, luego interfaz.
+3. Blackjack: motor y tests, luego bots, luego interfaz (completado). Motor
+   con zapato y carta de corte, seguro, doblar, dividir y rendición; bots con
+   la estrategia básica en tablas (orden de niveles comprobado jugando las
+   mismas rondas); mesa de media luna con el crupier, el zapato y las reglas
+   impresas en el tapete. La cola de reproducción paso a paso y el panel de
+   opciones construido con el esquema del servidor pasan a ser comunes.
 4. Prisma: motor y tests, luego bots con simulación, luego interfaz y arte
    SVG original.
 5. Revisión de conjunto: navegación, estilo coherente, configuración

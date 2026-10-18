@@ -191,6 +191,8 @@ def create_app(
                 "game": game_id,
                 "options": session.options(),
                 "user": await asyncio.to_thread(public_user, accounts, user),
+                # Con cuenta, fichas sentadas en sus otras mesas: no se pueden traer a esta.
+                "elsewhere": partidas.chips_elsewhere(owner, partida_id) if user else 0,
                 "state": session.state(),
             }
         )

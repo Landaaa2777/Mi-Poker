@@ -20,12 +20,12 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from accounts import AccountStore, User
+from core.options import describe_options
 from core.registry import GameInfo
 from core.session import GameSession
 from games.registry import REGISTRY, find_game
 
 from .accounts_api import SESSION_COOKIE, same_origin
-from .options import describe_options
 from .partidas import Partida, Partidas, owner_key
 
 # Crea la partida de un juego para un dueño: (juego, dueño, id de la partida, cuenta) -> partida

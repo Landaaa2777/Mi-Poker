@@ -8,16 +8,10 @@ from __future__ import annotations
 
 from core.registry import GameInfo
 
+from .blackjack.info import GAME as BLACKJACK
 from .poker.info import GAME as POKER
 
 COMING_SOON = (
-    GameInfo(
-        id="blackjack",
-        name="Blackjack",
-        description="Suma 21 sin pasarte y gánale al crupier.",
-        min_bots=0,
-        max_bots=4,
-    ),
     GameInfo(
         id="prisma",
         name="Prisma",
@@ -38,7 +32,7 @@ COMING_SOON = (
 )
 
 # El orden es el del menú: primero los que se pueden jugar.
-REGISTRY: tuple[GameInfo, ...] = (POKER, *COMING_SOON)
+REGISTRY: tuple[GameInfo, ...] = (POKER, BLACKJACK, *COMING_SOON)
 
 
 def find_game(game_id: str) -> GameInfo | None:

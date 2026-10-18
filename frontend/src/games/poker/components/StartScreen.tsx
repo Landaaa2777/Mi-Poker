@@ -1,8 +1,17 @@
-import { useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
+import { useState, type CSSProperties, type FormEvent } from "react";
+import { PlayingCard } from "../../../shared/cards/PlayingCard";
+import { Emblem } from "../../../shared/components/Emblem";
+import {
+  CARD_CHOSEN,
+  CHOICE,
+  CHOSEN,
+  Field,
+  INPUT,
+  NOT_CHOSEN,
+  RefillOffer,
+} from "../../../shared/components/form";
 import { formatChips } from "../format";
 import type { Options, TableConfig } from "../types";
-import { Emblem } from "../../../shared/components/Emblem";
-import { PlayingCard } from "../../../shared/cards/PlayingCard";
 
 interface Props {
   options: Options;
@@ -10,6 +19,7 @@ interface Props {
   accountName?: string; // con cuenta, el nombre en la mesa es el de la cuenta
   balance: number | null; // con cuenta, las fichas de la mesa salen de este saldo
   atStake: number; // lo que llevo apostado en una mano a medias: se pierde al empezar otra partida
+  elsewhere: number; // fichas de mi cuenta sentadas en otras mesas: no se pueden traer a esta
   onRefill: () => Promise<string | null>; // pide la recarga gratis; devuelve el motivo si se niega
   onStart: (config: TableConfig) => void;
   onCancel?: () => void; // hay una partida en curso a la que se puede volver
@@ -31,23 +41,6 @@ const BLIND_PRESETS: [number, number][] = [
   [50, 100],
 ];
 
-const INPUT =
-  "w-full rounded-lg border border-amber-400/30 bg-black/45 px-3 py-2 outline-none focus:border-amber-300";
-const CHOICE = "rounded-lg border px-3 py-2 text-sm font-semibold";
-const CHOSEN =
-  "border-amber-100 bg-gradient-to-b from-amber-200 to-amber-500 text-stone-900 shadow-[0_0_14px_rgb(245_197_66/0.45)]";
-const NOT_CHOSEN = "border-amber-400/25 bg-white/5 text-amber-50 hover:bg-white/10";
-
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div>
-      <div className="mb-1.5 text-xs font-bold uppercase tracking-[0.16em] text-amber-200/75">
-        {label}
-      </div>
-      {children}
-    </div>
-  );
-}
 
 /** Pantalla de inicio: presentación del juego y configuración de la partida. */
 export function StartScreen({
@@ -56,12 +49,13 @@ export function StartScreen({
   accountName,
   balance,
   atStake,
+  elsewhere,
   onRefill,
   onStart,
   onCancel,
 }: Props) {
   // Con cuenta no se puede llevar a la mesa más de lo que se tiene.
-  const available = balance === null ? null : Math.max(0, balance - atStake);
+  const available = balance === null ? null : Math.max(0, balance - atStake - elsewhere);
   const [config, setConfig] = useState<TableConfig>(() =>
     available !== null && available > 0 && initial.starting_stack > available
       ? { ...initial, starting_stack: available }
@@ -199,7 +193,7 @@ export function StartScreen({
                     key={level.id}
                     type="button"
                     aria-pressed={chosen}
-                    className={`rounded-xl border p-3 text-left ${chosen ? "border-amber-300 bg-amber-400/15 shadow-[0_0_16px_rgb(245_197_66/0.35)]" : NOT_CHOSEN}`}
+                    className={`rounded-xl border p-3 text-left ${chosen ? CARD_CHOSEN : NOT_CHOSEN}`}
                     onClick={() => update({ difficulty: level.id })}
                   >
                     <div className={`font-bold ${chosen ? "text-amber-300" : ""}`}>{level.name}</div>
@@ -259,31 +253,26 @@ export function StartScreen({
           </div>
 
           {canRefill && (
-            <div className="rounded-xl border border-amber-400/45 bg-amber-400/10 p-3">
-              <p className="text-sm text-amber-100">
-                Te quedan menos de {formatChips(options.refill_below)} fichas. Puedes recibir{" "}
-                {formatChips(options.starting_balance)} fichas virtuales gratis para seguir jugando.
-              </p>
-              <button
-                type="button"
-                disabled={refilling}
-                className="btn-green mt-2.5 h-11 px-5 text-sm uppercase tracking-wide"
-                onClick={refill}
-              >
-                Recibir {formatChips(options.starting_balance)} fichas
-              </button>
-              {refillProblem && (
-                <p role="alert" className="mt-2 text-sm font-semibold text-amber-300">
-                  {refillProblem}
-                </p>
-              )}
-            </div>
+            <RefillOffer
+              refillBelow={options.refill_below}
+              startingBalance={options.starting_balance}
+              refilling={refilling}
+              problem={refillProblem}
+              onRefill={refill}
+            />
           )}
 
           {atStake > 0 && balance !== null && (
             <p className="text-sm text-amber-100/85">
               Tienes una mano a medias: si empiezas otra partida ahora, pierdes las{" "}
               {formatChips(atStake)} fichas que llevas apostadas en ella.
+            </p>
+          )}
+
+          {elsewhere > 0 && balance !== null && (
+            <p className="text-sm text-amber-100/85">
+              Tienes {formatChips(elsewhere)} fichas sentadas en otra mesa: no se pueden traer a
+              esta mientras sigan allí.
             </p>
           )}
 

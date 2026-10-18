@@ -2,12 +2,7 @@
 // jugar y cuáles tienen una partida a medias. Todo sale del servidor.
 
 import { getGuestId } from "../shared/guest";
-
-/** Una opción configurable de un juego, tal como la describe el servidor. */
-export type GameOption =
-  | { key: string; type: "number"; label: string; default: number; min: number | null; max: number | null; step: number; presets?: number[]; help?: string }
-  | { key: string; type: "choice"; label: string; default: string; choices: { value: string; label: string; description?: string }[]; help?: string }
-  | { key: string; type: "toggle"; label: string; default: boolean; help?: string };
+import type { GameOption } from "../shared/options";
 
 /** Un juego del registro (GET /api/juegos). */
 export interface GameEntry {

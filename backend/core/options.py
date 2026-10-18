@@ -14,11 +14,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel
 
+def describe_options(model: Any) -> list[dict[str, Any]]:
+    """Las opciones de un modelo, en el orden en que están escritas.
 
-def describe_options(model: type[BaseModel]) -> list[dict[str, Any]]:
-    """Las opciones de un modelo, en el orden en que están escritas."""
+    `model` es una clase de pydantic: aquí solo se usa su `model_json_schema()`,
+    así que este módulo no depende de ninguna librería.
+    """
     schema = model.model_json_schema()
     described = []
     for key, field in schema.get("properties", {}).items():

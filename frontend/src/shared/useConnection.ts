@@ -6,7 +6,14 @@ const RECONNECT_MS = 1500;
 
 /** Lo que manda el servidor de cualquier juego por su WebSocket. */
 export type ServerMessage<State, Options> =
-  | { type: "hello"; game: string; options: Options; user: User | null; state: State | null }
+  | {
+      type: "hello";
+      game: string;
+      options: Options;
+      user: User | null;
+      elsewhere: number; // fichas de mi cuenta sentadas en otras mesas
+      state: State | null;
+    }
   | { type: "state"; state: State | null }
   | { type: "error"; message: string };
 
@@ -14,6 +21,7 @@ export interface Connection<Options, ClientMessage> {
   connected: boolean;
   options: Options | null;
   user: User | null; // la cuenta con la que el servidor me reconoce; null = invitado
+  elsewhere: number; // fichas de mi cuenta sentadas en otras mesas: no se pueden traer a esta
   error: string | null;
   waiting: boolean; // hay una intención enviada y el servidor aún no ha contestado
   send: (message: ClientMessage) => void;
@@ -66,6 +74,7 @@ export function useConnection<State, Options, ClientMessage>(
   const [connected, setConnected] = useState(false);
   const [options, setOptions] = useState<Options | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [elsewhere, setElsewhere] = useState(0);
   const [connection, setConnection] = useState(0); // sube cada vez que hay que volver a conectar
   const [error, setError] = useState<string | null>(null);
   const [waiting, setWaitingState] = useState(false);
@@ -119,6 +128,7 @@ export function useConnection<State, Options, ClientMessage>(
         if (message.type === "hello") {
           setOptions(message.options);
           setUser(message.user ?? null);
+          setElsewhere(message.elsewhere ?? 0);
         }
         setError(null);
         onStateRef.current(message.state, message.type === "hello");
@@ -152,5 +162,5 @@ export function useConnection<State, Options, ClientMessage>(
     [setWaiting],
   );
 
-  return { connected, options, user, error, waiting, send, reconnect };
+  return { connected, options, user, elsewhere, error, waiting, send, reconnect };
 }

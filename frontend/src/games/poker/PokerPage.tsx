@@ -39,7 +39,7 @@ export default function PokerPage() {
   const { frame, server, busy, push } = usePlayback(animations, tableEffects);
   // Al entrar o salir de la cuenta cambia la identidad y se vuelve a conectar:
   // el servidor me identifica en ese momento y me da la partida de esa identidad.
-  const { connected, options, user, error, waiting, send, reconnect } = useConnection<
+  const { connected, options, user, elsewhere, error, waiting, send, reconnect } = useConnection<
     GameState,
     Options,
     ClientMessage
@@ -132,6 +132,7 @@ export default function PokerPage() {
           accountName={user?.username}
           balance={user ? latestBalance : null}
           atStake={atStake}
+          elsewhere={elsewhere}
           onRefill={askRefill}
           initial={server?.config ?? options.defaults}
           onStart={(config) => {

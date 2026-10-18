@@ -310,3 +310,19 @@ input[type="range"] {
 [data-motion="on"] .hub-card:focus-visible {
   transform: translateY(-4px);
 }
+
+/* Interruptores del panel de opciones: solo se desliza la bolita (transform). */
+[data-motion="on"] .switch-knob {
+  transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Fichas para apostar: al pulsarlas se hunden un poco. */
+.chip-button:active:not(:disabled) {
+  transform: scale(0.94);
+}
+[data-motion="on"] .chip-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+[data-motion="on"] .chip-button {
+  transition: transform 140ms ease-out;
+}
