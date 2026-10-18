@@ -44,7 +44,7 @@ export default function BlackjackPage() {
     GameState,
     Options,
     ClientMessage
-  >("blackjack", account.identity, push);
+  >("blackjack", push);
   useEffect(() => {
     if (server) myself.current = server.human_seat;
   }, [server]);

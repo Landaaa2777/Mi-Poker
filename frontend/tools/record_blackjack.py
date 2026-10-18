@@ -41,7 +41,7 @@ def choose(state: dict, rng: random.Random) -> dict:
 
 
 def record(config: dict, rounds: int, rng: random.Random) -> tuple[list[dict], set[str]]:
-    app = create_app(bot_delay=(0, 0), serve_frontend=False)
+    app = create_app(bot_delay=(0, 0), serve_frontend=False, require_account=False)
     client = TestClient(app)
     guest = "grabadora-de-blackjack"
     partida = client.post("/api/partidas", json={"game": "blackjack", "guest_id": guest}).json()

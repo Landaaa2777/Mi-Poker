@@ -14,6 +14,7 @@ from accounts import (
     AccountError,
     AccountStore,
     Cost,
+    EmailTaken,
     HandOutcome,
     LevelStats,
     Throttle,
@@ -133,6 +134,62 @@ def test_authenticate_needs_the_right_password(store):
     assert store.authenticate(" JOKER ", PASSWORD) == registered
     assert store.authenticate("joker", "otra clave distinta") is None
     assert store.authenticate("nadie", PASSWORD) is None
+
+
+# --- Correo (opcional) ---
+
+
+def test_the_email_is_optional_and_kept_in_lowercase(store):
+    assert store.email(store.register("Joker", PASSWORD)) is None
+    assert store.email(store.register("Ivy", PASSWORD, "   ")) is None  # en blanco es no darlo
+    harley = store.register("Harley", PASSWORD, " Harley@Ejemplo.COM ")
+    assert store.email(harley) == "harley@ejemplo.com"
+    # Varias cuentas sin correo no chocan entre sí.
+    assert len(rows(store, "SELECT id FROM users WHERE email IS NULL")) == 2
+
+
+@pytest.mark.parametrize(
+    "email", ["sin-arroba", "a@b", "@ejemplo.com", "a b@ejemplo.com", "a@@b.com", "x" * 250 + "@b.com"]
+)
+def test_invalid_emails_are_rejected(store, email):
+    with pytest.raises(AccountError, match="correo"):
+        store.register("joker", PASSWORD, email)
+
+
+def test_an_email_belongs_to_one_account_only(store):
+    store.register("Joker", PASSWORD, "joker@ejemplo.com")
+    with pytest.raises(EmailTaken):
+        store.register("Harley", PASSWORD, "JOKER@ejemplo.com")
+    # Si coinciden el nombre y el correo, se avisa del nombre.
+    with pytest.raises(UsernameTaken):
+        store.register("joker", PASSWORD, "joker@ejemplo.com")
+    assert len(rows(store, "SELECT id FROM users")) == 1
+
+
+def test_you_can_sign_in_with_the_username_or_the_email(store):
+    joker = store.register("Joker", PASSWORD, "joker@ejemplo.com")
+    assert store.authenticate("joker", PASSWORD) == joker
+    assert store.authenticate(" Joker@Ejemplo.com ", PASSWORD) == joker
+    assert store.authenticate("joker@ejemplo.com", "otra clave distinta") is None
+    assert store.authenticate("otro@ejemplo.com", PASSWORD) is None
+
+
+def test_a_database_from_before_the_email_is_upgraded_in_place(store, tmp_path):
+    """Una base de datos de la etapa 4: cuentas sin columna de correo."""
+    user = store.register("joker", PASSWORD)
+    old = tmp_path / "sin-correo.db"
+    with closing(sqlite3.connect(store.path)) as source, closing(sqlite3.connect(old)) as target:
+        source.backup(target)
+        with target:
+            target.execute("DROP INDEX users_email")
+            target.execute("ALTER TABLE users DROP COLUMN email")
+            target.execute("PRAGMA user_version = 3")
+    reopened = AccountStore(old, FAST)
+    assert reopened.authenticate("joker", PASSWORD) == user and reopened.email(user) is None
+    reopened.register("Harley", PASSWORD, "harley@ejemplo.com")
+    with pytest.raises(EmailTaken):
+        reopened.register("Ivy", PASSWORD, "HARLEY@ejemplo.com")
+    assert rows(reopened, "PRAGMA user_version") == [(accounts.store.SCHEMA_VERSION,)]
     assert store.authenticate("joker", "x" * 5000) is None
 
 
@@ -314,7 +371,7 @@ def test_a_database_from_before_the_stats_is_upgraded_in_place(tmp_path):
     assert user is not None and store.member_since(user) == 123
     store.record_hand(user, HandOutcome("medium", chips_won=10))
     assert store.stats(user) == [LevelStats("medium", hands_played=1, hands_won=1, biggest_win=10)]
-    assert rows(store, "PRAGMA user_version") == [(3,)]
+    assert rows(store, "PRAGMA user_version") == [(accounts.store.SCHEMA_VERSION,)]
     # Y recibe el saldo de una cuenta nueva.
     assert store.balance(user) == STARTING_BALANCE
 

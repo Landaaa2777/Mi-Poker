@@ -5,6 +5,7 @@ import { AccountProvider, useAccount } from "./AccountContext";
 import { AccountMenu } from "./components/AccountMenu";
 import { Wordmark } from "./components/Emblem";
 import { SettingsMenu } from "./components/SettingsMenu";
+import { WelcomePage } from "./components/WelcomePage";
 import { SettingsProvider, usePlatformSettings } from "./SettingsContext";
 
 /** Huecos de la cabecera que rellena el juego que está en pantalla. */
@@ -73,14 +74,15 @@ function Shell() {
                 Menú
               </Link>
             )}
-            <AccountMenu
-              user={account.user}
-              balance={account.balance}
-              disabled={account.signingOut}
-              onSignIn={account.openSignIn}
-              onSignOut={() => void account.signOut()}
-              onProfile={account.openProfile}
-            />
+            {account.user && (
+              <AccountMenu
+                user={account.user}
+                balance={account.balance}
+                disabled={account.signingOut}
+                onSignOut={() => void account.signOut()}
+                onProfile={account.openProfile}
+              />
+            )}
             <SettingsMenu
               settings={settings}
               animations={animations}
@@ -90,14 +92,21 @@ function Shell() {
           </div>
         </header>
         <main className="flex flex-col gap-gutter">
-          <Outlet />
+          {/* Sin cuenta no se juega: en cualquier dirección se pide entrar, y al
+              entrar se ve lo que había en ella (el menú, una mesa o una sala). */}
+          {account.ready &&
+            (account.user ? (
+              <Outlet />
+            ) : (
+              <WelcomePage onSignedIn={() => void account.refresh()} />
+            ))}
         </main>
       </div>
     </HeaderSlotsContext.Provider>
   );
 }
 
-/** Marco de toda la plataforma: preferencias, cuenta y la cabecera común. */
+/** Marco de toda la plataforma: preferencias, cuenta, la cabecera común y la entrada sin sesión. */
 export function Layout() {
   return (
     <SettingsProvider>

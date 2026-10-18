@@ -1,8 +1,9 @@
 // Cuenta del jugador: registrarse, entrar y salir. Todo lo que la aplicación
-// sabe de cuentas pasa por este módulo, igual que el invitado pasa por `guest.ts`.
+// sabe de cuentas pasa por este módulo. Desde la etapa 5 hace falta una cuenta
+// para jugar: sin ella, la web solo enseña la pantalla de entrada.
 //
 // La sesión va en una cookie que este código no puede leer. Quién soy lo dice
-// el servidor al conectar con la mesa (mensaje "hello"), no se guarda aquí.
+// el servidor (`/api/me` y el mensaje "hello" de cada mesa), no se guarda aquí.
 
 export interface User {
   username: string;
@@ -25,7 +26,10 @@ export interface LevelStats extends Stats {
 }
 
 export interface Profile {
-  user: User & { member_since: number | null }; // segundos desde 1970
+  user: User & {
+    member_since: number | null; // segundos desde 1970
+    email: string | null; // opcional: sirve para entrar en vez del nombre
+  };
   stats: { total: Stats; levels: LevelStats[] };
 }
 
@@ -42,20 +46,29 @@ export const USERNAME_MIN = 3;
 export const USERNAME_MAX = 16;
 export const PASSWORD_MIN = 8;
 export const PASSWORD_MAX = 128;
+export const EMAIL_MAX = 254;
+// Un correo con pinta de correo: algo@algo.algo. No se verifica.
+const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+// Este navegador ya entró alguna vez: la pantalla de entrada abre en "Entrar".
+const SIGNED_IN_BEFORE = "mi-poker.signed-in-before";
 
 const NO_CONNECTION = "Sin conexión con el servidor. Inténtalo otra vez.";
 const UNEXPECTED = "No se pudo completar. Inténtalo otra vez.";
 
-/** El primer problema de lo que se va a enviar, o `null` si se puede enviar. */
+/**
+ * El primer problema de lo que se va a enviar, o `null` si se puede enviar.
+ * Al entrar, `username` puede ser el nombre o el correo; al crear la cuenta, el
+ * correo es opcional.
+ */
 export function checkCredentials(
   mode: AccountMode,
   username: string,
   password: string,
-  repeat: string,
+  email = "",
 ): string | null {
   const name = username.trim();
   if (mode === "login") {
-    return name && password ? null : "Escribe tu usuario y tu contraseña.";
+    return name && password ? null : "Escribe tu usuario (o tu correo) y tu contraseña.";
   }
   if (name.length < USERNAME_MIN || name.length > USERNAME_MAX) {
     return `El nombre de usuario debe tener entre ${USERNAME_MIN} y ${USERNAME_MAX} caracteres.`;
@@ -69,7 +82,38 @@ export function checkCredentials(
   if (password.length > PASSWORD_MAX) {
     return `La contraseña no puede pasar de ${PASSWORD_MAX} caracteres.`;
   }
-  return password === repeat ? null : "Las dos contraseñas no coinciden.";
+  const mail = email.trim();
+  if (mail && (mail.length > EMAIL_MAX || !EMAIL.test(mail))) {
+    return "Ese correo no parece válido. Si prefieres, déjalo en blanco.";
+  }
+  return null;
+}
+
+type KeyValueStorage = Pick<Storage, "getItem" | "setItem">;
+
+function browserStorage(): KeyValueStorage | null {
+  try {
+    return localStorage;
+  } catch {
+    return null; // sin almacenamiento (modo privado estricto, o fuera del navegador)
+  }
+}
+
+/** ¿Ha entrado alguien con este navegador alguna vez? */
+export function signedInBefore(storage = browserStorage()): boolean {
+  try {
+    return storage?.getItem(SIGNED_IN_BEFORE) === "1";
+  } catch {
+    return false; // sin almacenamiento: como la primera vez
+  }
+}
+
+export function rememberSignedIn(storage = browserStorage()): void {
+  try {
+    storage?.setItem(SIGNED_IN_BEFORE, "1");
+  } catch {
+    // Sin almacenamiento no pasa nada: solo cambia la pestaña con la que se abre.
+  }
 }
 
 /** Porcentaje entero de `part` sobre `whole`; 0 si no hay nada sobre lo que calcular. */
@@ -102,10 +146,13 @@ async function post(path: string, body: unknown, fetcher: Fetcher): Promise<Acco
   return { ok: false, message };
 }
 
-export function register(username: string, password: string, fetcher: Fetcher = fetch) {
-  return post("/api/register", { username: username.trim(), password }, fetcher);
+/** Crea la cuenta y entra. El correo es opcional: vacío, se envía como null. */
+export function register(username: string, password: string, email = "", fetcher: Fetcher = fetch) {
+  const mail = email.trim();
+  return post("/api/register", { username: username.trim(), password, email: mail || null }, fetcher);
 }
 
+/** Entra con el nombre de usuario o con el correo. */
 export function login(username: string, password: string, fetcher: Fetcher = fetch) {
   return post("/api/login", { username: username.trim(), password }, fetcher);
 }
@@ -114,14 +161,14 @@ export function logout(fetcher: Fetcher = fetch) {
   return post("/api/logout", {}, fetcher);
 }
 
-/** Quién soy según el servidor: la cuenta de la cookie de sesión, o null si juego como invitado. */
+/** Quién soy según el servidor: la cuenta de la cookie de sesión, o null si no hay sesión. */
 export async function fetchMe(fetcher: Fetcher = fetch): Promise<User | null> {
   try {
     const response = await fetcher("/api/me", { credentials: "same-origin" });
     const data = (await response.json()) as { user?: User | null };
     return data.user ?? null;
   } catch {
-    return null; // sin conexión: hasta que vuelva, como invitado
+    return null; // sin conexión: hasta que vuelva, se pide entrar
   }
 }
 

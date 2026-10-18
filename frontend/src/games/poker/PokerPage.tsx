@@ -39,13 +39,12 @@ export default function PokerPage() {
   // `frame` es lo que se dibuja; `server`, lo último que dijo el servidor. Mientras
   // `busy`, la mesa todavía está reproduciendo pasos y no se puede actuar.
   const { frame, server, busy, push } = usePlayback(animations, tableEffects);
-  // Al entrar o salir de la cuenta cambia la identidad y se vuelve a conectar:
-  // el servidor me identifica en ese momento y me da la partida de esa identidad.
+  // El servidor me identifica por la cuenta y me da mi partida de poker.
   const { connected, options, user, elsewhere, error, waiting, send, reconnect } = useConnection<
     GameState,
     Options,
     ClientMessage
-  >("poker", account.identity, push);
+  >("poker", push);
   const [configuring, setConfiguring] = useState(false);
   useEffect(() => setConfiguring(false), [account.identity]);
 

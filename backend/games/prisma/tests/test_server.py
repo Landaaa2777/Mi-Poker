@@ -19,7 +19,7 @@ def prisma_url(client, guest_id=GUEST):
 
 @pytest.fixture
 def app():
-    return create_app(bot_delay=(0, 0), serve_frontend=False)
+    return create_app(bot_delay=(0, 0), serve_frontend=False, require_account=False)
 
 
 class Table:

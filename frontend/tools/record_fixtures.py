@@ -67,7 +67,9 @@ def choose(legal: dict, odds: tuple[float, float, float], rng: random.Random) ->
 
 def record(config: dict, hands: int, odds: tuple[float, float, float], rng: random.Random):
     """Juega `hands` manos y devuelve los estados recibidos y los casos que aparecieron."""
-    app = create_app(bot_delay=(0, 0), simulations=30, serve_frontend=False)
+    app = create_app(
+        bot_delay=(0, 0), simulations=30, serve_frontend=False, require_account=False
+    )
     states: list[dict] = []
     tags: set[str] = set()
     played = 0

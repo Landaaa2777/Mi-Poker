@@ -27,7 +27,9 @@ def poker_url(client, guest_id=GUEST):
 
 @pytest.fixture
 def app():
-    return create_app(bot_delay=(0, 0), simulations=30, serve_frontend=False)
+    return create_app(
+        bot_delay=(0, 0), simulations=30, serve_frontend=False, require_account=False
+    )
 
 
 @pytest.fixture

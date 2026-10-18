@@ -62,7 +62,9 @@ def describe_partida(partida: Partida) -> dict[str, Any]:
     }
 
 
-def game_routes(store: AccountStore, partidas: Partidas, make_session: MakeSession) -> APIRouter:
+def game_routes(
+    store: AccountStore, partidas: Partidas, make_session: MakeSession, require_account: bool = True
+) -> APIRouter:
     router = APIRouter(prefix="/api")
 
     def failure(status: int, message: str) -> JSONResponse:
@@ -75,7 +77,7 @@ def game_routes(store: AccountStore, partidas: Partidas, make_session: MakeSessi
     @router.get("/partidas")
     def my_partidas(request: Request, guest_id: str = "") -> dict[str, Any]:
         user = store.user_for_token(request.cookies.get(SESSION_COOKIE))
-        owner = owner_key(user, guest_id)
+        owner = owner_key(user, guest_id if not require_account else None)
         mine = partidas.of_owner(owner) if owner else []
         return {"partidas": [describe_partida(partida) for partida in mine]}
 
@@ -89,6 +91,8 @@ def game_routes(store: AccountStore, partidas: Partidas, make_session: MakeSessi
         if not game.available:
             return failure(409, "Ese juego todavía no está disponible")
         user = store.user_for_token(request.cookies.get(SESSION_COOKIE))
+        if user is None and require_account:
+            return failure(401, "Entra en tu cuenta para jugar")
         owner = owner_key(user, body.guest_id)
         if owner is None:
             return failure(400, "Identificador de invitado inválido")

@@ -7,6 +7,8 @@ import {
   percent,
   refill,
   register,
+  rememberSignedIn,
+  signedInBefore,
 } from "./account";
 
 const PASSWORD = "una clave de prueba";
@@ -23,31 +25,56 @@ function sent(fetcher: ReturnType<typeof vi.fn>) {
 
 describe("checkCredentials", () => {
   it("para entrar solo pide que no falte nada", () => {
-    expect(checkCredentials("login", "joker", PASSWORD, "")).toBeNull();
-    expect(checkCredentials("login", "", PASSWORD, "")).not.toBeNull();
-    expect(checkCredentials("login", "joker", "", "")).not.toBeNull();
-    expect(checkCredentials("login", "   ", PASSWORD, "")).not.toBeNull();
+    expect(checkCredentials("login", "joker", PASSWORD)).toBeNull();
+    expect(checkCredentials("login", "joker@ejemplo.com", PASSWORD)).toBeNull(); // o el correo
+    expect(checkCredentials("login", "", PASSWORD)).not.toBeNull();
+    expect(checkCredentials("login", "joker", "")).not.toBeNull();
+    expect(checkCredentials("login", "   ", PASSWORD)).not.toBeNull();
     // Una cuenta antigua podría no cumplir las reglas de hoy: eso lo decide el servidor.
-    expect(checkCredentials("login", "ab", "corta", "")).toBeNull();
+    expect(checkCredentials("login", "ab", "corta")).toBeNull();
   });
 
-  it("al crear la cuenta acepta un usuario y una contraseña válidos", () => {
-    expect(checkCredentials("register", "joker_99", PASSWORD, PASSWORD)).toBeNull();
-    expect(checkCredentials("register", "  joker  ", PASSWORD, PASSWORD)).toBeNull();
+  it("al crear la cuenta basta con un usuario y una contraseña válidos", () => {
+    expect(checkCredentials("register", "joker_99", PASSWORD)).toBeNull();
+    expect(checkCredentials("register", "  joker  ", PASSWORD, "   ")).toBeNull();
+    expect(checkCredentials("register", "joker", PASSWORD, " Joker@Ejemplo.com ")).toBeNull();
   });
 
   it.each(["ab", "x".repeat(17), "con espacio", "ñandú", "a@b.com"])(
     "rechaza el nombre de usuario %j",
     (username) => {
-      expect(checkCredentials("register", username, PASSWORD, PASSWORD)).toMatch(/usuario/);
+      expect(checkCredentials("register", username, PASSWORD)).toMatch(/usuario/);
     },
   );
 
-  it("rechaza contraseñas cortas, larguísimas o que no coinciden", () => {
-    expect(checkCredentials("register", "joker", "corta12", "corta12")).toMatch(/al menos 8/);
-    const huge = "x".repeat(129);
-    expect(checkCredentials("register", "joker", huge, huge)).toMatch(/128/);
-    expect(checkCredentials("register", "joker", PASSWORD, PASSWORD + "!")).toMatch(/no coinciden/);
+  it("rechaza contraseñas cortas o larguísimas", () => {
+    expect(checkCredentials("register", "joker", "corta12")).toMatch(/al menos 8/);
+    expect(checkCredentials("register", "joker", "x".repeat(129))).toMatch(/128/);
+  });
+
+  it.each(["sin-arroba", "a@b", "@ejemplo.com", "a b@ejemplo.com", "x".repeat(250) + "@b.com"])(
+    "rechaza el correo %j, que se puede dejar en blanco",
+    (email) => {
+      expect(checkCredentials("register", "joker", PASSWORD, email)).toMatch(/correo.*en blanco/);
+    },
+  );
+});
+
+describe("primera vez en este navegador", () => {
+  it("recuerda que ya se entró alguna vez", () => {
+    const data = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => data.get(key) ?? null,
+      setItem: (key: string, value: string) => void data.set(key, value),
+    };
+    expect(signedInBefore(storage)).toBe(false);
+    rememberSignedIn(storage);
+    expect(signedInBefore(storage)).toBe(true);
+  });
+
+  it("sin almacenamiento, es como la primera vez", () => {
+    expect(signedInBefore(null)).toBe(false);
+    expect(() => rememberSignedIn(null)).not.toThrow();
   });
 });
 
@@ -62,7 +89,7 @@ describe("percent", () => {
 
 describe("perfil", () => {
   const profile = {
-    user: { username: "Joker", balance: 10000, member_since: 1760000000 },
+    user: { username: "Joker", balance: 10000, member_since: 1760000000, email: null },
     stats: {
       total: { hands_played: 3, hands_won: 1, biggest_win: 40, best_hand: "Color", games_played: 1, games_won: 0 },
       levels: [],
@@ -120,10 +147,18 @@ describe("peticiones de cuenta", () => {
     expect(body).toEqual({ username: "joker", password: PASSWORD });
   });
 
-  it("crear la cuenta usa su propia ruta", async () => {
+  it("crear la cuenta usa su propia ruta, con el correo si se dio", async () => {
     const fetcher = reply(201, { user: { username: "Joker", balance: 10000 } });
-    expect((await register("Joker", PASSWORD, fetcher)).ok).toBe(true);
+    expect((await register(" Joker ", PASSWORD, " joker@ejemplo.com ", fetcher)).ok).toBe(true);
     expect(sent(fetcher).path).toBe("/api/register");
+    expect(sent(fetcher).body).toEqual({
+      username: "Joker",
+      password: PASSWORD,
+      email: "joker@ejemplo.com",
+    });
+    const without = reply(201, { user: { username: "Joker", balance: 10000 } });
+    await register("Joker", PASSWORD, "  ", without);
+    expect(sent(without).body).toEqual({ username: "Joker", password: PASSWORD, email: null });
   });
 
   it("salir deja la cuenta en nada", async () => {

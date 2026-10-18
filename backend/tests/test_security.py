@@ -34,7 +34,9 @@ SECRETS = {"deck", "draw_pile", "shoe_cards", "hole_card", "cards_left", "rng", 
 @pytest.fixture
 def app():
     # Bots muy lentos: así nada cambia solo mientras se prueban los mensajes.
-    return create_app(bot_delay=(30, 30), simulations=30, serve_frontend=False)
+    return create_app(
+        bot_delay=(30, 30), simulations=30, serve_frontend=False, require_account=False
+    )
 
 
 def url(client, game, guest_id=GUEST):

@@ -50,7 +50,6 @@ export default function PrismaPage() {
   const { frame, server, busy, push } = usePlayback(PRISMA_TIMELINE, animations, effects);
   const { connected, options, user, error, waiting, send } = useConnection<GameState, Options, ClientMessage>(
     "prisma",
-    account.identity,
     push,
   );
   useEffect(() => {

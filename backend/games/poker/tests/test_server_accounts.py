@@ -23,6 +23,7 @@ def app(tmp_path):
         serve_frontend=False,
         database=tmp_path / "cuentas.db",
         password_cost=Cost(n=16, r=1, p=1),
+        require_account=False,  # estos tests juegan como invitado
     )
 
 

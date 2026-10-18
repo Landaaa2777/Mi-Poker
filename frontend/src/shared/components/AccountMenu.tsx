@@ -4,23 +4,15 @@ import { Avatar } from "./Avatar";
 import { ChipStack } from "./Chips";
 
 interface Props {
-  user: User | null; // null = jugando como invitado
+  user: User;
   balance: number | null; // el saldo tal como debe verse ahora: sigue el ritmo de la mesa
   disabled: boolean; // se está cerrando la sesión
-  onSignIn: () => void;
   onSignOut: () => void;
   onProfile: () => void;
 }
 
-/** En la cabecera: quién soy y el botón para entrar o salir. */
-export function AccountMenu({ user, balance, disabled, onSignIn, onSignOut, onProfile }: Props) {
-  if (!user) {
-    return (
-      <button className="btn-dark h-9 px-3 text-sm" onClick={onSignIn}>
-        Entrar
-      </button>
-    );
-  }
+/** En la cabecera: quién soy, mi saldo y el botón para salir. */
+export function AccountMenu({ user, balance, disabled, onSignOut, onProfile }: Props) {
   return (
     <div className="flex h-9 items-center gap-1 rounded-full bg-black/40 py-1 pl-1 pr-1.5 ring-1 ring-amber-400/35">
       <button

@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { User } from "./account";
+import { useAccount } from "./AccountContext";
 import { getGuestId } from "./guest";
 
 const RECONNECT_MS = 1500;
+// Con este código cierra el servidor el WebSocket de quien no tiene sesión.
+const SIGNED_OUT_CODE = 4401;
 
 /** Lo que manda el servidor de cualquier juego por su WebSocket. */
 export type ServerMessage<State, Options> =
@@ -20,7 +23,7 @@ export type ServerMessage<State, Options> =
 export interface Connection<Options, ClientMessage> {
   connected: boolean;
   options: Options | null;
-  user: User | null; // la cuenta con la que el servidor me reconoce; null = invitado
+  user: User | null; // la cuenta con la que el servidor me reconoce
   elsewhere: number; // fichas de mi cuenta sentadas en otras mesas: no se pueden traer a esta
   error: string | null;
   waiting: boolean; // hay una intención enviada y el servidor aún no ha contestado
@@ -28,9 +31,13 @@ export interface Connection<Options, ClientMessage> {
   reconnect: () => void; // tras entrar o salir de la cuenta: el servidor me identifica al conectar
 }
 
+/** El servidor no reconoce la sesión (caducó o se cerró en otra pestaña): hay que volver a entrar. */
+export class SignedOut extends Error {}
+
 /**
  * Pide al servidor mi partida de un juego (si no tengo, la crea) y devuelve su
- * id. Soy yo según la cookie de sesión o, sin cuenta, mi identificador de invitado.
+ * id. Soy yo según la cookie de sesión. El identificador de invitado solo lo
+ * mira un servidor de desarrollo que deja jugar sin cuenta.
  */
 export async function openPartida(game: string, fetcher: typeof fetch = fetch): Promise<string> {
   const response = await fetcher("/api/partidas", {
@@ -40,6 +47,7 @@ export async function openPartida(game: string, fetcher: typeof fetch = fetch): 
     credentials: "same-origin",
   });
   const data = (await response.json()) as { partida_id?: string; message?: string };
+  if (response.status === 401) throw new SignedOut(data.message ?? "Entra en tu cuenta para jugar");
   if (!response.ok || !data.partida_id) throw new Error(data.message ?? "No se pudo abrir la partida");
   return data.partida_id;
 }
@@ -55,22 +63,20 @@ export function partidaUrl(game: string, partidaId: string): string {
  * Conexión con la partida de un juego. El cliente solo muestra el estado y
  * envía intenciones: el servidor decide todo.
  *
- * `identity` cambia al entrar o salir de una cuenta: entonces se vuelve a
- * conectar, y el servidor da la partida de la identidad nueva.
- *
  * Primero se pide la partida por HTTP y luego se abre su WebSocket
  * (`/ws/{juego}/{partida_id}`). Cada estado recibido se entrega a `onState`;
  * `instant` vale `true` para el que llega al conectar: no se vio lo anterior,
  * así que no hay nada que animar.
  *
- * Quién soy lo decide el servidor: mira la cookie de sesión y, si no hay
- * cuenta, el identificador de invitado. Cada identidad tiene su partida.
+ * Quién soy lo decide el servidor con la cookie de sesión: cada cuenta tiene
+ * su partida. Si cambia la cuenta, se vuelve a conectar; si el servidor ya no
+ * reconoce la sesión, se vuelve a leer la cuenta y la web pide entrar.
  */
 export function useConnection<State, Options, ClientMessage>(
   game: string,
-  identity: string,
   onState: (state: State | null, instant: boolean) => void,
 ): Connection<Options, ClientMessage> {
+  const { identity, refresh } = useAccount();
   const [connected, setConnected] = useState(false);
   const [options, setOptions] = useState<Options | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -108,7 +114,8 @@ export function useConnection<State, Options, ClientMessage>(
       try {
         // Se pide cada vez: si el servidor se reinició, la partida es otra.
         partidaId = await openPartida(game);
-      } catch {
+      } catch (problem) {
+        if (problem instanceof SignedOut) void refresh();
         again();
         return;
       }
@@ -133,7 +140,10 @@ export function useConnection<State, Options, ClientMessage>(
         setError(null);
         onStateRef.current(message.state, message.type === "hello");
       };
-      socket.onclose = again;
+      socket.onclose = (event) => {
+        if (event.code === SIGNED_OUT_CODE) void refresh();
+        again();
+      };
     }
 
     void connect();
@@ -143,7 +153,7 @@ export function useConnection<State, Options, ClientMessage>(
       socketRef.current?.close();
       setWaiting(false);
     };
-  }, [game, identity, setWaiting, connection]);
+  }, [game, identity, refresh, setWaiting, connection]);
 
   const reconnect = useCallback(() => setConnection((current) => current + 1), []);
 

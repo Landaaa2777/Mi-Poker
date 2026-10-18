@@ -19,17 +19,21 @@ from .stats import HandOutcome, LevelStats
 
 USERNAME_MIN, USERNAME_MAX = 3, 16
 PASSWORD_MIN, PASSWORD_MAX = 8, 128
+EMAIL_MAX = 254
 SESSION_SECONDS = 30 * 24 * 3600  # una sesión dura 30 días
 STARTING_BALANCE = 10_000  # fichas virtuales con las que empieza una cuenta
 REFILL_BELOW = 100  # con menos saldo que este se puede pedir la recarga gratis
 
 _USERNAME = re.compile(r"[A-Za-z0-9_-]+")
+# Un correo con pinta de correo: algo@algo.algo. No se verifica (no hay servicio de correo).
+_EMAIL = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
 
 _SCHEMA = f"""
 CREATE TABLE IF NOT EXISTS users (
     id            INTEGER PRIMARY KEY,
     username      TEXT    NOT NULL,           -- tal como lo escribió al registrarse
     username_key  TEXT    NOT NULL UNIQUE,    -- en minúsculas: "Joker" y "joker" son la misma cuenta
+    email         TEXT,                       -- opcional, en minúsculas: también sirve para entrar
     password_hash TEXT    NOT NULL,
     created_at    INTEGER NOT NULL,
     balance       INTEGER NOT NULL DEFAULT {STARTING_BALANCE}  -- fichas virtuales, mesa incluida
@@ -54,7 +58,7 @@ CREATE TABLE IF NOT EXISTS stats (
 """
 # Cada tabla se crea solo si falta, y las columnas nuevas se añaden al abrir:
 # una base de datos de una versión anterior se pone al día sola.
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
 @dataclass(frozen=True)
@@ -71,6 +75,10 @@ class UsernameTaken(AccountError):
     pass
 
 
+class EmailTaken(AccountError):
+    pass
+
+
 def check_username(username: str) -> str:
     """El nombre de usuario limpio, o AccountError si no vale."""
     username = username.strip()
@@ -83,6 +91,16 @@ def check_username(username: str) -> str:
             "El nombre de usuario solo puede llevar letras sin acento, números, guion y guion bajo"
         )
     return username
+
+
+def check_email(email: str | None) -> str | None:
+    """El correo limpio y en minúsculas; None si no se da; AccountError si no vale."""
+    email = (email or "").strip().lower()
+    if not email:
+        return None
+    if len(email) > EMAIL_MAX or not _EMAIL.fullmatch(email):
+        raise AccountError("Ese correo no parece válido")
+    return email
 
 
 def check_password(password: str) -> str:
@@ -115,28 +133,37 @@ class AccountStore:
 
     # --- Cuentas ---
 
-    def register(self, username: str, password: str) -> User:
+    def register(self, username: str, password: str, email: str | None = None) -> User:
+        """Crea una cuenta. El correo es opcional: si se da, también sirve para entrar."""
         username = check_username(username)
+        email = check_email(email)
         hashed = hash_password(check_password(password), self.cost)
         try:
             with self._connect() as db:
                 cursor = db.execute(
-                    "INSERT INTO users (username, username_key, password_hash, created_at)"
-                    " VALUES (?, ?, ?, ?)",
-                    (username, username.lower(), hashed, int(self.clock())),
+                    "INSERT INTO users (username, username_key, email, password_hash, created_at)"
+                    " VALUES (?, ?, ?, ?, ?)",
+                    (username, username.lower(), email, hashed, int(self.clock())),
                 )
         except sqlite3.IntegrityError:
-            raise UsernameTaken("Ese nombre de usuario ya está en uso") from None
+            if self._exists("username_key", username.lower()):
+                raise UsernameTaken("Ese nombre de usuario ya está en uso") from None
+            raise EmailTaken("Ese correo ya está en uso") from None
         assert cursor.lastrowid is not None
         return User(cursor.lastrowid, username)
 
-    def authenticate(self, username: str, password: str) -> User | None:
-        """El usuario, si la contraseña es la suya. No distingue por qué falla."""
+    def authenticate(self, login: str, password: str) -> User | None:
+        """El usuario, si la contraseña es la suya. `login` es el nombre o el correo.
+
+        No distingue por qué falla, y tarda lo mismo exista o no la cuenta.
+        """
         decoy = self._decoy  # preparado antes de saber si la cuenta existe
+        key = login.strip().lower()
+        column = "email" if "@" in key else "username_key"
         with self._connect() as db:
             row = db.execute(
-                "SELECT id, username, password_hash FROM users WHERE username_key = ?",
-                (username.strip().lower(),),
+                f"SELECT id, username, password_hash FROM users WHERE {column} = ?",
+                (key,),
             ).fetchone()
         if len(password) > PASSWORD_MAX:
             return None
@@ -179,6 +206,12 @@ class AccountStore:
             db.execute("DELETE FROM sessions WHERE token_hash = ?", (token_hash(token),))
 
     # --- Perfil y estadísticas ---
+
+    def email(self, user: User) -> str | None:
+        """El correo de la cuenta, si tiene. Solo se le enseña a su dueño."""
+        with self._connect() as db:
+            row = db.execute("SELECT email FROM users WHERE id = ?", (user.id,)).fetchone()
+        return row[0] if row else None
 
     def member_since(self, user: User) -> int | None:
         """Cuándo se creó la cuenta, en segundos desde 1970."""
@@ -259,6 +292,11 @@ class AccountStore:
 
     # --- Interno ---
 
+    def _exists(self, column: str, value: str) -> bool:
+        with self._connect() as db:
+            row = db.execute(f"SELECT 1 FROM users WHERE {column} = ?", (value,)).fetchone()
+        return row is not None
+
     @cached_property
     def _decoy(self) -> str:
         """Hash de una contraseña que nadie tiene.
@@ -294,5 +332,11 @@ class AccountStore:
                             "ALTER TABLE users ADD COLUMN balance INTEGER NOT NULL"
                             f" DEFAULT {STARTING_BALANCE}"
                         )
+                    if "email" not in columns:
+                        db.execute("ALTER TABLE users ADD COLUMN email TEXT")  # cuentas sin correo
+                    db.execute(
+                        "CREATE UNIQUE INDEX IF NOT EXISTS users_email ON users (email)"
+                        " WHERE email IS NOT NULL"
+                    )
                     db.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
             self._ready = True

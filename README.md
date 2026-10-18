@@ -77,8 +77,8 @@ y abrir http://localhost:5173.
 Arriba está siempre la misma cabecera: el nombre (que lleva al menú), el botón
 **Menú**, la cuenta y los ajustes. Si sales de un juego con una partida en
 curso, se pide confirmación; la partida no se pierde: queda en pausa y su
-tarjeta del menú ofrece **Continuar partida**. Cada identidad (tu cuenta, o tu
-navegador si juegas como invitado) tiene una partida por juego.
+tarjeta del menú ofrece **Continuar partida**. Cada cuenta tiene una partida
+por juego.
 
 ## Los juegos
 
@@ -130,14 +130,16 @@ propios.
 
 ## Cuentas
 
-Arriba a la derecha, **Entrar** abre la ventana para iniciar sesión o crear
-una cuenta: solo hacen falta un nombre de usuario (de 3 a 16 letras sin
-acento, números, guion o guion bajo) y una contraseña de al menos 8
-caracteres. No se pide correo, así que una contraseña olvidada no se puede
-recuperar.
+Para jugar hace falta una cuenta: sin sesión, cualquier página enseña la
+pantalla de entrada. **Crear cuenta** pide solo un nombre de usuario (de 3 a 16
+letras sin acento, números, guion o guion bajo) y una contraseña de al menos 8
+caracteres. El correo es opcional y solo sirve para entrar con él en lugar del
+nombre: no se verifica ni se usa para nada más, así que una contraseña
+olvidada no se puede recuperar. **Entrar** acepta el nombre de usuario o el
+correo.
 
-Con la sesión iniciada juegas con el nombre de tu cuenta y la sesión dura 30
-días en ese navegador, hasta que pulses **Salir**. Al pulsar tu nombre se abre
+Tu nombre de usuario es tu nombre en la mesa de todos los juegos. La sesión
+dura 30 días en ese navegador, hasta que pulses **Salir**. Al pulsar tu nombre se abre
 tu perfil, con las estadísticas del poker: manos jugadas y ganadas, mayor bote,
 mejor mano enseñada y partidas ganadas, en total y según el nivel de los rivales.
 
@@ -148,7 +150,7 @@ ronda cambia el saldo al terminarla. Las fichas sentadas en una mesa no se
 pueden llevar a otra a la vez. Si empiezas otra partida con una mano o ronda a
 medias, pierdes lo que llevabas apostado en ella. Con menos de 100 fichas, la
 pantalla de inicio te ofrece reponer el saldo a 10.000, gratis. Prisma no usa
-fichas, y los invitados juegan con las fichas que elijan.
+fichas.
 
 Las cuentas se guardan en `backend/data/mi-poker.db` (SQLite), que se crea
 solo la primera vez y no se sube a git. Para usar otro archivo, define la

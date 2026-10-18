@@ -1,6 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { fetchMe, logout, type User } from "./account";
-import { AccountDialog } from "./components/AccountDialog";
 import { ProfileDialog } from "./components/ProfileDialog";
 
 /**
@@ -11,15 +10,14 @@ import { ProfileDialog } from "./components/ProfileDialog";
  * fuera de las mesas se ve el que dice el servidor.
  */
 export interface AccountState {
-  user: User | null; // la cuenta con sesión iniciada; null = invitado
+  user: User | null; // la cuenta con sesión iniciada; null = sin sesión (se pide entrar)
   ready: boolean; // ya se sabe quién soy
   /** Cambia al entrar o salir de una cuenta: las partidas vuelven a conectar con la nueva identidad. */
   identity: string;
-  balance: number | null; // el saldo que se enseña ahora mismo; null si soy invitado
+  balance: number | null; // el saldo que se enseña ahora mismo; null sin sesión
   /** Una mesa fija el saldo que debe verse; `undefined` deja de fijarlo. */
   setTableBalance: (balance: number | null | undefined) => void;
   refresh: () => Promise<void>; // vuelve a leer la cuenta del servidor
-  openSignIn: () => void;
   openProfile: () => void;
   signOut: () => Promise<void>;
   signingOut: boolean;
@@ -37,7 +35,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [ready, setReady] = useState(false);
   const [tableBalance, setTableBalanceState] = useState<number | null | undefined>(undefined);
-  const [dialog, setDialog] = useState<"sign-in" | "profile" | null>(null);
+  const [dialog, setDialog] = useState<"profile" | null>(null);
   const [signingOut, setSigningOut] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -65,11 +63,10 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     () => ({
       user,
       ready,
-      identity: user ? `user:${user.username}` : "guest",
+      identity: user ? `user:${user.username}` : "",
       balance: user ? (tableBalance === undefined ? user.balance : tableBalance) : null,
       setTableBalance,
       refresh,
-      openSignIn: () => setDialog("sign-in"),
       openProfile: () => setDialog("profile"),
       signOut,
       signingOut,
@@ -80,15 +77,6 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   return (
     <AccountContext.Provider value={value}>
       {children}
-      {dialog === "sign-in" && (
-        <AccountDialog
-          onClose={() => setDialog(null)}
-          onSignedIn={() => {
-            setDialog(null);
-            void refresh();
-          }}
-        />
-      )}
       {dialog === "profile" && user && (
         <ProfileDialog
           user={user}

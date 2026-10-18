@@ -1,15 +1,18 @@
 """Cuentas por HTTP: registrarse, entrar, salir y saber quién soy.
 
-    POST /api/register  {"username": "...", "password": "..."}   crea la cuenta y entra
-    POST /api/login     {"username": "...", "password": "..."}   entra
+    POST /api/register  {"username": "...", "password": "...", "email": "..."}
+                                                                 crea la cuenta y entra
+                                                                 (el correo es opcional)
+    POST /api/login     {"username": "...", "password": "..."}   entra; "username" puede
+                                                                 ser el nombre o el correo
     POST /api/logout                                             sale
     GET  /api/me                                                 la cuenta de esta sesión
     GET  /api/profile                                            la cuenta y sus estadísticas
     POST /api/refill                                             recarga gratis de fichas
 
 Todas responden {"user": {"username": "...", "balance": 10000} | null}, o
-{"message": "..."} con un código de error. El perfil añade "member_since" y
-"stats": el total y el desglose por nivel de los rivales. La recarga responde
+{"message": "..."} con un código de error. El perfil añade "member_since",
+"email" (o null) y "stats": el total y el desglose por nivel de los rivales. La recarga responde
 {"balance": 10000}; solo se concede a quien se ha quedado sin fichas. La sesión viaja en una cookie que los scripts de la página
 no pueden leer; la contraseña no se guarda ni se devuelve nunca.
 """
@@ -29,6 +32,7 @@ from accounts import (
     SESSION_SECONDS,
     AccountError,
     AccountStore,
+    EmailTaken,
     LevelStats,
     Throttle,
     User,
@@ -48,8 +52,12 @@ OnLogout = Callable[[str], Awaitable[None]]
 class Credentials(BaseModel):
     # Aquí solo se acota el tamaño; las reglas de verdad están en `accounts`.
     model_config = ConfigDict(extra="forbid", strict=True)
-    username: str = Field(max_length=64)
+    username: str = Field(max_length=300)  # al entrar, también puede ser el correo
     password: str = Field(max_length=256)
+
+
+class Registration(Credentials):
+    email: str | None = Field(None, max_length=300)  # opcional
 
 
 def same_origin(headers: Headers) -> bool:
@@ -100,12 +108,12 @@ def account_routes(store: AccountStore, throttle: Throttle, on_logout: OnLogout)
         return response
 
     @router.post("/register")
-    def register(request: Request, credentials: Credentials) -> JSONResponse:
+    def register(request: Request, credentials: Registration) -> JSONResponse:
         if not same_origin(request.headers):
             return failure(403, "Petición rechazada")
         try:
-            user = store.register(credentials.username, credentials.password)
-        except UsernameTaken as error:
+            user = store.register(credentials.username, credentials.password, credentials.email)
+        except (UsernameTaken, EmailTaken) as error:
             return failure(409, str(error))
         except AccountError as error:
             return failure(400, str(error))
@@ -161,7 +169,11 @@ def account_routes(store: AccountStore, throttle: Throttle, on_logout: OnLogout)
         ]
         return JSONResponse(
             {
-                "user": {**public_user(store, user), "member_since": store.member_since(user)},
+                "user": {
+                    **public_user(store, user),
+                    "member_since": store.member_since(user),
+                    "email": store.email(user),
+                },
                 "stats": {"total": public_stats(total(played.values())), "levels": levels},
             }
         )

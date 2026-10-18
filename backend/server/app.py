@@ -113,7 +113,10 @@ def create_app(
     database: Path | str = DATABASE,
     password_cost: Cost = DEFAULT_COST,
     frontend_dist: Path = FRONTEND_DIST,
+    require_account: bool = True,
 ) -> FastAPI:
+    """La aplicación. `require_account` en falso deja jugar como invitado (solo
+    para desarrollo y tests: el juego de verdad exige cuenta)."""
     app = FastAPI(title="mi-poker", description=NOTICE)
     # Partidas en memoria, una por identidad y juego. No se guardan en disco.
     partidas = Partidas()
@@ -144,7 +147,7 @@ def create_app(
         return game.create(context)
 
     app.include_router(account_routes(accounts, Throttle(), close_connections))
-    app.include_router(game_routes(accounts, partidas, make_session))
+    app.include_router(game_routes(accounts, partidas, make_session, require_account))
 
     @app.get("/api/health")
     def health() -> dict:
@@ -157,6 +160,9 @@ def create_app(
             return
         token = websocket.cookies.get(SESSION_COOKIE)
         user = await asyncio.to_thread(accounts.user_for_token, token)
+        if user is None and require_account:
+            await websocket.close(code=4401, reason="Entra en tu cuenta para jugar")
+            return
         owner = owner_key(user, guest_id)
         if owner is None:
             await websocket.close(code=4400, reason="Identificador de invitado inválido")

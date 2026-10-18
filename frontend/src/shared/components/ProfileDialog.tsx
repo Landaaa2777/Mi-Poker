@@ -77,6 +77,9 @@ export function ProfileDialog({ user, balance, onClose, onSignOut }: Props) {
             <p className="text-xs text-stone-400">
               {since ? `Cuenta creada el ${dateFormat.format(new Date(since * 1000))}` : " "}
             </p>
+            {profile?.user.email && (
+              <p className="truncate text-xs text-stone-400">Correo: {profile.user.email}</p>
+            )}
           </div>
           <button className="btn-dark h-8 w-8 shrink-0 text-sm" aria-label="Cerrar" onClick={onClose}>
             ✕
