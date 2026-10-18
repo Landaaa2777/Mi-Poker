@@ -107,7 +107,7 @@ Tú contra el crupier, con 0 a 4 bots en los otros asientos.
 ### Prisma
 
 Las reglas del juego de descarte clásico, con nombre, cartas y vocabulario
-propios. El nombre "Prisma" es provisional.
+propios.
 
 - 108 cartas en cuatro palos, cada uno con su forma y su color (así también se
   distinguen sin ver los colores): **Panal** (hexágono, naranja cobre),

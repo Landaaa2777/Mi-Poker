@@ -14,8 +14,8 @@ originales (no copiar marca, assets ni textos de ningún sitio existente).
 - NINGUNA etapa en curso. La siguiente (etapa 5) no se empieza hasta que yo
   lo pida; antes de tocar código, su plan se escribe en este archivo y lo
   apruebo.
-- Pendiente de decidir: el nombre definitivo de "Prisma" (propuestas: Matiz,
-  Vórtice, Facetas).
+- El juego de descarte se llama Prisma: lo decidí el 2026-10-17 (probé a
+  llamarlo ONE y volví a Prisma).
 
 ## Reglas innegociables
 - NO se usa dinero real en ninguna parte. Las fichas son virtuales y no
@@ -158,8 +158,7 @@ originales (no copiar marca, assets ni textos de ningún sitio existente).
 ## Juego de descarte "Prisma" (etapa 4)
 Es el UNO clásico original, con sus mismas reglas, pero sin su nombre, su
 logo ni su vocabulario: ninguna palabra, logo, eslogan ni asset del juego
-clásico. El nombre "Prisma" es provisional (propuse Matiz, Vórtice o
-Facetas). Cambiarlo solo toca el registro y los textos.
+clásico. Su nombre es Prisma (decidido el 2026-10-17).
 
 ### Identidad propia
 - Cuatro palos con nombre, forma y color propios. Cada forma es distinta, lo
