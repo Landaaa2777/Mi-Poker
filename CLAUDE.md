@@ -450,8 +450,13 @@ Decisiones del 2026-10-17:
    hay unas pendientes; fuera la recarga gratis; el menú, el perfil y la
    pantalla de inicio de cada mesa dicen cuándo llegan las próximas. Mirar el
    saldo cuenta como entrar (`AccountStore.wallet`).
-3. Salas en el servidor: crear, unirse por código o enlace, sala de espera en
-   tiempo real, anfitrión, salir y volver.
+3. Salas en el servidor (completado): crear, unirse por código o enlace, sala
+   de espera en tiempo real, anfitrión, salir y volver
+   (`backend/server/salas.py` y `salas_api.py`). Códigos de 6 caracteres sin
+   0/O/1/I/L; 10 códigos inexistentes en un minuto frenan esa dirección. Cada
+   persona está en una sola sala; una sala sin nadie conectado media hora se
+   cierra. Las opciones de cada sala son las del juego con los bots opcionales
+   (`RoomConfig` en el `protocol.py` de cada juego).
 4. Partidas con varias personas en los tres juegos: una vista por persona,
    tiempo por decisión, desconexiones y abandonos, saldo de cada cuenta.
 5. Interfaz: crear sala y unirse, animación de "¡Partida encontrada!", sala de

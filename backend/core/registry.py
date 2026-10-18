@@ -14,6 +14,7 @@ Ejemplo:
         max_bots=4,
         options=BlackjackConfig,   # el modelo con las opciones configurables
         create=create_session,     # crea la partida en el servidor
+        room_options=RoomConfig,   # las opciones de una sala con amigos
     )
 """
 
@@ -38,6 +39,9 @@ class GameInfo:
     options: type | None = None
     # Crea la partida de una persona. Recibe un `SessionContext`.
     create: Callable[[Any], Any] | None = None
+    # Modelo con las opciones de una sala con amigos (las elige el anfitrión).
+    # Sin él, el juego no se puede jugar en salas.
+    room_options: type | None = None
 
     @property
     def available(self) -> bool:

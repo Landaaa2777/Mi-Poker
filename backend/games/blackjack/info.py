@@ -5,7 +5,7 @@ from __future__ import annotations
 from core.registry import GameInfo
 from core.session import SessionContext
 
-from .protocol import MAX_BOTS, BlackjackConfig
+from .protocol import MAX_BOTS, BlackjackConfig, RoomConfig
 from .session import BlackjackSession
 
 
@@ -22,4 +22,5 @@ GAME = GameInfo(
     max_bots=MAX_BOTS,
     options=BlackjackConfig,
     create=create_session,
+    room_options=RoomConfig,
 )

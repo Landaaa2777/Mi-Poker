@@ -81,6 +81,15 @@ class PrismaConfig(BaseModel):
     )
 
 
+class RoomConfig(PrismaConfig):
+    """Opciones de una sala con amigos: las de siempre, pero los bots son opcionales.
+
+    El nombre de cada persona en la mesa es el de su cuenta.
+    """
+
+    bots: int = Field(0, ge=0, le=MAX_BOTS, title="Bots")
+
+
 class NewGame(BaseModel):
     model_config = ConfigDict(extra="forbid")
     type: Literal["new_game"]

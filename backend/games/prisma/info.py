@@ -5,7 +5,7 @@ from __future__ import annotations
 from core.registry import GameInfo
 from core.session import SessionContext
 
-from .protocol import MAX_BOTS, PrismaConfig
+from .protocol import MAX_BOTS, PrismaConfig, RoomConfig
 from .session import PrismaSession
 
 
@@ -22,4 +22,5 @@ GAME = GameInfo(
     max_bots=MAX_BOTS,
     options=PrismaConfig,
     create=create_session,
+    room_options=RoomConfig,
 )

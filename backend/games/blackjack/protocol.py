@@ -91,6 +91,15 @@ class BlackjackConfig(BaseModel):
         return self
 
 
+class RoomConfig(BlackjackConfig):
+    """Opciones de una sala con amigos: las de siempre, sin bots si no se piden.
+
+    El nombre de cada persona en la mesa es el de su cuenta.
+    """
+
+    bots: int = Field(0, ge=0, le=MAX_BOTS, title="Bots en la mesa")
+
+
 class NewGame(BaseModel):
     model_config = ConfigDict(extra="forbid")
     type: Literal["new_game"]

@@ -1,4 +1,4 @@
-"""Aplicación FastAPI: el menú de juegos, un WebSocket por partida, las cuentas y la web compilada.
+"""Aplicación FastAPI: el menú de juegos, un WebSocket por partida, las salas, las cuentas y la web.
 
     uvicorn server.app:app --reload
 
@@ -21,15 +21,19 @@ from starlette.exceptions import HTTPException
 from starlette.responses import Response
 from starlette.types import Scope
 
-from accounts import DEFAULT_COST, AccountStore, Cost, HandOutcome, Throttle, User, token_hash
+from accounts import DEFAULT_COST, AccountStore, Cost, HandOutcome, Throttle, User
 from core import NOTICE
 from core.bots import BOT_DELAY
 from core.registry import GameInfo
 from core.session import GameSession, SessionContext, SessionError
 
 from .accounts_api import SESSION_COOKIE, account_routes, public_user, same_origin
+from .connections import Connections
 from .games_api import game_routes
 from .partidas import Partidas, owner_key
+from .salas import Salas
+from .salas_api import sala_routes
+from .validation import explain
 
 BACKEND = Path(__file__).resolve().parents[1]
 FRONTEND_DIST = BACKEND.parent / "frontend" / "dist"
@@ -123,16 +127,12 @@ def create_app(
     app.state.partidas = partidas
     accounts = AccountStore(database, password_cost)
     app.state.accounts = accounts
+    # Salas con amigos, también en memoria.
+    salas = Salas()
+    app.state.salas = salas
     # Conexiones abiertas de cada sesión iniciada, para cortarlas al cerrarla.
-    connections: dict[str, set[WebSocket]] = {}
+    connections = Connections()
     app.state.connections = connections
-
-    async def close_connections(token: str) -> None:
-        for websocket in connections.pop(token_hash(token), set()):
-            try:
-                await websocket.close(code=4401, reason="Sesión cerrada")
-            except RuntimeError:
-                pass  # ya estaba cerrada
 
     def make_session(game: GameInfo, owner: str, partida_id: str, user: User | None) -> GameSession:
         """La partida nueva de un juego, con la cuenta de su dueño si la tiene."""
@@ -146,8 +146,9 @@ def create_app(
         )
         return game.create(context)
 
-    app.include_router(account_routes(accounts, Throttle(), close_connections))
+    app.include_router(account_routes(accounts, Throttle(), connections.close_session))
     app.include_router(game_routes(accounts, partidas, make_session, require_account))
+    app.include_router(sala_routes(accounts, salas, connections))
 
     @app.get("/api/health")
     def health() -> dict:
@@ -173,8 +174,8 @@ def create_app(
             await websocket.close(code=4404, reason="Partida no encontrada")
             return
         await websocket.accept()
-        if user is not None and token:
-            connections.setdefault(token_hash(token), set()).add(websocket)
+        if user is not None:
+            connections.add(token, websocket)
 
         session = partida.session
         send_lock = asyncio.Lock()
@@ -209,7 +210,7 @@ def create_app(
                 try:
                     session.handle(text)
                 except ValidationError as error:
-                    await send({"type": "error", "message": _explain(error)})
+                    await send({"type": "error", "message": explain(error)})
                 except SessionError as error:
                     await send({"type": "error", "message": str(error)})
                 else:
@@ -218,23 +219,11 @@ def create_app(
             if session.listener is send_state:
                 session.listener = None
         finally:
-            open_sockets = connections.get(token_hash(token)) if token else None
-            if open_sockets is not None:
-                open_sockets.discard(websocket)
-                if not open_sockets:
-                    del connections[token_hash(token)]
+            connections.discard(token, websocket)
 
     if serve_frontend and frontend_dist.is_dir():
         app.mount("/", SinglePageApp(directory=frontend_dist, html=True), name="frontend")
     return app
-
-
-def _explain(error: ValidationError) -> str:
-    """Primer problema de un mensaje mal formado, en una frase."""
-    first = error.errors()[0]
-    field = ".".join(str(part) for part in first["loc"] if not str(part).startswith("function"))
-    reason = first["msg"].removeprefix("Value error, ")
-    return f"Mensaje inválido ({field}): {reason}" if field else f"Mensaje inválido: {reason}"
 
 
 app = create_app()

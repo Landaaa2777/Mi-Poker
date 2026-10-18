@@ -50,6 +50,7 @@ def describe_game(game: GameInfo) -> dict[str, Any]:
         "min_players": low,
         "max_players": high,
         "available": game.available,
+        "rooms": game.room_options is not None,  # ¿se puede jugar en una sala con amigos?
         "options": describe_options(game.options) if game.options else [],
     }
 
