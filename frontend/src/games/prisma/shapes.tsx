@@ -29,7 +29,8 @@ const PATHS: Record<PrismaColor, string> = {
 
 /** La forma de un palo, como trazo SVG (va dentro de un <svg viewBox="0 0 24 24">). */
 export function SuitPath({ suit, fill = "currentColor" }: { suit: PrismaColor; fill?: string }) {
-  return <path d={PATHS[suit]} fill={fill} fillRule="evenodd" />;
+  // Con `style`, el color puede ser una variable CSS (los tokens de diseño).
+  return <path d={PATHS[suit]} fillRule="evenodd" style={{ fill }} />;
 }
 
 /** El símbolo de un palo suelto, con su color. */

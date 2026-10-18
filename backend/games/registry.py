@@ -10,15 +10,9 @@ from core.registry import GameInfo
 
 from .blackjack.info import GAME as BLACKJACK
 from .poker.info import GAME as POKER
+from .prisma.info import GAME as PRISMA
 
 COMING_SOON = (
-    GameInfo(
-        id="prisma",
-        name="Prisma",
-        description="Suelta todas tus cartas antes que nadie: color, número o comodín.",
-        min_bots=1,
-        max_bots=5,
-    ),
     GameInfo(
         id="minijuegos",
         name="Minijuegos",
@@ -32,7 +26,7 @@ COMING_SOON = (
 )
 
 # El orden es el del menú: primero los que se pueden jugar.
-REGISTRY: tuple[GameInfo, ...] = (POKER, BLACKJACK, *COMING_SOON)
+REGISTRY: tuple[GameInfo, ...] = (POKER, BLACKJACK, PRISMA, *COMING_SOON)
 
 
 def find_game(game_id: str) -> GameInfo | None:
