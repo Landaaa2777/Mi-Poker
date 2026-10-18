@@ -11,17 +11,17 @@ originales (no copiar marca, assets ni textos de ningún sitio existente).
   principal, el poker de siempre, blackjack y el juego de descarte "Prisma")
   se aprobó el 2026-10-17 y se trabajó de seguido, sin parar a pedir
   aprobación entre hitos, como pedí; se cerró el 2026-10-17.
-- NINGUNA etapa en curso. La siguiente (etapa 5) no se empieza hasta que yo
-  lo pida; antes de tocar código, su plan se escribe en este archivo y lo
-  apruebo.
+- ETAPA 5 EN CURSO (aprobada el 2026-10-17): jugar online con amigos en salas
+  privadas, cuentas obligatorias y fichas diarias. Pedí trabajarla de seguido,
+  sin parar entre hitos: al cerrar cada hito se corren TODOS los tests y se
+  hace su commit.
 - El juego de descarte se llama Prisma: lo decidí el 2026-10-17 (probé a
   llamarlo ONE y volví a Prisma).
 
 ## Reglas innegociables
 - NO se usa dinero real en ninguna parte. Las fichas son virtuales y no
   tienen valor fuera del juego: no se compran, no se venden y no se canjean
-  por nada. Las de un invitado viven solo en memoria durante la partida; las
-  de una cuenta se guardan como saldo (decidido el 2026-10-10).
+  por nada. Se guardan como saldo de la cuenta (decidido el 2026-10-10).
 - El aviso "Solo para entretenimiento. Sin dinero real." NO se muestra en la
   interfaz, tampoco en el menú: lo quité el 2026-10-10 y lo confirmé el
   2026-10-17. La regla de arriba no cambia. (En el README sí se mantiene.)
@@ -32,14 +32,18 @@ originales (no copiar marca, assets ni textos de ningún sitio existente).
 ## Fuera del alcance (NO implementar sin que lo pida)
 - Cambios en la lógica del motor de poker, sus bots o sus reglas. En la etapa
   4 se mueven de carpeta y cambian sus `import`, nada más.
-- Recuperación de contraseña, verificación por correo e inicio de sesión con
-  terceros (Google y similares): no hay servicio de correo ni despliegue.
+- Recuperación de contraseña, verificación por correo, entrar con un enlace
+  enviado al correo e inicio de sesión con terceros (Google y similares): no
+  hay servicio de correo ni despliegue. (El correo de la cuenta es opcional y
+  solo sirve para entrar con él en vez de con el nombre de usuario.)
 - Minijuegos, bono diario y recompensas diarias: descartados el 2026-10-17
   (no los quiero).
-- Multijugador entre humanos (etapa 5).
+- Salas públicas con desconocidos (emparejamiento al azar), lobby general y
+  chat: las salas son privadas, con código o enlace.
 - Estadísticas de blackjack y del juego de descarte: el perfil sigue siendo
   del poker.
-- Despliegue.
+- Despliegue en un servidor público. Para jugar con amigos de fuera de casa
+  se usa un túnel https temporal que abro yo (ver el README).
 
 ## Plataforma (etapa 4)
 - Menú principal (hub) en `/`, y cada juego en su ruta: `/poker`,
@@ -263,9 +267,10 @@ jugadas.
   poder probarlos solo con pytest. Igual la lógica de cuentas.
 - El servidor envía el estado completo tras cada cambio, con un registro de
   la mano o la ronda (`events`) que solo crece.
-- Identificador de invitado guardado en el navegador, aislado en un módulo
-  (`frontend/src/shared/guest.ts`). Convive con las cuentas: identifica a
-  quien juega sin registrarse.
+- Desde la etapa 5 hace falta cuenta para jugar a todo. El identificador de
+  invitado (`frontend/src/shared/guest.ts`) queda solo para desarrollo y tests:
+  el servidor real exige cuenta (`create_app(require_account=True)`, lo que
+  viene por defecto).
 - Todo lo de la cuenta en el frontend va aislado en
   `frontend/src/shared/account.ts`; las preferencias, en
   `frontend/src/shared/settings.ts`.
@@ -351,10 +356,12 @@ Referencias que di (se toma la idea, nunca la marca ni los assets):
   Debe ser CC0 de verdad y la descargo yo; si falta, no hay ningún error.
 
 ## Cuentas y sesión
-- La cuenta es opcional (decidido el 2026-10-10): se puede jugar como
-  invitado. Quien crea una cuenta guarda su perfil, sus estadísticas y su
-  saldo.
-- Se entra con nombre de usuario y contraseña. Sin correo.
+- Hace falta cuenta para jugar a todo, contra bots y con amigos (decidido el
+  2026-10-17; antes era opcional). Crearla tiene que ser lo más fácil posible:
+  nombre de usuario y contraseña, y nada más.
+- Se entra con el nombre de usuario o con el correo, y la contraseña. El correo
+  es opcional al crear la cuenta, no se verifica y nadie más lo ve.
+- El nombre de usuario es el nombre en la mesa de todos los juegos.
 - Las contraseñas se guardan solo como hash con sal (scrypt), nunca en claro.
   No se escriben en registros ni se devuelven al cliente.
 - La sesión es un token aleatorio en una cookie HttpOnly. En la base de datos
@@ -370,19 +377,20 @@ Referencias que di (se toma la idea, nunca la marca ni los assets):
   parte, como mucho lo que no esté ya sentado en otra mesa, y lo ganado o
   perdido en cada mano o ronda cambia el saldo al terminarla. El saldo
   incluye las fichas que el jugador tiene en las mesas.
-- Recarga gratis: solo cuando el saldo baja de 100 fichas, un botón lo repone
-  a 10.000. Sin límite.
+- Fichas diarias (decidido el 2026-10-17; sustituye a la recarga gratis):
+  cada vez que entras, si no tienes ya unas pendientes, ganas 10.000 fichas
+  que llegan 24 horas después (llegan aunque no estés conectado). Si un día no
+  entras, al siguiente no llega nada. Si pierdes todas tus fichas, toca
+  esperar a la próxima entrega. Las fichas se suman al saldo.
 - Dejar una mano o ronda a medias (empezar otra partida de ese juego antes de
   que termine) cuesta lo ya apostado en ella, como si el jugador se retirase.
-- Los invitados no tienen saldo: juegan con las fichas que elijan, gratis.
 - El saldo lo lleva el servidor. El cliente solo lo muestra, y al ritmo de la
   mesa: no cambia en pantalla antes de que se vea cómo acabó la mano.
 
 ## Perfil y estadísticas (solo poker)
 - Las apunta el servidor al terminar cada mano; el cliente no las envía.
   Quedan guardadas antes de que el jugador vea el resultado.
-- Solo cuentan las manos terminadas con la sesión iniciada. Los invitados no
-  tienen estadísticas, y una mano dejada a medias no cuenta.
+- Solo cuentan las manos terminadas; una mano dejada a medias no cuenta.
 - Se llevan aparte por nivel de los rivales; el perfil muestra el total y el
   desglose.
 - Qué se guarda: manos jugadas; manos ganadas (cobrar algo de algún bote); lo
@@ -405,6 +413,49 @@ Referencias que di (se toma la idea, nunca la marca ni los assets):
 - Si hay una decisión de diseño con varias opciones, preguntarme (salvo en la
   etapa 4, donde decidí dejar que se elija la opción recomendada y se anote
   aquí).
+
+## Etapa 5: online con amigos (salas privadas)
+Decisiones del 2026-10-17:
+- Salas privadas en los tres juegos. Quien crea la sala (el anfitrión) elige
+  el juego y sus opciones y recibe un código corto (por ejemplo `K7P2QX`) y un
+  enlace (`/sala/K7P2QX`). Los demás entran con el código o abriendo el
+  enlace. Al encontrarse la sala hay una animación ("Buscando la sala…" y
+  "¡Partida encontrada!").
+- Sala de espera en tiempo real: quién está, el anfitrión, el código y el
+  enlace para copiar. El anfitrión empieza la partida cuando hay al menos dos
+  personas; puede rellenar los asientos libres con bots.
+- Poker y blackjack se juegan con el saldo de cada cuenta: lo que se gana o se
+  pierde cambia el saldo, también entre personas. Prisma no usa fichas.
+- Cada uno recibe solo su vista: nunca las cartas de los demás.
+- Tiempo por decisión: 30 segundos. Si se acaba, el servidor juega por ti lo
+  más prudente (poker: pasar o retirarse; blackjack: plantarse, sin seguro, y
+  sin apuesta no juegas la ronda; Prisma: robar y pasar).
+- Desconectarse no es salir: el asiento se guarda y se puede volver con el
+  mismo enlace. Salir de la sala con la partida empezada es abandonarla, con
+  sus consecuencias: en el poker se pierde lo apostado en la mano (te
+  retiras) y en el blackjack la ronda se juega sola (te plantas); en Prisma
+  un bot ocupa tu sitio. No se puede volver a esa partida.
+- Conexión: el servidor puede escuchar en la red de casa (misma WiFi) y, para
+  amigos de fuera, se usa un túnel https temporal. El enlace de la sala usa
+  siempre la dirección por la que se ha entrado.
+- Los códigos son difíciles de adivinar y los intentos de entrar con códigos
+  que no existen se frenan.
+
+### Hitos de la etapa 5
+1. Cuentas obligatorias y más fáciles: sin cuenta no se juega (el menú pide
+   entrar o crear una cuenta); crear cuenta con usuario y contraseña (correo
+   opcional); entrar con usuario o correo.
+2. Fichas diarias: 10.000 fichas 24 h después de entrar, si no hay unas
+   pendientes; fuera la recarga gratis; las pantallas dicen cuándo llegan las
+   próximas.
+3. Salas en el servidor: crear, unirse por código o enlace, sala de espera en
+   tiempo real, anfitrión, salir y volver.
+4. Partidas con varias personas en los tres juegos: una vista por persona,
+   tiempo por decisión, desconexiones y abandonos, saldo de cada cuenta.
+5. Interfaz: crear sala y unirse, animación de "¡Partida encontrada!", sala de
+   espera y las mesas de los tres juegos con varias personas.
+6. Red local, túnel y repaso: pasada de seguridad, pruebas con dos
+   navegadores, README y este archivo al día.
 
 ## Hitos de la etapa 4
 0. Plan (completado el 2026-10-17).
@@ -478,6 +529,6 @@ Solo cambió el frontend. Única excepción en el backend, aprobada el
    inicio de sesión, exista o no la cuenta.
 
 ## Visión futura (solo referencia, NO implementar todavía)
-- Etapa 5: multijugador entre humanos, online para jugadores de todo el
-  mundo. Salir de una partida online será abandonarla, con sus consecuencias.
+- Publicar la plataforma en un servidor (HTTPS, límites de cuentas) para
+  jugar con gente de todo el mundo sin túnel.
 - Los minijuegos y las recompensas diarias quedan descartados (2026-10-17).
