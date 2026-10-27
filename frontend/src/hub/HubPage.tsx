@@ -4,11 +4,13 @@ import { DAILY_CHIPS } from "../shared/account";
 import { useAccount } from "../shared/AccountContext";
 import { Emblem } from "../shared/components/Emblem";
 import { describeArrival, formatChips } from "../shared/format";
+import { usePlatformSettings } from "../shared/SettingsContext";
 import { useNow, useWhenDue } from "../shared/useClock";
 import { useDocumentTitle } from "../shared/useDocumentTitle";
 import { fetchMySala, type SalaSummary } from "../salas/salas";
 import { GameCard } from "./GameCard";
 import { RoomsCard } from "./RoomsCard";
+import { ViewChooser } from "./ViewChooser";
 import {
   cardState,
   fetchGames,
@@ -21,6 +23,7 @@ import {
 /** Menú principal: una tarjeta por juego del registro del servidor. */
 export function HubPage() {
   const { user, identity, refresh } = useAccount();
+  const { settings, update } = usePlatformSettings();
   const now = useNow();
   const nextChipsAt = user?.next_chips_at ?? null;
   const [games, setGames] = useState<GameEntry[] | null>(null);
@@ -77,6 +80,9 @@ export function HubPage() {
           </div>
         </div>
       </section>
+
+      {/* La primera vez se elige cómo se ven las mesas: 2D o 3D. */}
+      {settings.view === null && <ViewChooser onChoose={(view) => update({ view })} />}
 
       {problem && (
         <p role="alert" className="flex flex-wrap items-center gap-3 rounded-lg bg-rose-800 px-3 py-2 text-sm">

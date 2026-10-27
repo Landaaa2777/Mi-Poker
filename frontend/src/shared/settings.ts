@@ -1,9 +1,14 @@
 // Preferencias del jugador, guardadas en el navegador. Como `guest.ts`, está
 // aislado: el resto de la aplicación no sabe dónde ni cómo se guardan.
 
+/** Cómo se ven las mesas: planas, como siempre, o en perspectiva. */
+export type TableView = "2d" | "3d";
+
 export interface Settings {
   /** Animaciones de la mesa. `null` = lo que pida el sistema (prefers-reduced-motion). */
   animations: boolean | null;
+  /** Vista de las mesas. `null` = todavía no se ha elegido (se ven en 2D). */
+  view: TableView | null;
   /** Volumen de la música de fondo, de 0 a 1. */
   musicVolume: number;
   /** Volumen de los efectos de sonido, de 0 a 1. */
@@ -14,6 +19,7 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Settings = {
   animations: null,
+  view: null,
   musicVolume: 0.5, // al cuadrado queda en un cuarto: música baja por defecto
   effectsVolume: 0.7,
   muted: false,
@@ -37,9 +43,10 @@ export function parseSettings(text: string | null): Settings {
     return DEFAULT_SETTINGS;
   }
   if (typeof saved !== "object" || saved === null) return DEFAULT_SETTINGS;
-  const { animations, musicVolume, effectsVolume, muted } = saved as Record<string, unknown>;
+  const { animations, view, musicVolume, effectsVolume, muted } = saved as Record<string, unknown>;
   return {
     animations: typeof animations === "boolean" ? animations : null,
+    view: view === "2d" || view === "3d" ? view : null,
     musicVolume: volume(musicVolume, DEFAULT_SETTINGS.musicVolume),
     effectsVolume: volume(effectsVolume, DEFAULT_SETTINGS.effectsVolume),
     muted: typeof muted === "boolean" ? muted : DEFAULT_SETTINGS.muted,

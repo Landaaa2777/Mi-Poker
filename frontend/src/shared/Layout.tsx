@@ -5,6 +5,7 @@ import { AccountProvider, useAccount } from "./AccountContext";
 import { AccountMenu } from "./components/AccountMenu";
 import { Wordmark } from "./components/Emblem";
 import { SettingsMenu } from "./components/SettingsMenu";
+import { ViewSwitch } from "./components/ViewSwitch";
 import { WelcomePage } from "./components/WelcomePage";
 import { SettingsProvider, usePlatformSettings } from "./SettingsContext";
 
@@ -43,8 +44,10 @@ function MenuIcon() {
 
 function Shell() {
   const account = useAccount();
-  const { settings, update, animations, reducedMotion } = usePlatformSettings();
-  const inGame = useLocation().pathname !== "/";
+  const { settings, update, animations, reducedMotion, view } = usePlatformSettings();
+  const path = useLocation().pathname;
+  const inGame = path !== "/";
+  const atTable = inGame && path !== "/salas"; // en una mesa (o en una sala, que acaba en mesa)
   const [info, setInfo] = useState<HTMLElement | null>(null);
   const [actions, setActions] = useState<HTMLElement | null>(null);
 
@@ -65,6 +68,9 @@ function Shell() {
           {/* En pantallas estrechas los botones bajan a otra fila en vez de salirse. */}
           <div className="flex flex-wrap items-center gap-2">
             <div ref={setActions} className="contents" />
+            {atTable && account.user && (
+              <ViewSwitch view={view} onChange={(next) => update({ view: next })} />
+            )}
             {inGame && (
               <Link
                 to="/"
@@ -87,6 +93,7 @@ function Shell() {
               settings={settings}
               animations={animations}
               reducedMotion={reducedMotion}
+              view={view}
               onChange={update}
             />
           </div>

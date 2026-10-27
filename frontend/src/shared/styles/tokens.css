@@ -63,6 +63,12 @@
   --color-card-white: #fdfbf5;
   --color-chip: #e11d2f; /* ficha que cruza la mesa */
   --color-chip-edge: #fff1f2;
+  --color-card-edge: #c9bfac; /* canto de la cartulina, que se ve en 3D */
+
+  /* --- Mesa en 3D: el canto de madera bajo el tapete --- */
+  --color-table-edge-light: #6a3519;
+  --color-table-edge: #3b1a0b;
+  --color-table-edge-dark: #170904;
 
   /* --- Prisma: los cuatro palos (cada uno con su forma; ver games/prisma) --- */
   --color-panal: #e07a3c; /* naranja cobre, hexágono */

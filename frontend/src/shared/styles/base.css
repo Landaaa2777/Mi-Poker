@@ -469,3 +469,158 @@ input[type="range"] {
     opacity: 0;
   }
 }
+
+/* --- Mesa en 3D (etapa 6) ---
+   El tapete se inclina en perspectiva (ver shared/stage). Todo lo que va
+   tumbado en él conserva la profundidad (preserve-3d) para que las cartas
+   puedan levantarse, girar y dejar su sombra. Nada de esto afecta a la
+   vista 2D: todas las reglas van dentro de [data-view="3d"]. */
+
+.stage-plane,
+.stage-top,
+[data-view="3d"] .keep-3d,
+[data-view="3d"] .card-slot,
+[data-view="3d"] .card-layer {
+  transform-style: preserve-3d;
+}
+/* El tapete gira sobre su borde cercano, el de abajo: ahí queda a tamaño real. */
+.stage-plane {
+  transform-origin: 50% 100%;
+}
+/* Lo que hay sobre el tapete va un pelo por encima de él, para no confundirse con el paño. */
+.stage-top {
+  transform: translateZ(0.5px);
+}
+/* El canto de la mesa: dos capas de madera bajo el tapete que asoman por delante. */
+.stage-edge {
+  position: absolute;
+  inset: -7px;
+}
+.stage-edge-high {
+  transform: translateZ(-12px);
+  background: linear-gradient(180deg, var(--color-table-edge-light), var(--color-table-edge));
+}
+.stage-edge-low {
+  transform: translateZ(-26px);
+  background: var(--color-table-edge-dark);
+  box-shadow: 0 36px 70px rgb(0 0 0 / 0.7);
+}
+/* La capa de encima no tapa los clics de la mesa; solo lo que lo pida. */
+.stage-hud {
+  pointer-events: none;
+}
+.stage-hud .hud-hit {
+  pointer-events: auto;
+}
+
+/* Cartas en 3D: sombra, canto, brillo y textura de cartulina. En 2D no se dibujan. */
+.card-shadow,
+.card-gloss,
+.card-edge {
+  display: none;
+}
+[data-view="3d"] .card-shadow {
+  display: block;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.card-shadow-blob {
+  position: absolute;
+  inset: 3% 4%;
+  border-radius: calc(var(--card-w, 2.75rem) * 0.08);
+  background: rgb(0 0 0 / 0.4);
+  box-shadow: 0 0 calc(var(--card-w, 2.75rem) * 0.1) calc(var(--card-w, 2.75rem) * 0.04) rgb(0 0 0 / 0.34);
+  transform: translate(1.5px, 2.5px);
+}
+/* Apoyada, la carta queda un pelo por encima de su sombra. Las mías se levantan hacia mí. */
+[data-view="3d"] .card-pose {
+  transform: translateZ(1px);
+  transform-origin: 50% 100%;
+}
+[data-view="3d"] .card-slot.held .card-pose {
+  transform: translateZ(1px) rotateX(-24deg);
+}
+[data-view="3d"] .card-face {
+  transform: translateZ(0.8px);
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 0.55),
+    0 0 0 1px rgb(0 0 0 / 0.22);
+}
+[data-view="3d"] .card-side.card-back,
+[data-view="3d"] .card-side.prisma-back {
+  transform: rotateY(180deg) translateZ(0.8px);
+}
+[data-view="3d"] .card-edge {
+  display: block;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--color-card-edge);
+}
+/* Textura muy fina de cartulina, y un brillo que cambia con la inclinación. */
+[data-view="3d"] .card-face::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(0deg, rgb(60 40 20 / 0.035) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgb(60 40 20 / 0.03) 0 1px, transparent 1px 3px);
+}
+[data-view="3d"] .card-gloss {
+  display: block;
+  position: absolute;
+  inset: -50%;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    transparent 36%,
+    rgb(255 255 255 / 0.3) 46%,
+    rgb(255 255 255 / 0.1) 52%,
+    transparent 62%
+  );
+  transform: translate(calc(var(--tilt-x, -0.2) * -36%), calc(var(--tilt-y, -0.25) * -36%));
+}
+[data-motion="on"] [data-view="3d"] .card-gloss {
+  transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+/* Inclinación con el ratón: en 3D la carta además se levanta del tapete. Sin la
+   perspectiva propia de la vista 2D: aquí ya la pone la mesa. */
+[data-view="3d"] .card-tilt {
+  transform: rotate(var(--fan, 0deg))
+    translateZ(calc((var(--zoom, 1) - 1) * 160px + var(--raise, 0px)))
+    rotateX(calc(var(--tilt-y, 0) * -24deg)) rotateY(calc(var(--tilt-x, 0) * 26deg));
+}
+[data-view="3d"] .card-slot.selected {
+  --raise: 22px;
+}
+/* En reposo, en 3D, las cartas respiran despegándose apenas del tapete. */
+[data-motion="on"] [data-view="3d"] .card-float {
+  animation-name: card-float-3d;
+}
+@keyframes card-float-3d {
+  0%,
+  100% {
+    transform: translateZ(calc(var(--float, 1) * 4px));
+  }
+  50% {
+    transform: translateZ(calc(var(--float, 1) * 16px)) rotateX(calc(var(--float, 1) * 4deg));
+  }
+}
+/* Los mazos: cartas apiladas de verdad, una encima de otra, con su sombra. */
+[data-view="3d"] .deck-stack > .card {
+  left: 0;
+  top: 0;
+}
+[data-view="3d"] .deck-stack > .card:nth-child(1) {
+  transform: translateZ(1px);
+  box-shadow: 2px 3px 6px rgb(0 0 0 / 0.5);
+}
+[data-view="3d"] .deck-stack > .card:nth-child(2) {
+  transform: translateZ(3px);
+}
+[data-view="3d"] .deck-stack > .card:nth-child(3) {
+  transform: translateZ(5px);
+}

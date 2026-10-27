@@ -14,6 +14,7 @@ describe("parseSettings", () => {
   it("usa los valores por defecto si no hay nada guardado", () => {
     expect(parseSettings(null)).toEqual(DEFAULT_SETTINGS);
     expect(DEFAULT_SETTINGS.animations).toBeNull();
+    expect(DEFAULT_SETTINGS.view).toBeNull();
     expect(DEFAULT_SETTINGS.muted).toBe(false);
   });
 
@@ -23,10 +24,17 @@ describe("parseSettings", () => {
   });
 
   it("lee lo guardado", () => {
-    const saved = { animations: false, musicVolume: 0.1, effectsVolume: 1, muted: true };
+    const saved = { animations: false, view: "3d", musicVolume: 0.1, effectsVolume: 1, muted: true };
     expect(parseSettings(JSON.stringify(saved))).toEqual(saved);
     expect(parseSettings('{"animations":true}').animations).toBe(true);
     expect(parseSettings('{"musicVolume":0}').musicVolume).toBe(0);
+    expect(parseSettings('{"view":"2d"}').view).toBe("2d");
+  });
+
+  it("solo acepta las vistas 2d y 3d; lo demás cuenta como no elegido", () => {
+    for (const view of ['"4d"', '"3D"', "true", "1", "null"]) {
+      expect(parseSettings(`{"view":${view}}`).view).toBeNull();
+    }
   });
 
   it("completa con los valores por defecto lo que falte", () => {

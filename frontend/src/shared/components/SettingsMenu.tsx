@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { audio } from "../audio/engine";
-import type { Settings } from "../settings";
+import type { Settings, TableView } from "../settings";
+import { ViewSwitch } from "./ViewSwitch";
 
 interface Props {
   settings: Settings;
   animations: boolean; // valor efectivo: lo elegido o, si no se eligió, lo que pide el sistema
   reducedMotion: boolean; // el sistema pide reducir el movimiento
+  view: TableView; // vista de las mesas en uso
   onChange: (changes: Partial<Settings>) => void;
 }
 
@@ -51,7 +53,7 @@ function VolumeSlider({ label, value, onChange, onRelease }: SliderProps) {
 }
 
 /** Controles de audio y de animaciones: un botón para silenciar y un panel pequeño. */
-export function SettingsMenu({ settings, animations, reducedMotion, onChange }: Props) {
+export function SettingsMenu({ settings, animations, reducedMotion, view, onChange }: Props) {
   const [open, setOpen] = useState(false);
   const container = useRef<HTMLDivElement>(null);
 
@@ -119,6 +121,19 @@ export function SettingsMenu({ settings, animations, reducedMotion, onChange }: 
           >
             {settings.muted ? "Silenciado: pulsa para activar" : "Silenciar todo"}
           </button>
+
+          <div className="border-t border-amber-400/25 pt-3">
+            <h2 className="gold-text text-xs font-extrabold uppercase tracking-[0.16em]">Mesa</h2>
+            <div className="mt-2 flex items-center justify-between gap-3 text-sm">
+              <span>Vista</span>
+              <ViewSwitch view={view} onChange={(next) => onChange({ view: next })} />
+            </div>
+            <p className="mt-1 text-xs text-stone-400">
+              {view === "3d"
+                ? "Mesa en perspectiva: cartas y fichas con relieve y física."
+                : "Mesa plana, vista desde arriba, como siempre."}
+            </p>
+          </div>
 
           <div className="border-t border-amber-400/25 pt-3">
             <label className="flex cursor-pointer items-center justify-between gap-3 text-sm">
