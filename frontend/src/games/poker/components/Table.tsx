@@ -1,9 +1,12 @@
-import type { CSSProperties } from "react";
+import { Fragment, type CSSProperties } from "react";
 import type { Frame, SeatFrame } from "../timeline/frame";
 import { Avatar } from "../../../shared/components/Avatar";
 import { ChipStack } from "../../../shared/components/Chips";
 import { Emblem } from "../../../shared/components/Emblem";
 import { PlayingCard } from "../../../shared/cards/PlayingCard";
+import { usePlatformSettings } from "../../../shared/SettingsContext";
+import type { Camera } from "../../../shared/stage/camera";
+import { Stage, stageHeight, usePlacement, type Placement } from "../../../shared/stage/Stage";
 import { useFit } from "../../../shared/useFit";
 
 // La mesa se dibuja sobre un lienzo de tamaño fijo y se escala entera para
@@ -62,6 +65,15 @@ const REST_FLOAT = 0.15; // flotación de las cartas en reposo: apenas un respir
 // la ventana; y nunca más pequeño que el 72 %, para que el texto se pueda leer.
 const FIT = { portraitBelow: 620, maxHeightShare: 0.68, minScale: 0.72 };
 
+// Cámara de la vista 3D: el tapete se inclina hacia atrás y lo lejano se ve
+// más pequeño. En vertical (móvil) se inclina menos, para que todo se lea.
+const CAMERA: Camera = { tilt: 42, distance: 1500, eye: 0.55, top: 18, bottom: 40 };
+const CAMERA_PORTRAIT: Camera = { tilt: 34, distance: 1500, eye: 0.55, top: 16, bottom: 34 };
+const cameraFor = (layout: { width: number }) => (layout.width === PORTRAIT.width ? CAMERA_PORTRAIT : CAMERA);
+const FIT_3D = { ...FIT, heightOf: stageHeight(cameraFor) };
+const GAP_3D = 6; // en 3D, algo más de aire entre las cartas y la placa, que va por encima
+const BOARD_3D = 1.12; // en 3D las comunitarias, al fondo y tumbadas, se dibujan algo más grandes
+
 /** Sitio de cada jugador: `index` 0 abajo y los demás en el sentido de las agujas del reloj. */
 function seatPoint(layout: Layout, index: number, count: number, human: boolean): Point {
   const angle = ((90 + (360 * index) / count) * Math.PI) / 180; // 90° = abajo en pantalla
@@ -88,11 +100,12 @@ function betPoint(layout: Layout, seat: Point, size: SeatSize, human: boolean): 
   return { x: seat.x + (dx / length) * reachX, y: seat.y + (dy / length) * reachY };
 }
 
-const at = (point: Point): CSSProperties => ({ left: point.x, top: point.y });
 const cardWidth = (width: number) => ({ "--card-w": `${width}px` }) as CSSProperties;
 
 const CENTERED = "absolute -translate-x-1/2 -translate-y-1/2";
+const BOTTOM_CENTERED = "absolute -translate-x-1/2 -translate-y-full"; // colgado de su borde de abajo
 const CARD_GAP = 4; // entre las dos cartas de un jugador
+const DECK_CARD = 26; // ancho de las cartas del mazo
 
 /** Dónde empiezan las cartas, desde el lado del avatar, para quedar centradas sobre el nombre. */
 function cardsOffset(size: SeatSize): number {
@@ -114,9 +127,46 @@ interface SeatProps {
   scale: number; // escala a la que se dibuja la mesa
   avatarSide: "left" | "right"; // el avatar va en el extremo que mira al centro de la mesa
   thinking: boolean; // el servidor está esperando a que este bot juegue
+  withCards: boolean; // en 2D las cartas y el mazo van con la placa; en 3D, tumbados en el tapete
 }
 
-function SeatPlaque({ seat, frame, size, scale, avatarSide, thinking }: SeatProps) {
+/** Las dos cartas de un jugador. */
+function SeatCards({ seat, size, scale }: { seat: SeatFrame; size: SeatSize; scale: number }) {
+  return (
+    <>
+      {seat.cards.map((card, index) => (
+        <PlayingCard
+          key={index}
+          card={card}
+          enter="deal"
+          // Mis cartas están vivas: se inclinan con el ratón y se levantan al pulsarlas.
+          interactive={seat.isHuman ? "select" : undefined}
+          float={seat.isHuman ? REST_FLOAT : 0}
+          fan={seat.isHuman ? (index === 0 ? -4 : 4) : 0}
+          detail={size.card * scale >= FULL_ART_FROM ? "full" : "compact"}
+          held={seat.isHuman}
+        />
+      ))}
+    </>
+  );
+}
+
+/** El mazo, junto a quien reparte. De aquí salen las cartas. */
+function Deck() {
+  return (
+    <span
+      className="card-float deck-stack keep-3d relative block"
+      style={{ "--float": REST_FLOAT } as CSSProperties}
+      title="Mazo"
+    >
+      <span className="card card-back absolute -left-1 -top-1 inline-block" />
+      <span className="card card-back absolute -left-0.5 -top-0.5 inline-block" />
+      <span data-zone="deck" className="card card-back relative block" />
+    </span>
+  );
+}
+
+function SeatPlaque({ seat, frame, size, scale, avatarSide, thinking, withCards }: SeatProps) {
   const acting = frame.actingSeat === seat.seat;
   const dealer = frame.buttonSeat === seat.seat;
   const faded = seat.status === "folded" || seat.status === "out";
@@ -144,46 +194,28 @@ function SeatPlaque({ seat, frame, size, scale, avatarSide, thinking }: SeatProp
   return (
     <div className="relative" style={{ width: size.width }}>
       {/* Sus cartas van encima de la placa, enteras, sobre el nombre. */}
-      <div
-        data-zone="hand"
-        className="absolute flex"
-        style={{
-          bottom: size.height + size.gap,
-          [avatarSide]: cardsOffset(size),
-          gap: CARD_GAP,
-          ...cardWidth(size.card),
-        }}
-      >
-        {seat.cards.map((card, index) => (
-          <PlayingCard
-            key={index}
-            card={card}
-            enter="deal"
-            // Mis cartas están vivas: se inclinan con el ratón y se levantan al pulsarlas.
-            interactive={seat.isHuman ? "select" : undefined}
-            float={seat.isHuman ? REST_FLOAT : 0}
-            fan={seat.isHuman ? (index === 0 ? -4 : 4) : 0}
-            detail={size.card * scale >= FULL_ART_FROM ? "full" : "compact"}
-          />
-        ))}
-      </div>
+      {withCards && (
+        <div
+          data-zone="hand"
+          className="absolute flex"
+          style={{
+            bottom: size.height + size.gap,
+            [avatarSide]: cardsOffset(size),
+            gap: CARD_GAP,
+            ...cardWidth(size.card),
+          }}
+        >
+          <SeatCards seat={seat} size={size} scale={scale} />
+        </div>
+      )}
 
       {/* El mazo está junto a quien tiene el botón, encima de su avatar. */}
-      {dealer && (
+      {withCards && dealer && (
         <span
           className="absolute"
-          style={{ bottom: size.height + size.gap, [avatarSide]: 8, ...cardWidth(26) }}
-          title="Mazo"
+          style={{ bottom: size.height + size.gap, [avatarSide]: 8, ...cardWidth(DECK_CARD) }}
         >
-          <span
-            className="card-float relative block"
-            style={{ "--float": REST_FLOAT } as CSSProperties}
-          >
-            <span className="card card-back absolute -left-1 -top-1 inline-block" />
-            <span className="card card-back absolute -left-0.5 -top-0.5 inline-block" />
-            {/* De aquí salen las cartas al repartir. */}
-            <span data-zone="deck" className="card card-back relative block" />
-          </span>
+          <Deck />
         </span>
       )}
 
@@ -264,128 +296,193 @@ interface Props {
   settled: boolean; // lo dibujado ya es el estado del servidor (no quedan pasos)
 }
 
+/** Dónde van, en el lienzo 2D, las cartas y el mazo de un jugador: encima de su placa. */
+function seatTop(point: Point, size: SeatSize, avatarSide: "left" | "right", gap: number) {
+  const bottom = point.y - size.height / 2 - size.gap - gap; // borde de abajo de sus cartas
+  const cards = 2 * size.card + CARD_GAP;
+  const toward = avatarSide === "left" ? 1 : -1; // desde el lado del avatar hacia el otro
+  const edge = point.x - (toward * size.width) / 2; // el extremo del avatar
+  return {
+    cards: { x: edge + toward * (cardsOffset(size) + cards / 2), y: bottom },
+    deck: { x: edge + toward * (8 + DECK_CARD / 2), y: bottom },
+  };
+}
+
+interface Props {
+  frame: Frame;
+  settled: boolean; // lo dibujado ya es el estado del servidor (no quedan pasos)
+}
+
 /** La mesa: tapete, cartas comunitarias, bote y los jugadores alrededor. */
 export function Table({ frame, settled }: Props) {
-  const { ref, layout, scale } = useFit(LANDSCAPE, PORTRAIT, FIT);
+  const { view } = usePlatformSettings();
+  const { ref, layout, scale, height } = useFit(LANDSCAPE, PORTRAIT, view === "3d" ? FIT_3D : FIT);
+  const place = usePlacement(view, layout, cameraFor(layout));
+  const flat = place.view === "2d";
   const count = frame.seats.length;
   const emptySlots = Array.from({ length: 5 - frame.board.length });
   const boardHeight = layout.boardCard * 1.4;
   // Yo siempre abajo; los demás, en el orden de la mesa a partir de mí. Contra
   // bots soy el asiento 0, pero en una sala puedo estar en cualquiera.
   const mine = Math.max(0, frame.seats.findIndex((seat) => seat.isHuman));
-  const seats = frame.seats.map((seat, index) => ({
-    seat,
-    point: seatPoint(layout, (index - mine + count) % count, count, seat.isHuman),
-  }));
+  const seats = frame.seats.map((seat, index) => {
+    const point = seatPoint(layout, (index - mine + count) % count, count, seat.isHuman);
+    return {
+      seat,
+      point,
+      size: seat.isHuman ? layout.human : layout.bot,
+      avatarSide: (point.x < layout.center.x - 1 ? "right" : "left") as "left" | "right",
+    };
+  });
   const spotlight = seats.find(({ seat }) => seat.won > 0 || seat.seat === frame.actingSeat);
+  // El contorno de la mesa, dibujado en el tapete.
+  const outline = {
+    from: place.onTable({ x: layout.center.x - layout.radius.x * 0.82, y: layout.center.y - layout.radius.y }),
+    to: place.onTable({ x: layout.center.x + layout.radius.x * 0.82, y: layout.center.y + layout.radius.y }),
+  };
 
-  return (
-    <section
-      ref={ref}
-      className="felt relative w-full rim overflow-hidden rounded-[1.75rem]"
-      style={{ height: layout.height * scale }}
-      aria-label="Mesa de poker"
-    >
-      {/* Sombra hacia los bordes, para dar profundidad al tapete. */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_55%,rgb(0_0_0/0.38))]" />
+  const potLabel = potLabelAt(place.overTable);
+  const players = seatViews(place.overTable);
+
+  const table = (
+    <>
+      {/* Línea que dibuja el contorno de la mesa. */}
+      <div
+        className="absolute rounded-[999px] border-2 border-amber-200/20"
+        style={{
+          left: outline.from.left,
+          top: outline.from.top,
+          width: Number(outline.to.left) - Number(outline.from.left),
+          height: Number(outline.to.top) - Number(outline.from.top),
+        }}
+      />
+
+      {/* Luz sobre quien tiene el turno o acaba de ganar. */}
+      {spotlight && (
+        <div
+          // Con otra clave por jugador, la luz se apaga en uno y se enciende en el siguiente.
+          key={`${spotlight.seat.seat}-${spotlight.seat.won > 0}`}
+          className={`${CENTERED} h-[420px] w-[420px] rounded-full ${spotlight.seat.won > 0 ? "glow-in bg-[radial-gradient(closest-side,rgb(110_231_183/0.28),transparent)]" : "glow-turn bg-[radial-gradient(closest-side,rgb(254_249_195/0.2),transparent)]"}`}
+          style={place.onTable(spotlight.point)}
+        />
+      )}
+
+      {/* Marca del juego, estampada en el tapete. */}
+      <div
+        className={`${CENTERED} flex select-none flex-col items-center text-black/[0.13]`}
+        style={place.onTable({ x: layout.center.x, y: layout.center.y - 4 })}
+      >
+        <Emblem className="h-28 w-28" />
+        <span className="mt-1 text-3xl font-black tracking-[0.14em]">MI-POKER</span>
+      </div>
+
+      {flat && potLabel}
 
       <div
-        className="absolute left-1/2 top-0 origin-top"
-        style={{
-          width: layout.width,
-          height: layout.height,
-          transform: `translateX(-50%) scale(${scale})`,
-        }}
+        data-zone="board"
+        className={`${CENTERED} keep-3d flex gap-2`}
+        style={{ ...place.onTable(layout.center), ...cardWidth(layout.boardCard * (flat ? 1 : BOARD_3D)) }}
       >
-        {/* Línea que dibuja el contorno de la mesa. */}
-        <div
-          className="absolute rounded-[999px] border-2 border-amber-200/20"
-          style={{
-            left: layout.center.x - layout.radius.x * 0.82,
-            right: layout.width - layout.center.x - layout.radius.x * 0.82,
-            top: layout.center.y - layout.radius.y,
-            bottom: layout.height - layout.center.y - layout.radius.y,
-          }}
-        />
-
-        {/* Luz sobre quien tiene el turno o acaba de ganar. */}
-        {spotlight && (
-          <div
-            // Con otra clave por jugador, la luz se apaga en uno y se enciende en el siguiente.
-            key={`${spotlight.seat.seat}-${spotlight.seat.won > 0}`}
-            className={`${CENTERED} h-[420px] w-[420px] rounded-full ${spotlight.seat.won > 0 ? "glow-in bg-[radial-gradient(closest-side,rgb(110_231_183/0.28),transparent)]" : "glow-turn bg-[radial-gradient(closest-side,rgb(254_249_195/0.2),transparent)]"}`}
-            style={at(spotlight.point)}
+        {frame.board.map((card) => (
+          <PlayingCard
+            key={card}
+            card={card}
+            enter="board"
+            interactive="tilt"
+            float={REST_FLOAT}
+            detail={layout.boardCard * scale >= FULL_ART_FROM ? "full" : "compact"}
           />
-        )}
+        ))}
+        {emptySlots.map((_, index) => (
+          <span key={index} className="card invisible inline-block" />
+        ))}
+      </div>
 
-        {/* Marca del juego, estampada en el tapete. */}
-        <div
-          className={`${CENTERED} flex select-none flex-col items-center text-black/[0.13]`}
-          style={at({ x: layout.center.x, y: layout.center.y - 4 })}
-        >
-          <Emblem className="h-28 w-28" />
-          <span className="mt-1 text-3xl font-black tracking-[0.14em]">MI-POKER</span>
-        </div>
-
-        <div
-          className={`${CENTERED} flex flex-col items-center`}
-          style={at({ x: layout.center.x, y: layout.center.y - boardHeight / 2 - 34 })}
-        >
-          <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-amber-100/85">
-            Bote
-          </span>
-          <span
-            data-zone="pot"
-            className="rounded-full border border-amber-400/55 bg-black/60 px-4 py-0.5 text-lg font-black tabular-nums text-amber-200"
-          >
-            {frame.pot}
-          </span>
-        </div>
-
-        <div
-          data-zone="board"
-          className={`${CENTERED} flex gap-2`}
-          style={{ ...at(layout.center), ...cardWidth(layout.boardCard) }}
-        >
-          {frame.board.map((card) => (
-            <PlayingCard
-              key={card}
-              card={card}
-              enter="board"
-              interactive="tilt"
-              float={REST_FLOAT}
-              detail={layout.boardCard * scale >= FULL_ART_FROM ? "full" : "compact"}
-            />
-          ))}
-          {emptySlots.map((_, index) => (
-            <span key={index} className="card invisible inline-block" />
-          ))}
-        </div>
-
-        {seats.map(({ seat, point }) => {
-          const size = seat.isHuman ? layout.human : layout.bot;
+      {/* En 3D, las cartas y el mazo de cada jugador van tumbados en el tapete. */}
+      {!flat &&
+        seats.map(({ seat, point, size, avatarSide }) => {
+          const top = seatTop(point, size, avatarSide, GAP_3D);
           return (
-            <div key={seat.seat}>
-              <div className={CENTERED} style={at(betPoint(layout, point, size, seat.isHuman))}>
-                <SeatBets seat={seat} />
+            <Fragment key={seat.seat}>
+              <div
+                data-seat={seat.seat}
+                data-zone="hand"
+                className={`${BOTTOM_CENTERED} keep-3d flex`}
+                style={{ ...place.onTable(top.cards), gap: CARD_GAP, ...cardWidth(size.card) }}
+              >
+                <SeatCards seat={seat} size={size} scale={scale} />
               </div>
-              <div className={CENTERED} style={at(point)} data-seat={seat.seat}>
-                <SeatPlaque
-                  seat={seat}
-                  frame={frame}
-                  size={size}
-                  scale={scale}
-                  avatarSide={point.x < layout.center.x - 1 ? "right" : "left"}
-                  thinking={settled && frame.actingSeat === seat.seat && !seat.isHuman}
-                />
-              </div>
-            </div>
+              {frame.buttonSeat === seat.seat && (
+                <span className={BOTTOM_CENTERED} style={{ ...place.onTable(top.deck), ...cardWidth(DECK_CARD) }}>
+                  <Deck />
+                </span>
+              )}
+            </Fragment>
           );
         })}
 
-        {/* Capa de efectos: por aquí cruzan las fichas y las cartas que se retiran. */}
-        <div data-zone="fx" className="pointer-events-none absolute inset-0 z-40" />
+      {flat && players}
+    </>
+  );
+
+  // Lo que hay que leer: el bote, las apuestas y las placas de los jugadores.
+  function seatViews(placeOver: Placement["overTable"]) {
+    return seats.map(({ seat, point, size, avatarSide }) => (
+      <div key={seat.seat}>
+        <div className={CENTERED} style={placeOver(betPoint(layout, point, size, seat.isHuman), "full")}>
+          <SeatBets seat={seat} />
+        </div>
+        <div className={CENTERED} style={placeOver(point)} data-seat={seat.seat}>
+          <SeatPlaque
+            seat={seat}
+            frame={frame}
+            size={size}
+            scale={scale}
+            avatarSide={avatarSide}
+            thinking={settled && frame.actingSeat === seat.seat && !seat.isHuman}
+            withCards={flat}
+          />
+        </div>
       </div>
-    </section>
+    ));
+  }
+
+  function potLabelAt(placeOver: Placement["overTable"]) {
+    return (
+      <div
+        className={`${CENTERED} flex flex-col items-center`}
+        style={placeOver({ x: layout.center.x, y: layout.center.y - boardHeight / 2 - 34 })}
+      >
+        <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-amber-100/85">Bote</span>
+        <span
+          data-zone="pot"
+          className="rounded-full border border-amber-400/55 bg-black/60 px-4 py-0.5 text-lg font-black tabular-nums text-amber-200"
+        >
+          {frame.pot}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <Stage
+      sectionRef={ref}
+      placement={place}
+      layout={layout}
+      scale={scale}
+      height={height}
+      label="Mesa de poker"
+      shape="rounded-[1.75rem]"
+      shade="bg-[radial-gradient(ellipse_at_center,transparent_55%,rgb(0_0_0/0.38))]"
+      table={table}
+      hud={
+        flat ? null : (
+          <>
+            {potLabel}
+            {players}
+          </>
+        )
+      }
+    />
   );
 }

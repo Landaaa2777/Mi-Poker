@@ -1,5 +1,8 @@
 import type { CSSProperties } from "react";
 import { Avatar } from "../../../shared/components/Avatar";
+import { usePlatformSettings } from "../../../shared/SettingsContext";
+import type { Camera } from "../../../shared/stage/camera";
+import { Stage, stageHeight, usePlacement } from "../../../shared/stage/Stage";
 import { useFit } from "../../../shared/useFit";
 import { DECK_ZONE, HAND_ZONE, PrismaCard, seatZone } from "../PrismaCard";
 import { SUITS, SuitSymbol } from "../shapes";
@@ -53,32 +56,46 @@ const PORTRAIT: Layout = {
 };
 
 const CENTERED = "absolute -translate-x-1/2 -translate-y-1/2";
-const at = (point: Point): CSSProperties => ({ left: point.x, top: point.y });
+const BOTTOM_CENTERED = "absolute -translate-x-1/2 -translate-y-full"; // colgado de su borde de abajo
+const TOP_CENTERED = "absolute -translate-x-1/2"; // colgado de su borde de arriba
 const cardWidth = (width: number) => ({ "--card-w": `${width}px` }) as CSSProperties;
 const MAX_BACKS = 7; // dorsos dibujados por rival; si tiene más, se ve el número
+const FIT = { maxHeightShare: 0.56 };
+
+// Cámara de la vista 3D: los rivales al fondo y el mazo y el descarte en medio.
+const CAMERA: Camera = { tilt: 40, distance: 1400, eye: 0.55, top: 16, bottom: 36 };
+const CAMERA_PORTRAIT: Camera = { tilt: 32, distance: 1500, eye: 0.55, top: 14, bottom: 30 };
+const cameraFor = (layout: { width: number }) => (layout.width === PORTRAIT.width ? CAMERA_PORTRAIT : CAMERA);
+const FIT_3D = { ...FIT, heightOf: stageHeight(cameraFor) };
 
 interface SeatProps {
   player: PlayerFrame;
   turn: boolean;
   thinking: boolean;
   compact: boolean;
+  withBacks?: boolean; // en 2D, los dorsos van con la placa; en 3D, tumbados en el tapete
+}
+
+/** Los dorsos de las cartas de un rival, solapados. */
+function Backs({ player, compact }: { player: PlayerFrame; compact: boolean }) {
+  const backs = Math.min(player.count, MAX_BACKS);
+  return (
+    <div className="keep-3d flex" style={{ ...cardWidth(compact ? 22 : 28), minHeight: (compact ? 22 : 28) * 1.4 }}>
+      {Array.from({ length: backs }, (_, index) => (
+        <span key={index} className="keep-3d" style={{ marginLeft: index === 0 ? 0 : (compact ? -15 : -19) }}>
+          <PrismaCard card={null} enter="deal" />
+        </span>
+      ))}
+    </div>
+  );
 }
 
 /** Un rival (o yo): placa con avatar, nombre y cuántas cartas tiene, y sus avisos. */
-function Seat({ player, turn, thinking, compact }: SeatProps) {
+function Seat({ player, turn, thinking, compact, withBacks = true }: SeatProps) {
   const ring = player.vulnerable ? "ring-rose-400" : turn ? "ring-amber-300" : "ring-white/25";
-  const backs = Math.min(player.count, MAX_BACKS);
   return (
     <div className="flex flex-col items-center gap-1.5" data-prisma-seat={player.seat}>
-      {!player.isHuman && (
-        <div className="flex" style={{ ...cardWidth(compact ? 22 : 28), minHeight: (compact ? 22 : 28) * 1.4 }}>
-          {Array.from({ length: backs }, (_, index) => (
-            <span key={index} style={{ marginLeft: index === 0 ? 0 : (compact ? -15 : -19) }}>
-              <PrismaCard card={null} enter="deal" />
-            </span>
-          ))}
-        </div>
-      )}
+      {!player.isHuman && withBacks && <Backs player={player} compact={compact} />}
       <div
         className={`relative flex items-center gap-2 rounded-full bg-[#0c0709]/90 p-1 pr-3 shadow-lg shadow-black/50 ring-1 ring-amber-400/35 ${player.vulnerable ? "vulnerable-pulse" : ""}`}
       >
@@ -142,7 +159,10 @@ interface Props {
 
 /** La mesa de Prisma. */
 export function PrismaTable({ frame, me, pendingDraw, canDraw, onDraw, settled }: Props) {
-  const { ref, layout, scale } = useFit(LANDSCAPE, PORTRAIT, { maxHeightShare: 0.56 });
+  const { view } = usePlatformSettings();
+  const { ref, layout, scale, height } = useFit(LANDSCAPE, PORTRAIT, view === "3d" ? FIT_3D : FIT);
+  const place = usePlacement(view, layout, cameraFor(layout));
+  const flat = place.view === "2d";
   const compact = layout === PORTRAIT;
   const rivals = frame.players.filter((player) => player.seat !== me);
   // Los rivales, en el orden en que juegan empezando por el siguiente a mí.
@@ -153,91 +173,189 @@ export function PrismaTable({ frame, me, pendingDraw, canDraw, onDraw, settled }
   const suit = frame.color ? SUITS[frame.color] : null;
   const deck = { x: layout.center.x - layout.card * 0.95, y: layout.center.y };
   const discard = { x: layout.center.x + layout.card * 0.6, y: layout.center.y };
+  const backHeight = (compact ? 22 : 28) * 1.4;
 
-  return (
-    <section
-      ref={ref}
-      className="felt rim relative w-full overflow-hidden rounded-[1.75rem]"
-      style={{ height: layout.height * scale }}
-      aria-label="Mesa de Prisma"
+  const ring = (
+    <div className={CENTERED} style={place.onTable(layout.center)}>
+      <DirectionRing direction={frame.direction} size={layout.card * 5.2} />
+    </div>
+  );
+
+  // El mazo: se pulsa para robar.
+  const deckButton = (
+    <button
+      type="button"
+      disabled={!canDraw}
+      onClick={onDraw}
+      className={`deck-stack keep-3d relative rounded-lg ${canDraw ? "deck-ready cursor-pointer" : "cursor-default"}`}
+      style={cardWidth(layout.card * 0.86)}
+      aria-label={canDraw ? `Robar una carta (quedan ${frame.drawCount})` : `Mazo: ${frame.drawCount} cartas`}
     >
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_50%,rgb(0_0_0/0.4))]" />
-      <div
-        className="absolute left-1/2 top-0 origin-top"
-        style={{ width: layout.width, height: layout.height, transform: `translateX(-50%) scale(${scale})` }}
-      >
-        <div className={CENTERED} style={at(layout.center)}>
-          <DirectionRing direction={frame.direction} size={layout.card * 5.2} />
-        </div>
+      <span className="card absolute -left-1.5 -top-1.5 block"><PrismaCard card={null} /></span>
+      <span className="card absolute -left-0.5 -top-0.5 block"><PrismaCard card={null} /></span>
+      <span data-zone="prisma-deck" className="card keep-3d relative block"><PrismaCard card={null} /></span>
+    </button>
+  );
+  const deckLabel = (
+    <span className="text-[11px] font-semibold tabular-nums text-amber-100/75">
+      {canDraw ? "Pulsa para robar" : `Mazo · ${frame.drawCount}`}
+    </span>
+  );
 
-        {/* El mazo: se pulsa para robar. */}
-        <div className={`${CENTERED} flex flex-col items-center gap-1`} style={at(deck)}>
-          <button
-            type="button"
-            disabled={!canDraw}
-            onClick={onDraw}
-            className={`relative rounded-lg ${canDraw ? "deck-ready cursor-pointer" : "cursor-default"}`}
-            style={cardWidth(layout.card * 0.86)}
-            aria-label={canDraw ? `Robar una carta (quedan ${frame.drawCount})` : `Mazo: ${frame.drawCount} cartas`}
-          >
-            <span className="absolute -left-1.5 -top-1.5 block"><PrismaCard card={null} /></span>
-            <span className="absolute -left-0.5 -top-0.5 block"><PrismaCard card={null} /></span>
-            <span data-zone="prisma-deck" className="relative block"><PrismaCard card={null} /></span>
-          </button>
-          <span className="text-[11px] font-semibold tabular-nums text-amber-100/75">
-            {canDraw ? "Pulsa para robar" : `Mazo · ${frame.drawCount}`}
-          </span>
-        </div>
-
-        {/* El descarte, con el color que hay que seguir alrededor. */}
-        <div className={`${CENTERED} flex flex-col items-center gap-1.5`} style={at(discard)}>
-          <div
-            className="relative rounded-2xl p-1.5"
-            style={{ boxShadow: suit ? `0 0 0 4px ${suit.color}, 0 0 28px 4px ${suit.color}` : undefined }}
-          >
-            <div style={cardWidth(layout.card)}>
-              {frame.top && <PrismaCard key={frame.top.id} card={frame.top} enter="play" from={origin} />}
-            </div>
-          </div>
-          {suit && (
-            <span key={frame.color} className="pop-in flex items-center gap-1.5 rounded-full bg-black/60 px-2.5 py-0.5 text-xs font-bold">
-              <SuitSymbol suit={frame.color!} className="h-3.5 w-3.5" />
-              <span style={{ color: suit.color }}>{suit.name}</span>
-            </span>
-          )}
-        </div>
-
-        {pendingDraw > 0 && (
-          <div className={`${CENTERED} pop-in rounded-full bg-rose-700 px-3 py-1 text-sm font-black text-white shadow`} style={at({ x: layout.center.x, y: layout.center.y + layout.card * 0.95 })}>
-            +{pendingDraw} acumuladas
-          </div>
-        )}
-
-        {frame.note && (
-          <div
-            key={frame.note}
-            className={`${CENTERED} pop-in rounded-full bg-black/65 px-4 py-1 text-sm font-semibold text-amber-100 shadow`}
-            style={at({ x: layout.center.x, y: layout.center.y - layout.card * 1.05 })}
-          >
-            {frame.note}
-          </div>
-        )}
-
-        {rivals.map((player, index) => (
-          <div key={player.seat} className={CENTERED} style={at(points[index])}>
-            {frame.turn === player.seat && (
-              <div className={`${CENTERED} glow-turn left-1/2 top-1/2 h-[220px] w-[220px] rounded-full bg-[radial-gradient(closest-side,rgb(254_249_195/0.2),transparent)]`} />
-            )}
-            <div className="relative">
-              <Seat player={player} turn={frame.turn === player.seat} thinking={settled && frame.turn === player.seat} compact={compact} />
-            </div>
-          </div>
-        ))}
-
-        <div className={CENTERED} style={at(layout.me)}>
-          <Seat player={mine} turn={frame.turn === me} thinking={false} compact={compact} />
-        </div>
+  // El descarte, con el color que hay que seguir alrededor.
+  const discardPile = (
+    <div
+      className="keep-3d relative rounded-2xl p-1.5"
+      style={{ boxShadow: suit ? `0 0 0 4px ${suit.color}, 0 0 28px 4px ${suit.color}` : undefined }}
+    >
+      <div className="keep-3d" style={cardWidth(layout.card)}>
+        {frame.top && <PrismaCard key={frame.top.id} card={frame.top} enter="play" from={origin} />}
       </div>
-    </section>
+    </div>
+  );
+  const colorLabel = suit && (
+    <span key={frame.color} className="pop-in flex items-center gap-1.5 rounded-full bg-black/60 px-2.5 py-0.5 text-xs font-bold">
+      <SuitSymbol suit={frame.color!} className="h-3.5 w-3.5" />
+      <span style={{ color: suit.color }}>{suit.name}</span>
+    </span>
+  );
+
+  const notices = (
+    <>
+      {pendingDraw > 0 && (
+        <div className={`${CENTERED} pop-in rounded-full bg-rose-700 px-3 py-1 text-sm font-black text-white shadow`} style={place.overTable({ x: layout.center.x, y: layout.center.y + layout.card * 0.95 })}>
+          +{pendingDraw} acumuladas
+        </div>
+      )}
+
+      {frame.note && (
+        <div
+          key={frame.note}
+          className={`${CENTERED} pop-in rounded-full bg-black/65 px-4 py-1 text-sm font-semibold text-amber-100 shadow`}
+          style={place.overTable({ x: layout.center.x, y: layout.center.y - layout.card * 1.05 })}
+        >
+          {frame.note}
+        </div>
+      )}
+    </>
+  );
+
+  const glows = rivals.map((player, index) =>
+    frame.turn === player.seat ? (
+      <div
+        key={player.seat}
+        className={`${CENTERED} glow-turn h-[220px] w-[220px] rounded-full bg-[radial-gradient(closest-side,rgb(254_249_195/0.2),transparent)]`}
+        style={place.onTable(points[index])}
+      />
+    ) : null,
+  );
+
+  if (flat) {
+    return (
+      <Stage
+        sectionRef={ref}
+        placement={place}
+        layout={layout}
+        scale={scale}
+        height={height}
+        label="Mesa de Prisma"
+        shape="rounded-[1.75rem]"
+        shade="bg-[radial-gradient(ellipse_at_center,transparent_50%,rgb(0_0_0/0.4))]"
+        table={
+          <>
+            {ring}
+            <div className={`${CENTERED} flex flex-col items-center gap-1`} style={place.onTable(deck)}>
+              {deckButton}
+              {deckLabel}
+            </div>
+            <div className={`${CENTERED} flex flex-col items-center gap-1.5`} style={place.onTable(discard)}>
+              {discardPile}
+              {colorLabel}
+            </div>
+            {notices}
+            {rivals.map((player, index) => (
+              <div key={player.seat} className={CENTERED} style={place.onTable(points[index])}>
+                {glows[index] && (
+                  <div className={`${CENTERED} glow-turn left-1/2 top-1/2 h-[220px] w-[220px] rounded-full bg-[radial-gradient(closest-side,rgb(254_249_195/0.2),transparent)]`} />
+                )}
+                <div className="relative">
+                  <Seat player={player} turn={frame.turn === player.seat} thinking={settled && frame.turn === player.seat} compact={compact} />
+                </div>
+              </div>
+            ))}
+            <div className={CENTERED} style={place.onTable(layout.me)}>
+              <Seat player={mine} turn={frame.turn === me} thinking={false} compact={compact} />
+            </div>
+          </>
+        }
+      />
+    );
+  }
+
+  // En 3D: mazo, descarte y dorsos tumbados en el tapete; placas y avisos, encima.
+  // Cada rival se dibujaba como una columna centrada: dorsos, placa y aviso.
+  const seatTop = (point: Point) => point.y - (backHeight + 6 + 48 + 6 + 16) / 2;
+  const cardHalf = place.lying(layout.card * 1.4) / 2;
+  return (
+    <Stage
+      sectionRef={ref}
+      placement={place}
+      layout={layout}
+      scale={scale}
+      height={height}
+      label="Mesa de Prisma"
+      shape="rounded-[1.75rem]"
+      shade="bg-[radial-gradient(ellipse_at_center,transparent_50%,rgb(0_0_0/0.4))]"
+      table={
+        <>
+          {ring}
+          {glows}
+          <div className={`${CENTERED} keep-3d`} style={place.onTable(deck)}>
+            {deckButton}
+          </div>
+          <div className={`${CENTERED} keep-3d`} style={place.onTable(discard)}>
+            {discardPile}
+          </div>
+          {rivals.map((player, index) => (
+            <div
+              key={player.seat}
+              className={`${BOTTOM_CENTERED} keep-3d`}
+              style={place.onTable({ x: points[index].x, y: seatTop(points[index]) + backHeight })}
+            >
+              <Backs player={player} compact={compact} />
+            </div>
+          ))}
+        </>
+      }
+      hud={
+        <>
+          <div className={CENTERED} style={place.overTable({ x: deck.x, y: deck.y + cardHalf * 0.86 + 16 })}>
+            {deckLabel}
+          </div>
+          <div className={CENTERED} style={place.overTable({ x: discard.x, y: discard.y + cardHalf + 22 })}>
+            {colorLabel}
+          </div>
+          {notices}
+          {rivals.map((player, index) => (
+            <div
+              key={player.seat}
+              className={TOP_CENTERED}
+              style={place.overTable({ x: points[index].x, y: seatTop(points[index]) + backHeight + 8 })}
+            >
+              <Seat
+                player={player}
+                turn={frame.turn === player.seat}
+                thinking={settled && frame.turn === player.seat}
+                compact={compact}
+                withBacks={false}
+              />
+            </div>
+          ))}
+          <div className={CENTERED} style={place.overTable(layout.me)}>
+            <Seat player={mine} turn={frame.turn === me} thinking={false} compact={compact} />
+          </div>
+        </>
+      }
+    />
   );
 }

@@ -1,7 +1,10 @@
-import type { CSSProperties } from "react";
+import { Fragment, type CSSProperties } from "react";
 import { PlayingCard } from "../../../shared/cards/PlayingCard";
 import { Avatar } from "../../../shared/components/Avatar";
 import { ChipStack } from "../../../shared/components/Chips";
+import { usePlatformSettings } from "../../../shared/SettingsContext";
+import type { Camera } from "../../../shared/stage/camera";
+import { Stage, stageHeight, usePlacement, type Placement } from "../../../shared/stage/Stage";
 import { useFit } from "../../../shared/useFit";
 import { DONE_LABEL, handProfit, resultLabel, totalLabel } from "../describe";
 import type { Frame, HandFrame, SeatFrame } from "../timeline";
@@ -89,10 +92,33 @@ const PORTRAIT: Layout = {
 };
 
 const CENTERED = "absolute -translate-x-1/2 -translate-y-1/2";
+const BOTTOM_CENTERED = "absolute -translate-x-1/2 -translate-y-full"; // colgado de su borde de abajo
 const FULL_ART_FROM = 44; // ancho en pantalla (px) desde el que una carta luce su dibujo completo
 const REST_FLOAT = 0.15;
-const at = (point: Point): CSSProperties => ({ left: point.x, top: point.y });
 const cardWidth = (width: number) => ({ "--card-w": `${width}px` }) as CSSProperties;
+const FIT = { maxHeightShare: 0.64 };
+
+// Cámara de la vista 3D: el crupier queda al fondo y los asientos, cerca.
+const CAMERA: Camera = { tilt: 40, distance: 1500, eye: 0.6, top: 18, bottom: 40 };
+const CAMERA_PORTRAIT: Camera = { tilt: 32, distance: 1600, eye: 0.6, top: 16, bottom: 34 };
+const cameraFor = (layout: { width: number }) => (layout.width === PORTRAIT.width ? CAMERA_PORTRAIT : CAMERA);
+const FIT_3D = { ...FIT, heightOf: stageHeight(cameraFor) };
+
+// En 3D, las manos de cada asiento se colocan a mano (cartas tumbadas en el
+// tapete y, encima, su total y su apuesta): estas son sus medidas.
+const OVERLAP = 0.45; // parte de la carta anterior que tapa cada carta
+const HAND_GAP = 8; // entre dos manos de un mismo asiento
+const BET_ROOM = 28; // hueco para la apuesta, entre las cartas y la placa
+
+/** Ancho de las cartas de un asiento: más pequeñas si ha dividido. */
+function handCard(seat: SeatFrame, size: SeatSize): number {
+  return seat.hands.length > 2 ? size.card * 0.72 : seat.hands.length === 2 ? size.card * 0.86 : size.card;
+}
+
+/** Ancho de una mano con `count` cartas que se solapan. */
+function handWidth(count: number, card: number): number {
+  return Math.max(1, count) * card - Math.max(0, count - 1) * card * OVERLAP + 4;
+}
 
 function Total({ hand }: { hand: HandFrame }) {
   if (hand.total === null) return null;
@@ -131,36 +157,50 @@ interface HandProps {
   active: boolean; // le toca decidir a esta mano
 }
 
+/** Las cartas de una mano, solapadas. */
+function HandCards({ hand, card, scale, mine, active, className = "", style }: HandProps & { className?: string; style?: CSSProperties }) {
+  return (
+    <div
+      className={`flex rounded-lg p-0.5 ${active ? "ring-2 ring-amber-300/80" : ""} ${className}`}
+      style={{ ...cardWidth(card), minHeight: card * 1.4, ...style }}
+    >
+      {hand.cards.map((text, index) => (
+        <span key={index} className="keep-3d" style={{ marginLeft: index === 0 ? 0 : -card * OVERLAP }}>
+          <PlayingCard
+            card={text}
+            enter="deal"
+            interactive={mine ? "tilt" : undefined}
+            float={mine ? REST_FLOAT : 0}
+            detail={card * scale >= FULL_ART_FROM ? "full" : "compact"}
+          />
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/** Lo que lleva apostado una mano. */
+function HandBet({ hand }: { hand: HandFrame }) {
+  if (hand.bet <= 0) return null;
+  return (
+    <span className="flex items-center gap-1">
+      <ChipStack className="h-5 w-5" />
+      <span className="rounded-full bg-black/60 px-2 py-0.5 text-xs font-bold tabular-nums">
+        {hand.bet}
+        {hand.doubled && <span className="ml-1 text-amber-300">×2</span>}
+      </span>
+    </span>
+  );
+}
+
 /** Una mano: su total (o su resultado), sus cartas abiertas y su apuesta. */
-function HandView({ hand, card, scale, mine, active }: HandProps) {
+function HandView(props: HandProps) {
+  const { hand } = props;
   return (
     <div className="flex flex-col items-center gap-1">
       <div className="flex h-6 items-end">{hand.result ? <Result hand={hand} /> : <Total hand={hand} />}</div>
-      <div
-        className={`flex rounded-lg p-0.5 ${active ? "ring-2 ring-amber-300/80" : ""}`}
-        style={{ ...cardWidth(card), minHeight: card * 1.4 }}
-      >
-        {hand.cards.map((text, index) => (
-          <span key={index} style={{ marginLeft: index === 0 ? 0 : -card * 0.45 }}>
-            <PlayingCard
-              card={text}
-              enter="deal"
-              interactive={mine ? "tilt" : undefined}
-              float={mine ? REST_FLOAT : 0}
-              detail={card * scale >= FULL_ART_FROM ? "full" : "compact"}
-            />
-          </span>
-        ))}
-      </div>
-      {hand.bet > 0 && (
-        <span className="flex items-center gap-1">
-          <ChipStack className="h-5 w-5" />
-          <span className="rounded-full bg-black/60 px-2 py-0.5 text-xs font-bold tabular-nums">
-            {hand.bet}
-            {hand.doubled && <span className="ml-1 text-amber-300">×2</span>}
-          </span>
-        </span>
-      )}
+      <HandCards {...props} />
+      <HandBet hand={hand} />
     </div>
   );
 }
@@ -171,14 +211,15 @@ interface SeatProps {
   scale: number;
   acting: Frame["acting"];
   thinking: boolean;
+  withHands: boolean; // en 2D las manos van con la placa; en 3D, tumbadas en el tapete
 }
 
-function SeatView({ seat, size, scale, acting, thinking }: SeatProps) {
+function SeatView({ seat, size, scale, acting, thinking, withHands }: SeatProps) {
   const myTurn = acting?.seat === seat.seat;
   const won = seat.hands.some((hand) => hand.result === "win" || hand.result === "blackjack");
   const ring = won ? "ring-emerald-400" : myTurn ? "ring-amber-300" : "ring-white/25";
   // Con varias manos (tras dividir), cartas un poco más pequeñas para que quepan.
-  const card = seat.hands.length > 2 ? size.card * 0.72 : seat.hands.length === 2 ? size.card * 0.86 : size.card;
+  const card = handCard(seat, size);
   const note = seat.gone
     ? "Se ha ido"
     : thinking
@@ -191,22 +232,24 @@ function SeatView({ seat, size, scale, acting, thinking }: SeatProps) {
 
   return (
     <div className="relative" style={{ width: size.width }}>
-      <div
-        data-zone="hand"
-        className="absolute left-1/2 flex -translate-x-1/2 items-end gap-2"
-        style={{ bottom: size.height + 6 }}
-      >
-        {seat.hands.map((hand, index) => (
-          <HandView
-            key={index}
-            hand={hand}
-            card={card}
-            scale={scale}
-            mine={seat.isHuman}
-            active={myTurn && acting?.hand === index && seat.hands.length > 1}
-          />
-        ))}
-      </div>
+      {withHands && (
+        <div
+          data-zone="hand"
+          className="absolute left-1/2 flex -translate-x-1/2 items-end gap-2"
+          style={{ bottom: size.height + 6 }}
+        >
+          {seat.hands.map((hand, index) => (
+            <HandView
+              key={index}
+              hand={hand}
+              card={card}
+              scale={scale}
+              mine={seat.isHuman}
+              active={myTurn && acting?.hand === index && seat.hands.length > 1}
+            />
+          ))}
+        </div>
+      )}
       <div
         className="relative flex items-center gap-2.5 rounded-full bg-[#0c0709]/90 p-1 shadow-lg shadow-black/50 ring-1 ring-amber-400/35"
         style={{ height: size.height }}
@@ -262,114 +305,259 @@ interface Props {
   settled: boolean; // lo dibujado ya es el estado del servidor
 }
 
+/** El zapato: de aquí salen todas las cartas. */
+function Shoe() {
+  return (
+    <span className="deck-stack keep-3d relative block">
+      <span className="card card-back absolute -left-1.5 -top-1.5 inline-block" />
+      <span className="card card-back absolute -left-0.5 -top-0.5 inline-block" />
+      <span data-zone="deck" className="card card-back relative block" />
+    </span>
+  );
+}
+
+function ShoeNotes({ shoe }: { shoe: Props["shoe"] }) {
+  return (
+    <>
+      <span className="whitespace-nowrap text-[11px] font-semibold text-amber-100/75 tabular-nums">
+        Zapato · {shoe.remaining}
+      </span>
+      {shoe.cutReached && (
+        <span className="whitespace-nowrap rounded-full bg-rose-900/80 px-2 text-[10px] font-bold text-rose-100">
+          Se baraja al acabar
+        </span>
+      )}
+    </>
+  );
+}
+
+function DealerTotal({ frame, hidden }: { frame: Frame; hidden: boolean }) {
+  if (frame.dealer.total === null) return null;
+  return (
+    <span
+      className={`rounded-full px-2.5 py-0.5 text-sm font-black tabular-nums shadow ${frame.dealer.total > 21 ? "bg-rose-800 text-rose-50" : "bg-black/70 text-amber-100"}`}
+    >
+      {frame.dealer.total > 21
+        ? `Se pasa (${frame.dealer.total})`
+        : hidden
+          ? `${frame.dealer.total} + ?`
+          : totalLabel(frame.dealer.total, frame.dealer.soft)}
+    </span>
+  );
+}
+
+interface Props {
+  frame: Frame;
+  rules: Rules;
+  shoe: { remaining: number; total: number; cutReached: boolean };
+  settled: boolean; // lo dibujado ya es el estado del servidor
+}
+
 /** La mesa de blackjack: crupier, zapato, reglas en el tapete y los asientos. */
 export function BlackjackTable({ frame, rules, shoe, settled }: Props) {
-  const { ref, layout, scale } = useFit(LANDSCAPE, PORTRAIT, { maxHeightShare: 0.64 });
+  const { view } = usePlatformSettings();
+  const { ref, layout, scale, height } = useFit(LANDSCAPE, PORTRAIT, view === "3d" ? FIT_3D : FIT);
+  const place = usePlacement(view, layout, cameraFor(layout));
+  const flat = place.view === "2d";
   const human = frame.seats.findIndex((seat) => seat.isHuman);
   const points = layout.seats(frame.seats.length, human);
   const dealerCount = Math.max(frame.dealer.cards.length, 2);
   const spot = frame.acting ? points[frame.acting.seat] : null;
   const hidden = frame.dealer.cards.includes(null);
+  const dealerCards = (
+    <div
+      className="keep-3d flex gap-1.5"
+      style={{ ...cardWidth(layout.dealerCard), minHeight: layout.dealerCard * 1.4 }}
+    >
+      {frame.dealer.cards.map((card, index) => (
+        <PlayingCard
+          key={index}
+          card={card}
+          enter="deal"
+          detail={layout.dealerCard * scale >= FULL_ART_FROM ? "full" : "compact"}
+        />
+      ))}
+      {Array.from({ length: dealerCount - frame.dealer.cards.length }, (_, index) => (
+        <span key={`empty-${index}`} className="card invisible inline-block" />
+      ))}
+    </div>
+  );
+  const shoeWidth = layout.dealerCard * 0.72;
+  const note = frame.note && (
+    <div
+      key={frame.note}
+      className={`${CENTERED} pop-in rounded-full bg-black/60 px-4 py-1 text-sm font-semibold text-amber-100 shadow`}
+      style={place.overTable({ x: layout.dealer.x, y: layout.dealer.y + layout.dealerCard * 0.7 + 52 })}
+    >
+      {frame.note}
+    </div>
+  );
+
+  function seatPlaques(placeOver: Placement["overTable"]) {
+    return frame.seats.map((seat, index) => (
+      <div key={seat.seat} className={CENTERED} style={placeOver(points[index])} data-seat={seat.seat}>
+        <SeatView
+          seat={seat}
+          size={seat.isHuman ? layout.human : layout.bot}
+          scale={scale}
+          acting={frame.acting}
+          thinking={settled && frame.acting?.seat === seat.seat && !seat.isHuman}
+          withHands={flat}
+        />
+      </div>
+    ));
+  }
+
+  if (flat) {
+    return (
+      <Stage
+        sectionRef={ref}
+        placement={place}
+        layout={layout}
+        scale={scale}
+        height={height}
+        label="Mesa de blackjack"
+        shape=""
+        shapeStyle={{ borderRadius: "2rem 2rem 50% 50% / 2rem 2rem 14% 14%" }}
+        shade="bg-[radial-gradient(ellipse_at_50%_20%,transparent_45%,rgb(0_0_0/0.38))]"
+        table={
+          <>
+            {spot && (
+              <div
+                key={frame.acting!.seat}
+                className={`${CENTERED} glow-turn h-[340px] w-[340px] rounded-full bg-[radial-gradient(closest-side,rgb(254_249_195/0.2),transparent)]`}
+                style={place.onTable({ x: spot.x, y: spot.y - 60 })}
+              />
+            )}
+
+            <div className={CENTERED} style={place.onTable(layout.rules)}>
+              <FeltRules rules={rules} width={layout.width < 600 ? 360 : 520} />
+            </div>
+
+            {/* El crupier. */}
+            <div className={`${CENTERED} flex flex-col items-center gap-1.5`} style={place.onTable(layout.dealer)}>
+              <span className="text-[11px] font-bold uppercase tracking-[0.24em] text-amber-100/80">Crupier</span>
+              {dealerCards}
+              <span className="h-6">
+                <DealerTotal frame={frame} hidden={hidden} />
+              </span>
+            </div>
+
+            {/* El zapato: de aquí salen todas las cartas. */}
+            <div className={`${CENTERED} flex flex-col items-center gap-1`} style={place.onTable(layout.shoe)}>
+              <span className="relative block" style={cardWidth(shoeWidth)} title="Zapato">
+                <Shoe />
+              </span>
+              <ShoeNotes shoe={shoe} />
+            </div>
+
+            {note}
+            {seatPlaques(place.overTable)}
+          </>
+        }
+      />
+    );
+  }
+
+  // En 3D: las cartas tumbadas en el tapete y, encima, planos, los nombres, los totales y las apuestas.
+  const dealerMiddle = { x: layout.dealer.x, y: layout.dealer.y - 4 };
+  const dealerHalf = place.lying(layout.dealerCard * 1.4) / 2;
+  const seatHands = frame.seats.map((seat, index) => {
+    const point = points[index];
+    const size = seat.isHuman ? layout.human : layout.bot;
+    const card = handCard(seat, size);
+    const widths = seat.hands.map((hand) => handWidth(hand.cards.length, card));
+    const total = widths.reduce((sum, width) => sum + width, 0) + HAND_GAP * Math.max(0, widths.length - 1);
+    const bottom = point.y - size.height / 2 - 6 - BET_ROOM; // borde de abajo de las cartas
+    let left = point.x - total / 2;
+    const hands = seat.hands.map((hand, handIndex) => {
+      const x = left + widths[handIndex] / 2;
+      left += widths[handIndex] + HAND_GAP;
+      return { hand, handIndex, x };
+    });
+    return { seat, card, bottom, hands, top: bottom - place.lying(card * 1.4) };
+  });
 
   return (
-    <section
-      ref={ref}
-      className="felt rim relative w-full overflow-hidden"
-      style={{
-        height: layout.height * scale,
-        borderRadius: "2rem 2rem 50% 50% / 2rem 2rem 14% 14%",
-      }}
-      aria-label="Mesa de blackjack"
-    >
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_20%,transparent_45%,rgb(0_0_0/0.38))]" />
-      <div
-        className="absolute left-1/2 top-0 origin-top"
-        style={{ width: layout.width, height: layout.height, transform: `translateX(-50%) scale(${scale})` }}
-      >
-        {spot && (
-          <div
-            key={frame.acting!.seat}
-            className={`${CENTERED} glow-turn h-[340px] w-[340px] rounded-full bg-[radial-gradient(closest-side,rgb(254_249_195/0.2),transparent)]`}
-            style={at({ x: spot.x, y: spot.y - 60 })}
-          />
-        )}
-
-        <div className={CENTERED} style={at(layout.rules)}>
-          <FeltRules rules={rules} width={layout.width < 600 ? 360 : 520} />
-        </div>
-
-        {/* El crupier. */}
-        <div className={`${CENTERED} flex flex-col items-center gap-1.5`} style={at(layout.dealer)}>
-          <span className="text-[11px] font-bold uppercase tracking-[0.24em] text-amber-100/80">Crupier</span>
-          <div className="flex gap-1.5" style={{ ...cardWidth(layout.dealerCard), minHeight: layout.dealerCard * 1.4 }}>
-            {frame.dealer.cards.map((card, index) => (
-              <PlayingCard
-                key={index}
-                card={card}
-                enter="deal"
-                detail={layout.dealerCard * scale >= FULL_ART_FROM ? "full" : "compact"}
-              />
-            ))}
-            {Array.from({ length: dealerCount - frame.dealer.cards.length }, (_, index) => (
-              <span key={`empty-${index}`} className="card invisible inline-block" />
-            ))}
-          </div>
-          <span className="h-6">
-            {frame.dealer.total !== null && (
-              <span
-                className={`rounded-full px-2.5 py-0.5 text-sm font-black tabular-nums shadow ${frame.dealer.total > 21 ? "bg-rose-800 text-rose-50" : "bg-black/70 text-amber-100"}`}
-              >
-                {frame.dealer.total > 21
-                  ? `Se pasa (${frame.dealer.total})`
-                  : hidden
-                    ? `${frame.dealer.total} + ?`
-                    : totalLabel(frame.dealer.total, frame.dealer.soft)}
-              </span>
-            )}
-          </span>
-        </div>
-
-        {/* El zapato: de aquí salen todas las cartas. */}
-        <div className={`${CENTERED} flex flex-col items-center gap-1`} style={at(layout.shoe)}>
-          <span className="relative block" style={cardWidth(layout.dealerCard * 0.72)} title="Zapato">
-            <span className="card card-back absolute -left-1.5 -top-1.5 inline-block" />
-            <span className="card card-back absolute -left-0.5 -top-0.5 inline-block" />
-            <span data-zone="deck" className="card card-back relative block" />
-          </span>
-          <span className="whitespace-nowrap text-[11px] font-semibold text-amber-100/75 tabular-nums">
-            Zapato · {shoe.remaining}
-          </span>
-          {shoe.cutReached && (
-            <span className="whitespace-nowrap rounded-full bg-rose-900/80 px-2 text-[10px] font-bold text-rose-100">
-              Se baraja al acabar
-            </span>
-          )}
-        </div>
-
-        {frame.note && (
-          <div
-            key={frame.note}
-            className={`${CENTERED} pop-in rounded-full bg-black/60 px-4 py-1 text-sm font-semibold text-amber-100 shadow`}
-            style={at({ x: layout.dealer.x, y: layout.dealer.y + layout.dealerCard * 0.7 + 52 })}
-          >
-            {frame.note}
-          </div>
-        )}
-
-        {frame.seats.map((seat, index) => (
-          <div key={seat.seat} className={CENTERED} style={at(points[index])} data-seat={seat.seat}>
-            <SeatView
-              seat={seat}
-              size={seat.isHuman ? layout.human : layout.bot}
-              scale={scale}
-              acting={frame.acting}
-              thinking={settled && frame.acting?.seat === seat.seat && !seat.isHuman}
+    <Stage
+      sectionRef={ref}
+      placement={place}
+      layout={layout}
+      scale={scale}
+      height={height}
+      label="Mesa de blackjack"
+      shape=""
+      shapeStyle={{ borderRadius: "2rem 2rem 50% 50% / 2rem 2rem 14% 14%" }}
+      shade="bg-[radial-gradient(ellipse_at_50%_20%,transparent_45%,rgb(0_0_0/0.38))]"
+      table={
+        <>
+          {spot && (
+            <div
+              key={frame.acting!.seat}
+              className={`${CENTERED} glow-turn h-[340px] w-[340px] rounded-full bg-[radial-gradient(closest-side,rgb(254_249_195/0.2),transparent)]`}
+              style={place.onTable({ x: spot.x, y: spot.y - 60 })}
             />
+          )}
+          <div className={CENTERED} style={place.onTable(layout.rules)}>
+            <FeltRules rules={rules} width={layout.width < 600 ? 360 : 520} />
           </div>
-        ))}
-
-        <div data-zone="fx" className="pointer-events-none absolute inset-0 z-40" />
-      </div>
-    </section>
+          <div className={`${CENTERED} keep-3d`} style={place.onTable(dealerMiddle)}>
+            {dealerCards}
+          </div>
+          <span className={`${CENTERED} keep-3d`} style={{ ...place.onTable(layout.shoe), ...cardWidth(shoeWidth) }} title="Zapato">
+            <Shoe />
+          </span>
+          {seatHands.map(({ seat, card, bottom, hands }) => (
+            <Fragment key={seat.seat}>
+              {hands.map(({ hand, handIndex, x }) => (
+                <HandCards
+                  key={handIndex}
+                  hand={hand}
+                  card={card}
+                  scale={scale}
+                  mine={seat.isHuman}
+                  active={frame.acting?.seat === seat.seat && frame.acting.hand === handIndex && seat.hands.length > 1}
+                  className={`${BOTTOM_CENTERED} keep-3d`}
+                  style={place.onTable({ x, y: bottom })}
+                />
+              ))}
+            </Fragment>
+          ))}
+        </>
+      }
+      hud={
+        <>
+          <span
+            className={`${CENTERED} text-[11px] font-bold uppercase tracking-[0.24em] text-amber-100/80`}
+            style={place.overTable({ x: dealerMiddle.x, y: dealerMiddle.y - dealerHalf - 14 })}
+          >
+            Crupier
+          </span>
+          <span className={CENTERED} style={place.overTable({ x: dealerMiddle.x, y: dealerMiddle.y + dealerHalf + 16 })}>
+            <DealerTotal frame={frame} hidden={hidden} />
+          </span>
+          <div
+            className={`${CENTERED} flex flex-col items-center gap-1`}
+            style={place.overTable({ x: layout.shoe.x, y: layout.shoe.y + place.lying(shoeWidth * 1.4) / 2 + 22 })}
+          >
+            <ShoeNotes shoe={shoe} />
+          </div>
+          {note}
+          {seatHands.map(({ seat, bottom, hands, top }) =>
+            hands.map(({ hand, handIndex, x }) => (
+              <Fragment key={`${seat.seat}-${handIndex}`}>
+                <span className={CENTERED} style={place.overTable({ x, y: top - 14 })}>
+                  {hand.result ? <Result hand={hand} /> : <Total hand={hand} />}
+                </span>
+                <span className={CENTERED} style={place.overTable({ x, y: bottom + BET_ROOM / 2 }, "full")}>
+                  <HandBet hand={hand} />
+                </span>
+              </Fragment>
+            )),
+          )}
+          {seatPlaques(place.overTable)}
+        </>
+      }
+    />
   );
 }

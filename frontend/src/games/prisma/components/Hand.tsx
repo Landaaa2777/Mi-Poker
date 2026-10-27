@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { usePlatformSettings } from "../../../shared/SettingsContext";
 import { cardName } from "../cardArt";
 import { PrismaCard } from "../PrismaCard";
 import type { Card } from "../types";
@@ -19,6 +20,7 @@ const MAX_GAP = 8; // separación entre cartas cuando caben todas sin solaparse
  * es un botón: se juega con un clic, o con el teclado (Tab y Enter).
  */
 export function Hand({ cards, playable, drawn, disabled, onPlay }: Props) {
+  const { view } = usePlatformSettings();
   const box = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(800);
 
@@ -37,11 +39,12 @@ export function Hand({ cards, playable, drawn, disabled, onPlay }: Props) {
   const step = cards.length > 1 ? Math.min(card + MAX_GAP, (space - card) / (cards.length - 1)) : 0;
 
   return (
-    <section className="panel px-3 pb-3 pt-6" aria-label="Tus cartas">
+    // En 3D las cartas se sostienen inclinadas, con su canto, su brillo y su sombra.
+    <section className="panel px-3 pb-3 pt-6" aria-label="Tus cartas" data-view={view}>
       <div
         ref={box}
         data-zone="prisma-hand"
-        className="flex justify-center"
+        className="hand-row flex justify-center"
         style={{ "--card-w": `${card}px`, minHeight: card * 1.4 + 8 } as CSSProperties}
       >
         {cards.map((item, index) => {

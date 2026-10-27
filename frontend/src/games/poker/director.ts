@@ -6,6 +6,8 @@
 import type { PlaybackListener } from "./timeline/playback";
 import type { HandEvent } from "./types";
 import { EASE, JUICE, animate, motion, type Offset } from "../../shared/motion";
+import { canvasOf, onTableAt, stageOf } from "../../shared/stage/measure";
+import { hopFrames, slideFrames } from "../../shared/stage/physics";
 
 const CHIP_MS = 400;
 const CHIP_GAP_MS = 55; // entre una ficha y la siguiente
@@ -72,11 +74,42 @@ function chipsFromPot(seat: number | null, count: number): void {
   if (layer && target && pot) slideChips(layer, pointIn(layer, pot), pointIn(layer, target), count);
 }
 
+/**
+ * Fold en 3D: las cartas, tumbadas en el tapete, se deslizan hacia el centro
+ * frenando por el rozamiento, giran un poco y se desvanecen.
+ */
+function muckCards3D(seat: number | null, layer: HTMLElement, center: HTMLElement): void {
+  const canvas = canvasOf(layer);
+  if (!canvas) return;
+  const middle = onTableAt(canvas, center);
+  for (const card of document.querySelectorAll<HTMLElement>(`[data-seat="${seat}"] .card-slot`)) {
+    const at = onTableAt(canvas, card);
+    const ghost = card.cloneNode(true) as HTMLElement;
+    ghost.classList.add("fx-ghost");
+    ghost.style.setProperty("--card-w", `${card.offsetWidth}px`);
+    ghost.style.left = `${at.x - card.offsetWidth / 2}px`;
+    ghost.style.top = `${at.y - card.offsetHeight / 2}px`;
+    layer.append(ghost);
+    const remove = () => ghost.remove();
+    const to = { x: (middle.x - at.x) * 0.45, y: (middle.y - at.y) * 0.45 };
+    animate(ghost, slideFrames(to, (Math.random() - 0.5) * 70), {
+      duration: MUCK_MS + 80,
+      fill: "both",
+      easing: "linear",
+    }).finished.then(remove, remove);
+  }
+}
+
 /** Fold: las cartas del jugador se deslizan hacia el centro y se desvanecen. */
 function muckCards(seat: number | null): void {
   const layer = find('[data-zone="fx"]');
   const center = find('[data-zone="board"]');
   if (!layer || !center) return;
+  const table = find('[data-zone="fx-table"]');
+  if (table && stageOf(table)) {
+    muckCards3D(seat, table, center);
+    return;
+  }
   const middle = pointIn(layer, center);
   // La mesa todavía no se ha redibujado: las cartas siguen en su sitio. Se
   // deja una copia de cada una en la capa de efectos y es la copia la que se va.
@@ -101,12 +134,14 @@ function muckCards(seat: number | null): void {
   }
 }
 
-/** Las cartas del ganador dan una sacudida. */
+/** Las cartas del ganador dan una sacudida (en 3D, un saltito sobre el tapete). */
 function celebrate(seat: number | null): void {
-  const cards = document.querySelectorAll(`[data-seat="${seat}"] .card-3d`);
-  cards.forEach((card, index) => {
-    const layer = card.parentElement;
-    if (layer) animate(layer, JUICE, { duration: 420, delay: 180 + index * 90, easing: EASE.out });
+  const cards = document.querySelectorAll(`[data-seat="${seat}"] .card-flight`);
+  const lying = cards.length > 0 && stageOf(cards[0]) !== null;
+  cards.forEach((layer, index) => {
+    const delay = 180 + index * 90;
+    if (lying) animate(layer, hopFrames(30), { duration: 460, delay, easing: "linear" });
+    else animate(layer, JUICE, { duration: 420, delay, easing: EASE.out });
   });
 }
 
@@ -147,5 +182,6 @@ export const tableMotion: PlaybackListener = {
     motion.revealing = false;
     motion.speed = 1;
     find('[data-zone="fx"]')?.replaceChildren();
+    find('[data-zone="fx-table"]')?.replaceChildren();
   },
 };

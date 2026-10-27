@@ -126,7 +126,30 @@ export function Stage({ placement, layout, scale, height, label, shape, shapeSty
           perspectiveOrigin: `${layout.width / 2}px ${stage.originY}px`,
         }}
       >
-        {/* El tapete, inclinado sobre su borde cercano. Debajo, el canto de la mesa. */}
+        {/* El canto de la mesa: dos capas de madera bajo el tapete que asoman por
+            delante. Van fuera del tapete (cada una plana, con su perspectiva): así
+            el navegador no tiene que ordenarlas en 3D con las cartas en cada fotograma. */}
+        {/* Sombra de la mesa en el suelo, bajo su borde cercano. */}
+        <div
+          aria-hidden
+          className="stage-floor"
+          style={{ left: "6%", width: "88%", top: stage.base - 50, height: 120 }}
+        />
+        {[26, 12].map((depth) => (
+          <div
+            key={depth}
+            aria-hidden
+            className={`stage-edge ${depth > 20 ? "stage-edge-low" : "stage-edge-high"} ${shape}`}
+            style={{
+              ...shapeStyle,
+              top: stage.planeTop,
+              width: layout.width,
+              height: stage.planeHeight,
+              transform: `rotateX(${stage.tilt}deg) translateZ(-${depth}px)`,
+            }}
+          />
+        ))}
+        {/* El tapete, inclinado sobre su borde cercano. */}
         <div
           data-plane
           className="stage-plane absolute left-0"
@@ -137,8 +160,6 @@ export function Stage({ placement, layout, scale, height, label, shape, shapeSty
             transform: `rotateX(${stage.tilt}deg)`,
           }}
         >
-          <div className={`stage-edge stage-edge-low ${shape}`} style={shapeStyle} />
-          <div className={`stage-edge stage-edge-high ${shape}`} style={shapeStyle} />
           <div className={`felt rim absolute inset-0 overflow-hidden ${shape}`} style={shapeStyle}>
             <div className={`absolute inset-0 ${shade}`} />
           </div>

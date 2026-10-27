@@ -2,6 +2,9 @@ import { useLayoutEffect, useRef, useState, type CSSProperties, type PointerEven
 import { audio } from "../audio/engine";
 import { cardLabel } from "../format";
 import { EASE, JUICE, animate, motion, offsetFrom } from "../motion";
+import { animatePair, inTable3D } from "../stage/cardMotion";
+import { offsetOnTable } from "../stage/measure";
+import { flipFrames, hopFrames, throwFrames } from "../stage/physics";
 import { CardFace, CompactFace } from "./CardFace";
 import { Emblem } from "../components/Emblem";
 
@@ -17,6 +20,8 @@ interface Props {
   fan?: number;
   /** "full": la carta con todo su dibujo. "compact": solo valor y palo, para cartas pequeñas. */
   detail?: "full" | "compact";
+  /** En 3D, la carta se sostiene un poco levantada hacia quien mira (mis cartas). */
+  held?: boolean;
 }
 
 // Giro 3D de dorso a cara. La perspectiva va dentro del propio transform.
@@ -28,6 +33,12 @@ const FLIP: Keyframe[] = [
 const FLIGHT_MS = 360; // del mazo a un jugador
 const BOARD_MS = 440; // del mazo a la mesa, girando en el aire
 const TURN_MS = 300; // voltear una carta
+
+// En 3D las cartas se mueven con física (ver stage/physics): vuelan algo más,
+// porque recorren un arco, aterrizan y frenan deslizando por el tapete.
+const THROW_MS = 480; // del mazo a un jugador
+const BOARD_THROW_MS = 560; // del mazo a la mesa, dándose la vuelta en el aire
+const TURN_3D_MS = 340; // darle la vuelta a una carta que está en la mesa
 
 /**
  * Una carta. Su tamaño lo fija quien la contiene con la variable CSS
@@ -44,11 +55,13 @@ export function PlayingCard({
   float = 0,
   fan = 0,
   detail = "full",
+  held = false,
 }: Props) {
   const slot = useRef<HTMLSpanElement>(null);
   const tilt = useRef<HTMLSpanElement>(null);
   const flight = useRef<HTMLSpanElement>(null);
   const sides = useRef<HTMLSpanElement>(null);
+  const shadow = useRef<HTMLSpanElement>(null);
   const shown = useRef(card);
   const [selected, setSelected] = useState(false);
   // Cada carta flota a su ritmo: empieza en un punto distinto del vaivén.
@@ -59,6 +72,32 @@ export function PlayingCard({
     if (!motion.enabled || !enter || motion.entering !== enter) return;
     const deck = document.querySelector('[data-zone="deck"]');
     if (!deck || !slot.current || !flight.current || !sides.current) return;
+
+    if (inTable3D(slot.current)) {
+      // En 3D: lanzada desde el mazo con un arco, girando, y frena en el tapete.
+      const width = slot.current.offsetWidth;
+      const from = offsetOnTable(deck, slot.current);
+      const board = enter === "board";
+      const frames = throwFrames({
+        from,
+        height: board ? 70 : 46 + Math.random() * 14,
+        spin: (Math.random() - 0.5) * (board ? 50 : 70),
+        width,
+        flip: board, // las comunitarias caen ya boca arriba
+      });
+      const duration = board ? BOARD_THROW_MS : THROW_MS;
+      animatePair(flight.current, shadow.current, frames, { duration, easing: "linear" });
+      // Mis cartas viajan boca abajo; al llegar se levantan por un borde y se voltean.
+      if (!board && card !== null) {
+        animatePair(sides.current, shadow.current?.firstElementChild ?? null, flipFrames(width), {
+          duration: TURN_3D_MS,
+          delay: duration - 40,
+          fill: "backwards",
+          easing: "linear",
+        });
+      }
+      return;
+    }
 
     const from = offsetFrom(deck, slot.current);
     const start = `translate(${from.x}px, ${from.y}px) rotate(${(Math.random() - 0.5) * 36}deg) scale(0.72)`;
@@ -116,6 +155,14 @@ export function PlayingCard({
     const before = shown.current;
     shown.current = card;
     if (before !== null || card === null || !motion.enabled || !motion.revealing) return;
+    if (slot.current && sides.current && inTable3D(slot.current)) {
+      // En 3D se levanta por un borde, gira y vuelve a caer en el tapete.
+      animatePair(sides.current, shadow.current?.firstElementChild ?? null, flipFrames(slot.current.offsetWidth), {
+        duration: 420,
+        easing: "linear",
+      });
+      return;
+    }
     if (sides.current) animate(sides.current, FLIP, { duration: 380, easing: EASE.back });
     if (flight.current) animate(flight.current, JUICE, { duration: 380, easing: EASE.out });
   }, [card]);
@@ -139,7 +186,9 @@ export function PlayingCard({
   function onClick() {
     setSelected((current) => !current);
     audio.play("select");
-    if (motion.enabled && flight.current) animate(flight.current, JUICE, { duration: 320, easing: EASE.out });
+    if (!motion.enabled || !flight.current) return;
+    if (slot.current && inTable3D(slot.current)) animate(flight.current, hopFrames(26), { duration: 420, easing: "linear" });
+    else animate(flight.current, JUICE, { duration: 320, easing: EASE.out });
   }
 
   const style = {
@@ -152,23 +201,33 @@ export function PlayingCard({
   return (
     <span
       ref={slot}
-      className={`card-slot ${interactive ? "cursor-pointer" : ""}`}
+      className={`card-slot ${interactive ? "cursor-pointer" : ""} ${held ? "held" : ""} ${selected ? "selected" : ""}`}
       style={style}
       onPointerMove={interactive ? onPointerMove : undefined}
       onPointerLeave={interactive ? onPointerLeave : undefined}
       onClick={interactive === "select" ? onClick : undefined}
       aria-label={card === null ? "Carta boca abajo" : cardLabel(card)}
     >
+      {/* Su sombra en el tapete (solo en 3D): se separa de la carta cuando esta se levanta. */}
+      <span ref={shadow} className="card-shadow" aria-hidden>
+        <span className="card-shadow-blob" />
+      </span>
       <span className={`card-layer ${float > 0 ? "card-float" : ""}`}>
         <span ref={tilt} className="card-layer card-tilt">
-          <span ref={flight} className="card-layer">
-            <span ref={sides} className={`card card-3d ${card === null ? "face-down" : ""}`}>
-              <span className="card-side card-face select-none overflow-hidden">
-                {card !== null &&
-                  (detail === "full" ? <CardFace card={card} /> : <CompactFace card={card} />)}
-              </span>
-              <span className="card-side card-back">
-                <Emblem className="card-back-emblem" />
+          <span ref={flight} className="card-layer card-flight">
+            <span className="card-layer card-pose">
+              <span ref={sides} className={`card card-3d ${card === null ? "face-down" : ""}`}>
+                <span className="card-side card-face select-none overflow-hidden">
+                  {card !== null &&
+                    (detail === "full" ? <CardFace card={card} /> : <CompactFace card={card} />)}
+                  {/* Brillo de la cartulina: se mueve al inclinar la carta (solo en 3D). */}
+                  <span className="card-gloss" aria-hidden />
+                </span>
+                {/* El canto: el grosor de la carta, que se ve al inclinarla (solo en 3D). */}
+                <span className="card-edge" aria-hidden />
+                <span className="card-side card-back">
+                  <Emblem className="card-back-emblem" />
+                </span>
               </span>
             </span>
           </span>
