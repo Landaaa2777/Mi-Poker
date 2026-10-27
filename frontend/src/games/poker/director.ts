@@ -1,17 +1,23 @@
 // Acompaña la reproducción de la mano con las animaciones que cruzan la mesa:
-// fichas del jugador al bote y del bote al ganador, y cartas que se retiran.
-// Las piezas que vuelan son elementos sueltos en la capa de efectos de la mesa;
-// las cartas que entran (reparto, flop...) se animan ellas mismas al dibujarse.
+// fichas del jugador a su apuesta, de las apuestas al bote, del bote al
+// ganador y de lo ganado a su placa; y cartas que se retiran. Las piezas que
+// vuelan son copias sueltas en la capa de efectos de la mesa; las cartas que
+// entran (reparto, flop...) y las fichas que llegan a una pila se animan ellas
+// mismas al dibujarse.
 
 import type { PlaybackListener } from "./timeline/playback";
+import type { Frame } from "./timeline/frame";
+import type { Step } from "./timeline/steps";
 import type { HandEvent } from "./types";
+import { tableChips } from "./chips";
+import { total, type Denomination } from "../../shared/chips/chips";
+import { flyChips, slidePile } from "../../shared/chips/flight";
 import { EASE, JUICE, animate, motion, type Offset } from "../../shared/motion";
 import { canvasOf, onTableAt, stageOf } from "../../shared/stage/measure";
 import { hopFrames, slideFrames } from "../../shared/stage/physics";
 
-const CHIP_MS = 400;
-const CHIP_GAP_MS = 55; // entre una ficha y la siguiente
 const MUCK_MS = 320;
+const CHIP_SIZE = 30; // las que vuelan
 
 function find(selector: string): HTMLElement | null {
   return document.querySelector<HTMLElement>(selector);
@@ -28,50 +34,69 @@ function pointIn(layer: HTMLElement, element: Element): Offset {
   };
 }
 
-/** Varias fichas, una tras otra, de un punto de la mesa a otro, con un poco de arco. */
-function slideChips(layer: HTMLElement, from: Offset, to: Offset, count: number): void {
-  for (let index = 0; index < count; index++) {
-    const chip = document.createElement("span");
-    chip.className = "fx-chip";
-    layer.append(chip);
-    // Cada ficha sale y llega algo desplazada, para que no vayan en fila india.
-    const jitter = () => (Math.random() - 0.5) * 16;
-    const start = { x: from.x + jitter(), y: from.y + jitter() };
-    const end = { x: to.x + jitter(), y: to.y + jitter() };
-    const middle = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 - 22 };
-    const place = (point: Offset, scale: number) =>
-      `translate(${point.x}px, ${point.y}px) scale(${scale})`;
-    const remove = () => chip.remove();
-    animate(
-      chip,
-      [
-        { transform: place(start, 0.6), opacity: 0 },
-        { transform: place(start, 1), opacity: 1, offset: 0.12 },
-        { transform: place(middle, 1.1), opacity: 1, offset: 0.55 },
-        { transform: place(end, 0.9), opacity: 1, offset: 0.9 },
-        { transform: place(end, 0.6), opacity: 0 },
-      ],
-      { duration: CHIP_MS, delay: index * CHIP_GAP_MS, fill: "both", easing: EASE.inOut },
-    ).finished.then(remove, remove);
-  }
-}
-
+/** De dónde salen las fichas de un jugador y adónde llegan las que cobra: su avatar. */
 function seatChips(seat: number | null): HTMLElement | null {
   return find(`[data-seat="${seat}"] [data-anchor="chips"]`);
 }
 
-function chipsToPot(seat: number | null, count: number): void {
-  const layer = find('[data-zone="fx"]');
-  const origin = seatChips(seat);
-  const pot = find('[data-zone="pot"]');
-  if (layer && origin && pot) slideChips(layer, pointIn(layer, origin), pointIn(layer, pot), count);
+/** Las fichas de `after` que no estaban en `before` (las de arriba de la pila). */
+function added(before: readonly Denomination[], after: readonly Denomination[]): Denomination[] {
+  return after.slice(before.length);
 }
 
-function chipsFromPot(seat: number | null, count: number): void {
-  const layer = find('[data-zone="fx"]');
-  const target = seatChips(seat);
-  const pot = find('[data-zone="pot"]');
-  if (layer && target && pot) slideChips(layer, pointIn(layer, pot), pointIn(layer, target), count);
+/**
+ * Las fichas que se mueven entre lo dibujado (`before`) y el paso que va a
+ * dibujarse. Devuelve cuándo llegan a su pila (ms), o null si no se mueve nada.
+ */
+function moveChips(before: Frame, step: Step): number | null {
+  const was = tableChips(before);
+  const now = tableChips(step.frame);
+  const pot = find('[data-pile="pot"]');
+  const potChips = find('[data-pile="pot-chips"]');
+  let landing: number | null = null;
+  const land = (ms: number) => (landing = Math.max(landing ?? 0, ms));
+  const refund = step.kind === "event" && step.event.kind === "refund";
+  let collected = 0; // cuándo acaban de llegar al bote las apuestas recogidas en este paso
+
+  for (const seat of step.frame.seats) {
+    const spot = find(`[data-pile="bet-${seat.seat}"]`);
+    const plaque = seatChips(seat.seat);
+    if (!spot || !plaque) continue;
+    const betBefore = was.bets.get(seat.seat) ?? [];
+    const betAfter = now.bets.get(seat.seat) ?? [];
+
+    if (total(betAfter) > total(betBefore)) {
+      // Apuesta: sus fichas van de su placa a su sitio en la mesa.
+      land(flyChips(plaque, spot, added(betBefore, betAfter), CHIP_SIZE));
+    } else if (total(betAfter) < total(betBefore)) {
+      const pile = find(`[data-pile="bet-${seat.seat}-chips"]`);
+      if (refund) flyChips(spot, plaque, betBefore.slice(betAfter.length), CHIP_SIZE);
+      // Se cierra la ronda: su pila se desliza al bote.
+      else if (pile && pot) collected = Math.max(collected, land(slidePile(pile, pot)));
+    }
+  }
+
+  // El bote va a quien gana, después de recoger las apuestas que quedaran.
+  for (const seat of step.frame.seats) {
+    const spot = find(`[data-pile="bet-${seat.seat}"]`);
+    const wonBefore = was.won.get(seat.seat) ?? [];
+    const wonAfter = now.won.get(seat.seat) ?? [];
+    if (!spot || !pot || total(wonAfter) <= total(wonBefore)) continue;
+    // Entero, si el bote se queda vacío y ya tenía fichas; si no, unas cuantas.
+    if (now.pot.length === 0 && potChips) land(slidePile(potChips, spot, collected));
+    else land(flyChips(pot, spot, added(wonBefore, wonAfter), CHIP_SIZE, collected));
+  }
+
+  for (const seat of step.frame.seats) {
+    const plaque = seatChips(seat.seat);
+    const wonBefore = was.won.get(seat.seat) ?? [];
+    if (step.kind === "new_hand" && wonBefore.length > 0 && plaque) {
+      // Mano nueva: lo que ganó en la anterior se lo lleva a su sitio.
+      const pile = find(`[data-pile="won-${seat.seat}"]`);
+      if (pile) slidePile(pile, plaque);
+    }
+  }
+  return landing;
 }
 
 /**
@@ -146,25 +171,11 @@ function celebrate(seat: number | null): void {
 }
 
 function animateEvent(event: HandEvent): void {
-  switch (event.kind) {
-    case "small_blind":
-    case "big_blind":
-      chipsToPot(event.seat, 2);
-      break;
-    case "action":
-      if (event.action === "fold") muckCards(event.seat);
-      else if (event.action === "call") chipsToPot(event.seat, event.all_in ? 6 : 3);
-      else if (event.action === "raise") chipsToPot(event.seat, event.all_in ? 7 : 4);
-      break;
-    case "refund":
-      chipsFromPot(event.seat, 2);
-      break;
-    case "win":
-      chipsFromPot(event.seat, 6);
-      celebrate(event.seat);
-      break;
-  }
+  if (event.kind === "action" && event.action === "fold") muckCards(event.seat);
+  if (event.kind === "win") celebrate(event.seat);
 }
+
+let shown: Frame | null = null; // lo último que se ha dibujado, para ver qué cambia en cada paso
 
 /** Animaciones de la mesa, enganchadas a la cola de reproducción. */
 export const tableMotion: PlaybackListener = {
@@ -174,13 +185,21 @@ export const tableMotion: PlaybackListener = {
     motion.entering = step.kind === "deal" || step.kind === "board" ? step.kind : null;
     motion.revealing = step.kind === "event" && step.event.kind === "show";
     motion.speed = speed;
-    if (motion.enabled && step.kind === "event") animateEvent(step.event);
+    motion.chipLanding = 0;
+    if (motion.enabled) {
+      // La cola acelerada también acelera la caída de las fichas (playbackRate).
+      if (shown) motion.chipLanding = moveChips(shown, step) ?? 0;
+      if (step.kind === "event") animateEvent(step.event);
+    }
+    shown = step.frame;
   },
   onJump() {
     // La mesa salta sin reproducir: nada debe entrar volando ni quedar a medias.
     motion.entering = null;
     motion.revealing = false;
     motion.speed = 1;
+    motion.chipLanding = null;
+    shown = null;
     find('[data-zone="fx"]')?.replaceChildren();
     find('[data-zone="fx-table"]')?.replaceChildren();
   },

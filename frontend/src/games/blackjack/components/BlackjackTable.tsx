@@ -1,11 +1,13 @@
 import { Fragment, type CSSProperties } from "react";
 import { PlayingCard } from "../../../shared/cards/PlayingCard";
 import { Avatar } from "../../../shared/components/Avatar";
-import { ChipStack } from "../../../shared/components/Chips";
+import type { Denomination } from "../../../shared/chips/chips";
+import { ChipPile } from "../../../shared/chips/ChipPile";
 import { usePlatformSettings } from "../../../shared/SettingsContext";
 import type { Camera } from "../../../shared/stage/camera";
 import { Stage, stageHeight, usePlacement, type Placement } from "../../../shared/stage/Stage";
 import { useFit } from "../../../shared/useFit";
+import { seatChips, type HandChips } from "../chips";
 import { DONE_LABEL, handProfit, resultLabel, totalLabel } from "../describe";
 import type { Frame, HandFrame, SeatFrame } from "../timeline";
 import type { Rules } from "../types";
@@ -33,6 +35,7 @@ interface Layout {
   dealer: Point; // centro de las cartas del crupier
   dealerCard: number;
   shoe: Point;
+  rack: Point; // la bandeja de fichas del crupier
   rules: Point; // donde va el texto impreso en el tapete
   bot: SeatSize;
   human: SeatSize;
@@ -55,6 +58,7 @@ const LANDSCAPE: Layout = {
   dealer: { x: 560, y: 108 },
   dealerCard: 66,
   shoe: { x: 950, y: 96 },
+  rack: { x: 200, y: 100 },
   rules: { x: 560, y: 236 },
   bot: { width: 172, height: 50, avatar: 40, card: 46 },
   human: { width: 224, height: 58, avatar: 50, card: 62 },
@@ -70,6 +74,7 @@ const PORTRAIT: Layout = {
   dealer: { x: 250, y: 104 },
   dealerCard: 54,
   shoe: { x: 432, y: 92 },
+  rack: { x: 70, y: 96 },
   rules: { x: 250, y: 236 },
   bot: { width: 112, height: 42, avatar: 30, card: 34 },
   human: { width: 214, height: 54, avatar: 46, card: 58 },
@@ -108,7 +113,10 @@ const FIT_3D = { ...FIT, heightOf: stageHeight(cameraFor) };
 // tapete y, encima, su total y su apuesta): estas son sus medidas.
 const OVERLAP = 0.45; // parte de la carta anterior que tapa cada carta
 const HAND_GAP = 8; // entre dos manos de un mismo asiento
-const BET_ROOM = 28; // hueco para la apuesta, entre las cartas y la placa
+const BET_ROOM = 44; // hueco para la apuesta, entre las cartas y la placa
+const CHIP = { bot: 28, mine: 32, rack: 24 }; // diámetro de las fichas, en px
+// La bandeja del crupier: unas pilas de cada valor, siempre llenas.
+const RACK: Denomination[] = ([5000, 1000, 500, 100, 25, 5] as const).flatMap((value) => Array<Denomination>(6).fill(value));
 
 /** Ancho de las cartas de un asiento: más pequeñas si ha dividido. */
 function handCard(seat: SeatFrame, size: SeatSize): number {
@@ -157,6 +165,12 @@ interface HandProps {
   active: boolean; // le toca decidir a esta mano
 }
 
+interface HandViewProps extends HandProps {
+  chips: HandChips;
+  seat: number;
+  index: number;
+}
+
 /** Las cartas de una mano, solapadas. */
 function HandCards({ hand, card, scale, mine, active, className = "", style }: HandProps & { className?: string; style?: CSSProperties }) {
   return (
@@ -179,34 +193,49 @@ function HandCards({ hand, card, scale, mine, active, className = "", style }: H
   );
 }
 
-/** Lo que lleva apostado una mano. */
-function HandBet({ hand }: { hand: HandFrame }) {
-  if (hand.bet <= 0) return null;
+/**
+ * Las fichas de una mano en su círculo: lo apostado (y lo doblado) y, al
+ * ganar, lo que paga el crupier al lado. Los sitios existen aunque estén
+ * vacíos: allí llegan las fichas que vuelan.
+ */
+function HandBet({ hand, chips, seat, index, size }: { hand: HandFrame; chips: HandChips; seat: number; index: number; size: number }) {
   return (
-    <span className="flex items-center gap-1">
-      <ChipStack className="h-5 w-5" />
-      <span className="rounded-full bg-black/60 px-2 py-0.5 text-xs font-bold tabular-nums">
-        {hand.bet}
-        {hand.doubled && <span className="ml-1 text-amber-300">×2</span>}
+    <span data-pile={`bj-bet-${seat}-${index}`} className="flex h-9 items-end gap-1.5">
+      {chips.bet.length > 0 && (
+        <>
+          <ChipPile chips={chips.bet} pile={`bj-bet-${seat}-${index}-chips`} size={size} tallest={6} />
+          {hand.result === null && (
+            <span className="mb-0.5 rounded-full bg-black/60 px-2 py-0.5 text-xs font-bold tabular-nums">
+              {hand.bet}
+              {hand.doubled && <span className="ml-1 text-amber-300">×2</span>}
+            </span>
+          )}
+        </>
+      )}
+      <span data-pile={`bj-win-${seat}-${index}`} className="flex items-end">
+        {chips.win.length > 0 && (
+          <ChipPile chips={chips.win} pile={`bj-win-${seat}-${index}-chips`} size={size} tallest={6} />
+        )}
       </span>
     </span>
   );
 }
 
 /** Una mano: su total (o su resultado), sus cartas abiertas y su apuesta. */
-function HandView(props: HandProps) {
+function HandView({ chips, seat, index, ...props }: HandViewProps) {
   const { hand } = props;
   return (
     <div className="flex flex-col items-center gap-1">
       <div className="flex h-6 items-end">{hand.result ? <Result hand={hand} /> : <Total hand={hand} />}</div>
       <HandCards {...props} />
-      <HandBet hand={hand} />
+      <HandBet hand={hand} chips={chips} seat={seat} index={index} size={props.mine ? CHIP.mine : CHIP.bot} />
     </div>
   );
 }
 
 interface SeatProps {
   seat: SeatFrame;
+  chips: HandChips[];
   size: SeatSize;
   scale: number;
   acting: Frame["acting"];
@@ -214,7 +243,7 @@ interface SeatProps {
   withHands: boolean; // en 2D las manos van con la placa; en 3D, tumbadas en el tapete
 }
 
-function SeatView({ seat, size, scale, acting, thinking, withHands }: SeatProps) {
+function SeatView({ seat, chips, size, scale, acting, thinking, withHands }: SeatProps) {
   const myTurn = acting?.seat === seat.seat;
   const won = seat.hands.some((hand) => hand.result === "win" || hand.result === "blackjack");
   const ring = won ? "ring-emerald-400" : myTurn ? "ring-amber-300" : "ring-white/25";
@@ -242,6 +271,9 @@ function SeatView({ seat, size, scale, acting, thinking, withHands }: SeatProps)
             <HandView
               key={index}
               hand={hand}
+              chips={chips[index]}
+              seat={seat.seat}
+              index={index}
               card={card}
               scale={scale}
               mine={seat.isHuman}
@@ -254,7 +286,8 @@ function SeatView({ seat, size, scale, acting, thinking, withHands }: SeatProps)
         className="relative flex items-center gap-2.5 rounded-full bg-[#0c0709]/90 p-1 shadow-lg shadow-black/50 ring-1 ring-amber-400/35"
         style={{ height: size.height }}
       >
-        <span className="shrink-0 rounded-full">
+        {/* De aquí salen sus fichas al apostar y aquí vuelven las que recoge. */}
+        <span data-anchor="chips" className="shrink-0 rounded-full">
           <Avatar name={seat.name} size={size.avatar} ring={ring} />
         </span>
         <div className="min-w-0 flex-1 pr-3 leading-tight">
@@ -364,6 +397,32 @@ export function BlackjackTable({ frame, rules, shoe, settled }: Props) {
   const dealerCount = Math.max(frame.dealer.cards.length, 2);
   const spot = frame.acting ? points[frame.acting.seat] : null;
   const hidden = frame.dealer.cards.includes(null);
+  const chips = frame.seats.map((seat) => seatChips(frame, seat));
+  // La bandeja de fichas del crupier: de aquí sale lo que paga y aquí va lo que gana.
+  const rack = (
+    <div className={`${CENTERED} rounded-xl bg-black/45 px-2 pb-1 pt-2 shadow-inner shadow-black/60`} style={place.overTable(layout.rack, "full")}>
+      <span data-pile="rack" className="flex items-end">
+        <ChipPile chips={RACK} pile="rack-chips" size={CHIP.rack} tallest={6} still />
+      </span>
+    </div>
+  );
+  // El seguro: sus fichas, a la derecha de la placa.
+  const insurance = frame.seats.map((seat, index) => {
+    const size = seat.isHuman ? layout.human : layout.bot;
+    const point = points[index];
+    return (
+      <span
+        key={seat.seat}
+        data-pile={`bj-ins-${seat.seat}`}
+        className={`${CENTERED} flex items-end`}
+        style={place.overTable({ x: point.x + size.width / 2 + 6, y: point.y - size.height / 2 - 18 }, "full")}
+      >
+        {chips[index].insurance.length > 0 && (
+          <ChipPile chips={chips[index].insurance} pile={`bj-ins-${seat.seat}-chips`} size={CHIP.bot} tallest={6} />
+        )}
+      </span>
+    );
+  });
   const dealerCards = (
     <div
       className="keep-3d flex gap-1.5"
@@ -398,6 +457,7 @@ export function BlackjackTable({ frame, rules, shoe, settled }: Props) {
       <div key={seat.seat} className={CENTERED} style={placeOver(points[index])} data-seat={seat.seat}>
         <SeatView
           seat={seat}
+          chips={chips[index].hands}
           size={seat.isHuman ? layout.human : layout.bot}
           scale={scale}
           acting={frame.acting}
@@ -451,8 +511,10 @@ export function BlackjackTable({ frame, rules, shoe, settled }: Props) {
               <ShoeNotes shoe={shoe} />
             </div>
 
+            {rack}
             {note}
             {seatPlaques(place.overTable)}
+            {insurance}
           </>
         }
       />
@@ -542,7 +604,9 @@ export function BlackjackTable({ frame, rules, shoe, settled }: Props) {
           >
             <ShoeNotes shoe={shoe} />
           </div>
+          {rack}
           {note}
+          {insurance}
           {seatHands.map(({ seat, bottom, hands, top }) =>
             hands.map(({ hand, handIndex, x }) => (
               <Fragment key={`${seat.seat}-${handIndex}`}>
@@ -550,7 +614,13 @@ export function BlackjackTable({ frame, rules, shoe, settled }: Props) {
                   {hand.result ? <Result hand={hand} /> : <Total hand={hand} />}
                 </span>
                 <span className={CENTERED} style={place.overTable({ x, y: bottom + BET_ROOM / 2 }, "full")}>
-                  <HandBet hand={hand} />
+                  <HandBet
+                    hand={hand}
+                    chips={chips[frame.seats.indexOf(seat)].hands[handIndex]}
+                    seat={seat.seat}
+                    index={handIndex}
+                    size={seat.isHuman ? CHIP.mine : CHIP.bot}
+                  />
                 </span>
               </Fragment>
             )),

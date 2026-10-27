@@ -1,13 +1,14 @@
 import { Fragment, type CSSProperties } from "react";
 import type { Frame, SeatFrame } from "../timeline/frame";
 import { Avatar } from "../../../shared/components/Avatar";
-import { ChipStack } from "../../../shared/components/Chips";
+import { ChipPile } from "../../../shared/chips/ChipPile";
 import { Emblem } from "../../../shared/components/Emblem";
 import { PlayingCard } from "../../../shared/cards/PlayingCard";
 import { usePlatformSettings } from "../../../shared/SettingsContext";
 import type { Camera } from "../../../shared/stage/camera";
 import { Stage, stageHeight, usePlacement, type Placement } from "../../../shared/stage/Stage";
 import { useFit } from "../../../shared/useFit";
+import { tableChips, type TableChips } from "../chips";
 
 // La mesa se dibuja sobre un lienzo de tamaño fijo y se escala entera para
 // ocupar el sitio disponible, como un tablero: así nada se descoloca al cambiar
@@ -260,10 +261,18 @@ function SeatPlaque({ seat, frame, size, scale, avatarSide, thinking, withCards 
   );
 }
 
-/** Lo que el jugador tiene delante: su jugada, sus fichas apostadas o lo que gana. */
-function SeatBets({ seat }: { seat: SeatFrame }) {
+const CHIP = { bet: 30, mine: 34, pot: 34 }; // diámetro de las fichas, en px
+
+/**
+ * Lo que el jugador tiene delante: su jugada y sus fichas apostadas, o lo que
+ * gana. El sitio de sus fichas existe siempre, aunque esté vacío: allí llegan
+ * las que apuesta y las que cobra.
+ */
+function SeatBets({ seat, chips }: { seat: SeatFrame; chips: TableChips }) {
   const action = seat.status === "folded" ? null : seat.action;
-  if (!action && seat.bet === 0 && seat.won === 0) return null;
+  const bet = chips.bets.get(seat.seat) ?? [];
+  const won = chips.won.get(seat.seat) ?? [];
+  const size = seat.isHuman ? CHIP.mine : CHIP.bet;
   return (
     <div className="flex flex-col items-center gap-1 whitespace-nowrap">
       {action && (
@@ -274,19 +283,22 @@ function SeatBets({ seat }: { seat: SeatFrame }) {
           {action}
         </span>
       )}
-      {seat.bet > 0 && (
-        <span className="flex items-center gap-1">
-          <ChipStack className="h-6 w-6" />
-          <span className="rounded-full bg-black/60 px-2.5 py-0.5 text-sm font-bold tabular-nums">
-            {seat.bet}
-          </span>
-        </span>
-      )}
-      {seat.won > 0 && (
-        <span className="pop-in rounded-full bg-gradient-to-b from-amber-200 to-amber-500 px-3 py-0.5 text-sm font-black text-stone-900 shadow">
-          +{seat.won}
-        </span>
-      )}
+      <span data-pile={`bet-${seat.seat}`} className="flex items-end gap-1.5">
+        {bet.length > 0 && (
+          <>
+            <ChipPile chips={bet} pile={`bet-${seat.seat}-chips`} size={size} />
+            <span className="rounded-full bg-black/60 px-2.5 py-0.5 text-sm font-bold tabular-nums">{seat.bet}</span>
+          </>
+        )}
+        {won.length > 0 && (
+          <>
+            <ChipPile chips={won} pile={`won-${seat.seat}`} size={size} tallest={7} />
+            <span className="pop-in rounded-full bg-gradient-to-b from-amber-200 to-amber-500 px-3 py-0.5 text-sm font-black text-stone-900 shadow">
+              +{seat.won}
+            </span>
+          </>
+        )}
+      </span>
     </div>
   );
 }
@@ -335,6 +347,7 @@ export function Table({ frame, settled }: Props) {
     };
   });
   const spotlight = seats.find(({ seat }) => seat.won > 0 || seat.seat === frame.actingSeat);
+  const chips = tableChips(frame);
   // El contorno de la mesa, dibujado en el tapete.
   const outline = {
     from: place.onTable({ x: layout.center.x - layout.radius.x * 0.82, y: layout.center.y - layout.radius.y }),
@@ -430,7 +443,7 @@ export function Table({ frame, settled }: Props) {
     return seats.map(({ seat, point, size, avatarSide }) => (
       <div key={seat.seat}>
         <div className={CENTERED} style={placeOver(betPoint(layout, point, size, seat.isHuman), "full")}>
-          <SeatBets seat={seat} />
+          <SeatBets seat={seat} chips={chips} />
         </div>
         <div className={CENTERED} style={placeOver(point)} data-seat={seat.seat}>
           <SeatPlaque
@@ -447,18 +460,25 @@ export function Table({ frame, settled }: Props) {
     ));
   }
 
+  // El bote: sus fichas en el centro de la mesa, y al lado lo que suma con las apuestas de la ronda.
   function potLabelAt(placeOver: Placement["overTable"]) {
     return (
+      // Colgado de su borde de abajo: si la pila crece, crece hacia arriba, sin pisar las cartas.
       <div
-        className={`${CENTERED} flex flex-col items-center`}
-        style={placeOver({ x: layout.center.x, y: layout.center.y - boardHeight / 2 - 34 })}
+        className={`${BOTTOM_CENTERED} flex items-end gap-2.5`}
+        style={placeOver({ x: layout.center.x, y: layout.center.y - boardHeight / 2 - 12 }, "full")}
       >
-        <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-amber-100/85">Bote</span>
-        <span
-          data-zone="pot"
-          className="rounded-full border border-amber-400/55 bg-black/60 px-4 py-0.5 text-lg font-black tabular-nums text-amber-200"
-        >
-          {frame.pot}
+        <span data-pile="pot" className="flex min-h-1 min-w-1 items-end">
+          {chips.pot.length > 0 && <ChipPile chips={chips.pot} pile="pot-chips" size={CHIP.pot} tallest={7} />}
+        </span>
+        <span className="flex flex-col items-center">
+          <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-amber-100/85">Bote</span>
+          <span
+            data-zone="pot"
+            className="rounded-full border border-amber-400/55 bg-black/60 px-4 py-0.5 text-lg font-black tabular-nums text-amber-200"
+          >
+            {frame.pot}
+          </span>
         </span>
       </div>
     );

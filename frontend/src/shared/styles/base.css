@@ -235,18 +235,7 @@ input[type="range"] {
     animation-delay: var(--float-delay, 0s);
   }
 
-  /* Capa de efectos: fichas y cartas que cruzan la mesa. */
-  .fx-chip {
-    position: absolute;
-    left: -11px;
-    top: -11px;
-    height: 22px;
-    width: 22px;
-    border-radius: 50%;
-    border: 3px dashed var(--color-chip-edge);
-    background: var(--color-chip);
-    box-shadow: 0 2px 4px rgb(0 0 0 / 0.45);
-  }
+  /* Capa de efectos: cartas que se retiran. */
   .fx-ghost {
     position: absolute;
     pointer-events: none;
@@ -605,18 +594,16 @@ input[type="range"] {
 [data-view="3d"] .card-slot.selected {
   --raise: 22px;
 }
-/* En reposo, en 3D, las cartas respiran despegándose apenas del tapete. */
-[data-motion="on"] [data-view="3d"] .card-float {
-  animation-name: card-float-3d;
+/* En 3D nada se mueve en reposo sobre el tapete: las cartas descansan quietas
+   en el paño, como las de verdad, y la luz del turno aparece sin latir. Una
+   animación continua dentro de la escena 3D obliga al navegador a recomponerla
+   entera en cada fotograma; así solo trabaja mientras algo se mueve. */
+[data-motion="on"] [data-view="3d"] .card-float,
+[data-motion="on"] [data-view="3d"] .deck-ready::after {
+  animation: none;
 }
-@keyframes card-float-3d {
-  0%,
-  100% {
-    transform: translateZ(calc(var(--float, 1) * 4px));
-  }
-  50% {
-    transform: translateZ(calc(var(--float, 1) * 16px)) rotateX(calc(var(--float, 1) * 4deg));
-  }
+[data-motion="on"] [data-view="3d"] .glow-turn {
+  animation: glow-in 320ms ease-out both;
 }
 /* Los mazos: cartas apiladas de verdad, una encima de otra, con su sombra. */
 [data-view="3d"] .deck-stack > .card {
@@ -651,4 +638,113 @@ input[type="range"] {
 [data-view="3d"] .hand-card.playable:hover,
 [data-view="3d"] .hand-card.playable:focus-visible {
   transform: translateY(-20px) rotateX(0deg) translateZ(26px);
+}
+
+/* --- Fichas de la mesa (etapa 6) ---
+   Cada ficha es un cilindro: el canto (::before), con sus marcas, y la cara
+   de arriba (::after), con su anillo y su centro. Se apilan una encima de
+   otra (--i). Cómo de inclinada se ve la cara depende de la vista. */
+
+[data-view] {
+  --chip-ratio: 0.52; /* alto de la cara de arriba / diámetro: en 2D, casi de lado */
+}
+.chip-pile,
+.fx-chip-flying {
+  --chip-t: calc(var(--chip-d) * 0.14); /* grosor de una ficha */
+}
+[data-view="3d"] {
+  --chip-ratio: 0.7; /* en 3D, como se ve la mesa desde la silla */
+}
+.chip-pile {
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.chip-stack {
+  position: absolute;
+  bottom: 0;
+  width: var(--chip-d);
+  height: 100%;
+}
+/* Sombra de la pila en el tapete. */
+.chip-shadow {
+  position: absolute;
+  left: -12%;
+  right: -12%;
+  bottom: calc(var(--chip-d) * var(--chip-ratio) * -0.12);
+  height: calc(var(--chip-d) * var(--chip-ratio) * 1.1);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(0 0 0 / 0.5), rgb(0 0 0 / 0.22) 65%, transparent);
+}
+.chip {
+  --chip: var(--color-chip-100);
+  --spot: var(--color-chip-spot);
+  position: absolute;
+  left: 0;
+  bottom: calc(var(--i, 0) * var(--chip-t));
+  width: var(--chip-d);
+  height: calc(var(--chip-d) * var(--chip-ratio) + var(--chip-t));
+}
+.chip[data-v="1"] {
+  --chip: var(--color-chip-1);
+  --spot: var(--color-chip-1-spot);
+}
+.chip[data-v="5"] {
+  --chip: var(--color-chip-5);
+}
+.chip[data-v="25"] {
+  --chip: var(--color-chip-25);
+}
+.chip[data-v="500"] {
+  --chip: var(--color-chip-500);
+}
+.chip[data-v="1000"] {
+  --chip: var(--color-chip-1000);
+  --spot: var(--color-chip-1000-spot);
+}
+.chip[data-v="5000"] {
+  --chip: var(--color-chip-5000);
+}
+/* El canto: franjas de color con las marcas claras, y sombra a los lados para que se vea redondo. */
+.chip::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(var(--chip-d) * var(--chip-ratio) / 2 + var(--chip-t));
+  border-radius: 0 0 50% 50% / 0 0 calc(var(--chip-d) * var(--chip-ratio) / 2)
+    calc(var(--chip-d) * var(--chip-ratio) / 2);
+  background:
+    linear-gradient(90deg, rgb(0 0 0 / 0.42), transparent 28%, transparent 68%, rgb(0 0 0 / 0.5)),
+    repeating-linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--chip) 78%, black) 0 calc(var(--chip-d) * 0.15),
+      var(--spot) calc(var(--chip-d) * 0.15) calc(var(--chip-d) * 0.23)
+    );
+}
+/* La cara de arriba: marcas en el borde, un anillo fino y el centro algo más claro. */
+.chip::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: calc(var(--chip-d) * var(--chip-ratio));
+  border-radius: 50%;
+  background:
+    linear-gradient(160deg, rgb(255 255 255 / 0.28), transparent 55%),
+    radial-gradient(closest-side, transparent 0 60%, rgb(255 255 255 / 0.6) 61% 65%, transparent 66%),
+    radial-gradient(closest-side, color-mix(in srgb, var(--chip) 82%, white) 0 60%, transparent 61%),
+    repeating-conic-gradient(var(--chip) 0 30deg, var(--spot) 30deg 45deg);
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.28);
+}
+/* Fichas que cruzan la mesa, en la capa de efectos: centradas en su punto. */
+.fx-chip-flying {
+  left: calc(var(--chip-d) / -2);
+  top: calc(var(--chip-d) * var(--chip-ratio) / -2);
+  bottom: auto;
+}
+.fx-pile {
+  position: absolute;
 }

@@ -14,6 +14,10 @@ export const motion = {
   entering: null as string | null,
   revealing: false, // en este paso se voltean cartas que estaban boca abajo
   speed: 1, // mayor que 1 cuando la cola va atrasada
+  // Milisegundos hasta que las fichas que cruzan la mesa en este paso llegan a
+  // su pila: las fichas nuevas de las pilas caen entonces. null si la mesa
+  // saltó sin reproducir (las fichas aparecen sin más).
+  chipLanding: null as number | null,
 };
 
 export const EASE = {
