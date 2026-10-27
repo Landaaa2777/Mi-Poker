@@ -7,15 +7,17 @@ de juego social con fichas virtuales, pero con nombre, diseño y textos 100%
 originales (no copiar marca, assets ni textos de ningún sitio existente).
 
 ## ESTADO ACTUAL
-- Etapas 1, 2, 3, 4 y 5 completas. La etapa 4 (plataforma de juegos: menú
+- Etapas 1, 2, 3, 4, 5 y 6 completas. La etapa 4 (plataforma de juegos: menú
   principal, el poker de siempre, blackjack y el juego de descarte "Prisma")
   se aprobó el 2026-10-17 y se cerró el mismo día. La etapa 5 (salas privadas
   para jugar con amigos, cuentas obligatorias y fichas diarias) se aprobó el
   2026-10-17 y se cerró el 2026-10-18. Las dos se trabajaron de seguido, sin
   parar a pedir aprobación entre hitos, como pedí.
-- Etapa 6 en curso (mesas en 3D y fichas en la mesa): la pedí el 2026-10-27
-  y se trabaja de seguido, sin parar entre hitos, como pedí. Su plan está en
-  "Etapa 6: mesas en 3D y fichas en la mesa".
+- La etapa 6 (mesas en 3D y fichas en la mesa) la pedí el 2026-10-27 y se
+  cerró el mismo día, también de seguido, sin parar entre hitos, como pedí.
+  Ver "Etapa 6: mesas en 3D y fichas en la mesa".
+- No hay ninguna etapa en curso: la siguiente empieza cuando yo la pida, con
+  su plan escrito antes en este archivo.
 - El juego de descarte se llama Prisma: lo decidí el 2026-10-17 (probé a
   llamarlo ONE y volví a Prisma).
 
@@ -95,6 +97,10 @@ originales (no copiar marca, assets ni textos de ningún sitio existente).
   - `src/salas/`: las salas con amigos (`/salas`, `/sala/{código}`).
   - `src/shared/`: lo común (cabecera, cuenta, ajustes, sonido, movimiento,
     baraja clásica, panel de opciones, cuenta atrás, tokens).
+  - `src/shared/stage/`: la mesa en 2D o 3D (etapa 6): la cámara, el
+    escenario (`Stage`), las medidas para animar y la física de las cartas.
+  - `src/shared/chips/`: las fichas de la mesa (etapa 6): desglose, pilas y
+    vuelos.
   - `src/games/<juego>/`: la interfaz de cada juego, contra bots y en sala
     (`<Juego>Room.tsx`).
 
@@ -324,9 +330,11 @@ Referencias que di (se toma la idea, nunca la marca ni los assets):
   abajo y solo se voltean en el showdown.
 - Flop, turn y river: las cartas comunitarias aparecen de una en una con
   deslizamiento y giro.
-- Fichas: van directas del jugador al bote al apostar, y del bote al ganador
-  al terminar la mano. La apuesta de la ronda sigue visible como cifra junto
-  a cada jugador.
+- Fichas (cambiado en la etapa 6): son pilas de fichas de verdad, por valor,
+  en el poker y el blackjack, en 2D y en 3D. Al apostar vuelan del jugador a
+  su sitio en la mesa y su pila crece; al cerrar la ronda las pilas se
+  deslizan al bote, que crece en el centro; el bote va al ganador. Junto a
+  cada pila sigue la cifra.
 - Fold: las cartas del jugador se deslizan hacia el centro y se desvanecen.
 - Resaltar de forma suave al jugador en turno y al ganador de la mano. Los
   resaltes son halos ya dibujados a los que solo se les anima la opacidad.
@@ -336,6 +344,9 @@ Referencias que di (se toma la idea, nunca la marca ni los assets):
 - Sin librerías de animación: API de animaciones del navegador y CSS.
 - Respetar `prefers-reduced-motion` y ofrecer una opción para desactivar las
   animaciones.
+- En la vista 3D (etapa 6) las cartas se mueven con física (arco, giro,
+  rebote y frenada; al voltearse se levantan por un borde) y, en reposo,
+  descansan quietas en el tapete: no flotan. La vista 2D se anima como antes.
 
 ### Línea de tiempo (cómo se reproduce una mano)
 - El cliente compara el registro de la mano (`events`) con el anterior y lo
@@ -455,14 +466,49 @@ Decisiones del 2026-10-27:
   juego tal como estaba al cerrar la etapa 5 (ver el README).
 
 ### Hitos de la etapa 6
-0. Plan y respaldo.
-1. Selector de vista y escenario 3D común (`frontend/src/shared/stage/`):
-   la cámara, con su proyección y su inversa (con tests), y la mesa plana o
-   inclinada con su capa HUD.
-2. Mesas 3D con cartas físicas en los tres juegos.
-3. Fichas en la mesa, en 2D y en 3D.
-4. Repaso: rendimiento, móvil, teclado y movimiento reducido; README y este
-   archivo al día.
+0. Plan y respaldo (completado): rama `respaldo-antes-del-3d`.
+1. Selector de vista y escenario 3D común (completado,
+   `frontend/src/shared/stage/`): la cámara, con su proyección y su inversa
+   (con tests), y la mesa plana o inclinada con su capa HUD. El menú pregunta
+   la primera vez; botón 2D/3D en la cabecera de las mesas y en Ajustes.
+2. Mesas 3D con cartas físicas en los tres juegos (completado): física con
+   tests (`stage/physics.ts`); canto, brillo, textura y sombra de las cartas;
+   mi mano de Prisma inclinada.
+3. Fichas en la mesa, en 2D y en 3D (completado, `frontend/src/shared/chips/`,
+   `games/poker/chips.ts` y `games/blackjack/chips.ts`, con tests que
+   comprueban con las partidas grabadas que cuadran con el servidor).
+4. Repaso (completado): rendimiento (medido sin tarjeta gráfica: 57-59 fps
+   en el poker 3D, 59 en 2D), móvil, teclado (el mazo de Prisma se pulsa
+   también inclinado), sin animaciones, README y este archivo.
+
+### Decisiones tomadas durante la etapa 6
+- Cámara: el tapete se inclina unos 40° (algo menos en el móvil) sobre su
+  borde cercano y se estira en profundidad lo que la inclinación lo acorta,
+  así las distancias de la mesa se ven casi como en 2D. Las placas, los
+  totales y los avisos van en la capa plana de encima; las cartas, los
+  mazos y los dibujos del tapete, tumbados en él.
+- En 3D las cartas de cada jugador siguen encima de su placa (en la pantalla),
+  tumbadas en el paño. Mis cartas del poker se sostienen algo levantadas
+  hacia mí, y las comunitarias se dibujan un 12 % más grandes.
+- Rendimiento: nada se mueve sin parar sobre el tapete 3D (ni la flotación ni
+  el latido de la luz del turno: la luz aparece con un fundido); el canto de
+  la mesa va fuera de la escena 3D y las sombras son imágenes ya
+  desenfocadas. Cada una de esas cosas costaba fotogramas.
+- Valores y colores de las fichas: 1 marfil, 5 granate, 25 verde, 100 negro,
+  500 violeta, 1000 oro y 5000 azul (en `tokens.css`). Cada apuesta se pone
+  con sus propias fichas encima de las anteriores; el bote cambia las
+  pequeñas por otras mayores, como un crupier; quien se lleva el bote entero
+  se lleva esas mismas fichas. Pilas de 5 fichas como mucho (si hay más, otra
+  pila al lado).
+- Poker: lo ganado se queda delante del ganador hasta la mano siguiente. Las
+  apuestas se cuelgan del lado que mira a su placa (el jugador de arriba del
+  todo las deja a su derecha), para que al crecer no pisen placas, cartas ni
+  el bote.
+- Blackjack: el crupier tiene una bandeja de fichas (de ahí salen los pagos y
+  ahí va lo perdido). Lo ganado y las apuestas que no se pierden se quedan en
+  la mesa hasta la ronda siguiente.
+- `npm run dev` no dejaba crear cuenta ni entrar (el proxy de Vite cambiaba
+  la cabecera Host y el servidor lo rechazaba): arreglado en `vite.config.ts`.
 
 ## Etapa 5: online con amigos (salas privadas)
 Decisiones del 2026-10-17:
@@ -624,6 +670,10 @@ Menú principal, poker, blackjack y Prisma como módulos enchufables (ver
 ### Etapa 5: online con amigos (completa el 2026-10-18)
 Cuentas obligatorias, fichas diarias y salas privadas en los tres juegos, en
 la red de casa o con un túnel (ver "Etapa 5: online con amigos").
+
+### Etapa 6: mesas en 3D y fichas en la mesa (completa el 2026-10-27)
+Vista 3D a elegir con la 2D, cartas con física y fichas en la mesa (ver
+"Etapa 6: mesas en 3D y fichas en la mesa").
 
 ## Visión futura (solo referencia, NO implementar todavía)
 - Publicar la plataforma en un servidor (HTTPS, límites de cuentas) para

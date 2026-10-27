@@ -1,4 +1,4 @@
-import { createContext, useContext, useLayoutEffect, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useLayoutEffect, type ReactNode } from "react";
 import { useAudio } from "./audio/useAudio";
 import { motion } from "./motion";
 import type { Settings, TableView } from "./settings";
@@ -22,7 +22,20 @@ export function usePlatformSettings(): PlatformSettings {
 }
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
-  const [settings, update] = useSettings();
+  const [settings, save] = useSettings();
+  // Al cambiar de vista la mesa se vuelve a dibujar entera: nada debe entrar
+  // volando ni caer como si acabara de llegar.
+  const update = useCallback(
+    (changes: Partial<Settings>) => {
+      if (changes.view !== undefined) {
+        motion.entering = null;
+        motion.revealing = false;
+        motion.chipLanding = null;
+      }
+      save(changes);
+    },
+    [save],
+  );
   const reducedMotion = usePrefersReducedMotion();
   const animations = settings.animations ?? !reducedMotion;
   const view = settings.view ?? "2d";

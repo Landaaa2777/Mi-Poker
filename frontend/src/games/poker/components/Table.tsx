@@ -84,21 +84,49 @@ function seatPoint(layout: Layout, index: number, count: number, human: boolean)
   };
 }
 
-/** Dónde deja cada jugador sus apuestas: delante de él, hacia el centro de la mesa. */
-function betPoint(layout: Layout, seat: Point, size: SeatSize, human: boolean): Point {
+/** Dónde deja un jugador sus apuestas y hacia dónde crecen al apilarse. */
+interface BetSpot {
+  point: Point;
+  className: string; // por qué borde se cuelga el bloque de su punto
+}
+
+/**
+ * Dónde deja cada jugador sus apuestas: delante de él, hacia el centro de la
+ * mesa. El bloque (jugada, fichas y cantidad) se cuelga por el borde que mira
+ * a su placa, así que al crecer la pila crece hacia la mesa, nunca encima de
+ * la placa ni de las cartas.
+ */
+function betSpot(layout: Layout, seat: Point, size: SeatSize, human: boolean): BetSpot {
   // Las mías van a la derecha de mis cartas, a media altura: delante las taparían al levantarlas.
   if (human) {
     const cardsBottom = seat.y - size.height / 2 - size.gap;
-    return { x: seat.x + size.width / 2 + 34, y: cardsBottom - size.card * 0.62 };
+    return {
+      point: { x: seat.x + size.width / 2, y: cardsBottom - size.card * 0.62 },
+      className: "absolute -translate-y-1/2 origin-left",
+    };
   }
   const dx = layout.center.x - seat.x;
   const dy = layout.center.y - seat.y;
   const length = Math.hypot(dx, dy) || 1;
-  // Hacia los lados basta con salir de la placa; hacia arriba hay que saltar también sus cartas.
+  // Quien se sienta arriba del todo las deja a su derecha: debajo de él va el bote.
+  if (Math.abs(dx) < 80 && dy > 0) {
+    return { point: { x: seat.x + size.width / 2 + 22, y: seat.y }, className: "absolute -translate-y-1/2 origin-left" };
+  }
+  // A los lados, en cuanto se sale de la placa, hacia el centro.
+  if (Math.abs(dx) > 120) {
+    const toward = Math.sign(dx);
+    return {
+      point: { x: seat.x + toward * (size.width / 2 + 16), y: seat.y + (dy / length) * 24 },
+      className: toward > 0 ? "absolute -translate-y-1/2 origin-left" : "absolute -translate-x-full -translate-y-1/2 origin-right",
+    };
+  }
+  // Arriba o abajo: hacia el centro, saltando también sus cartas si están en medio.
   const cardsAbove = size.card * 1.4 + size.gap;
-  const reachX = size.width / 2 + 44;
-  const reachY = dy < 0 ? size.height / 2 + cardsAbove + 30 : size.height / 2 + 44;
-  return { x: seat.x + (dx / length) * reachX, y: seat.y + (dy / length) * reachY };
+  const reachY = dy < 0 ? size.height / 2 + cardsAbove + 6 : size.height / 2 + 30;
+  return {
+    point: { x: seat.x + (dx / length) * (size.width / 2 + 44), y: seat.y + Math.sign(dy) * reachY },
+    className: dy > 0 ? "absolute -translate-x-1/2 origin-top" : "absolute -translate-x-1/2 -translate-y-full origin-bottom",
+  };
 }
 
 const cardWidth = (width: number) => ({ "--card-w": `${width}px` }) as CSSProperties;
@@ -286,13 +314,13 @@ function SeatBets({ seat, chips }: { seat: SeatFrame; chips: TableChips }) {
       <span data-pile={`bet-${seat.seat}`} className="flex items-end gap-1.5">
         {bet.length > 0 && (
           <>
-            <ChipPile chips={bet} pile={`bet-${seat.seat}-chips`} size={size} />
+            <ChipPile chips={bet} pile={`bet-${seat.seat}-chips`} size={size} tallest={5} />
             <span className="rounded-full bg-black/60 px-2.5 py-0.5 text-sm font-bold tabular-nums">{seat.bet}</span>
           </>
         )}
         {won.length > 0 && (
           <>
-            <ChipPile chips={won} pile={`won-${seat.seat}`} size={size} tallest={7} />
+            <ChipPile chips={won} pile={`won-${seat.seat}`} size={size} tallest={5} />
             <span className="pop-in rounded-full bg-gradient-to-b from-amber-200 to-amber-500 px-3 py-0.5 text-sm font-black text-stone-900 shadow">
               +{seat.won}
             </span>
@@ -440,24 +468,27 @@ export function Table({ frame, settled }: Props) {
 
   // Lo que hay que leer: el bote, las apuestas y las placas de los jugadores.
   function seatViews(placeOver: Placement["overTable"]) {
-    return seats.map(({ seat, point, size, avatarSide }) => (
-      <div key={seat.seat}>
-        <div className={CENTERED} style={placeOver(betPoint(layout, point, size, seat.isHuman), "full")}>
-          <SeatBets seat={seat} chips={chips} />
+    return seats.map(({ seat, point, size, avatarSide }) => {
+      const spot = betSpot(layout, point, size, seat.isHuman);
+      return (
+        <div key={seat.seat}>
+          <div className={spot.className} style={placeOver(spot.point, "full")}>
+            <SeatBets seat={seat} chips={chips} />
+          </div>
+          <div className={CENTERED} style={placeOver(point)} data-seat={seat.seat}>
+            <SeatPlaque
+              seat={seat}
+              frame={frame}
+              size={size}
+              scale={scale}
+              avatarSide={avatarSide}
+              thinking={settled && frame.actingSeat === seat.seat && !seat.isHuman}
+              withCards={flat}
+            />
+          </div>
         </div>
-        <div className={CENTERED} style={placeOver(point)} data-seat={seat.seat}>
-          <SeatPlaque
-            seat={seat}
-            frame={frame}
-            size={size}
-            scale={scale}
-            avatarSide={avatarSide}
-            thinking={settled && frame.actingSeat === seat.seat && !seat.isHuman}
-            withCards={flat}
-          />
-        </div>
-      </div>
-    ));
+      );
+    });
   }
 
   // El bote: sus fichas en el centro de la mesa, y al lado lo que suma con las apuestas de la ronda.
@@ -469,7 +500,7 @@ export function Table({ frame, settled }: Props) {
         style={placeOver({ x: layout.center.x, y: layout.center.y - boardHeight / 2 - 12 }, "full")}
       >
         <span data-pile="pot" className="flex min-h-1 min-w-1 items-end">
-          {chips.pot.length > 0 && <ChipPile chips={chips.pot} pile="pot-chips" size={CHIP.pot} tallest={7} />}
+          {chips.pot.length > 0 && <ChipPile chips={chips.pot} pile="pot-chips" size={CHIP.pot} tallest={5} />}
         </span>
         <span className="flex flex-col items-center">
           <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-amber-100/85">Bote</span>

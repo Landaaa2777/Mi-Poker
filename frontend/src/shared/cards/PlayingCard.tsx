@@ -37,7 +37,7 @@ const TURN_MS = 300; // voltear una carta
 // En 3D las cartas se mueven con física (ver stage/physics): vuelan algo más,
 // porque recorren un arco, aterrizan y frenan deslizando por el tapete.
 const THROW_MS = 480; // del mazo a un jugador
-const BOARD_THROW_MS = 560; // del mazo a la mesa, dándose la vuelta en el aire
+const BOARD_THROW_MS = 500; // del mazo a la mesa, dándose la vuelta en el aire
 const TURN_3D_MS = 340; // darle la vuelta a una carta que está en la mesa
 
 /**

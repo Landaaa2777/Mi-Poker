@@ -24,6 +24,9 @@ canjean por nada.
 - Etapa 5 (completa): salas privadas para jugar con amigos (los tres juegos),
   cuentas obligatorias y fichas diarias. Se juega en la red de casa o, con un
   túnel, con amigos de fuera.
+- Etapa 6 (completa): mesas en 3D, a elegir con las de siempre en 2D, con
+  cartas que se mueven con física, y fichas de verdad en la mesa (apuestas que
+  crecen, el bote y lo que se cobra), en las dos vistas.
 
 Las partidas y las salas viven en la memoria del servidor y se pierden al
 cerrarlo; las cuentas sí se guardan.
@@ -246,15 +249,74 @@ variable `MI_POKER_DB` antes de arrancar el servidor. Borrar ese archivo
 borra todas las cuentas; para guardar una copia de seguridad basta con
 copiarlo con el servidor parado.
 
+## Mesa en 2D o en 3D
+
+![La mesa de poker en 3D con el bote en fichas; abajo, la misma mesa en 2D con un all-in, y el blackjack en 3D con las apuestas y los pagos del crupier](docs/mesas-3d.jpg)
+
+Las mesas de los tres juegos se pueden ver de dos maneras, y cada uno elige:
+
+- **2D**: la mesa plana, vista desde arriba, como siempre.
+- **3D**: el tapete inclinado en perspectiva, con el canto de madera de la
+  mesa. Las cartas tienen grosor, brillo de cartulina que cambia al pasar el
+  ratón y su sombra en el paño. Se mueven con física: salen del mazo con un
+  arco, giran en el aire, aterrizan con un rebote pequeño y frenan
+  deslizando; al darse la vuelta se levantan por un borde, y al retirarse se
+  deslizan por el tapete. Las placas con los nombres y los avisos van planas
+  por encima, para que se lean siempre bien.
+
+La primera vez, el menú pregunta cuál prefieres. Después se cambia cuando
+quieras con el botón **2D / 3D** de la cabecera de cada mesa o en
+**Ajustes → Mesa**. Se guarda en el navegador.
+
+### Fichas en la mesa
+
+En el poker y el blackjack (en las dos vistas) las apuestas son fichas de
+verdad, con un color por valor: marfil (1), granate (5), verde (25), negro
+(100), violeta (500), oro (1000) y azul (5000).
+
+- **Poker**: cada apuesta vuela de la placa del jugador a su sitio en la mesa,
+  y su pila crece con cada subida. Al cerrarse la ronda, las pilas se deslizan
+  al bote, que va creciendo en el centro (el crupier cambia las fichas
+  pequeñas por otras de más valor). Al final, el bote va entero al ganador,
+  con sus mismas fichas, y al empezar la mano siguiente pasa a su placa.
+- **Blackjack**: la apuesta va a su círculo; doblar pone otra pila igual al
+  lado. El crupier paga desde su bandeja de fichas, o se lleva lo perdido a
+  ella. El seguro va aparte. Al empezar otra ronda, lo que queda en la mesa
+  vuelve a cada jugador.
+
+Prisma no usa fichas.
+
+Las animaciones mueven solo `transform` y `opacity`, para ir a 60 fotogramas
+por segundo. Sin animaciones (en **Ajustes**, o si el sistema pide reducir el
+movimiento) la mesa 3D se ve igual, pero quieta.
+
+### Volver a como estaba (respaldo)
+
+Si no te gusta el resultado, lo más sencillo es elegir **2D**: las cartas se
+ven y se mueven exactamente como antes (lo único nuevo en 2D son las fichas).
+
+Para volver al juego tal como estaba antes de esta etapa (sin 3D ni fichas),
+está guardado en la rama `respaldo-antes-del-3d`. Desde la raíz del proyecto:
+
+```powershell
+git fetch origin
+git switch respaldo-antes-del-3d
+cd frontend
+npm run build
+```
+
+y se arranca como siempre. Para volver a la versión nueva, `git switch main`
+(o la rama en la que estuvieras) y otra vez `npm run build`.
+
 ## Sonido y ajustes
 
 El audio empieza con tu primera interacción (un clic o una tecla): los
 navegadores no dejan sonar nada antes. En la cabecera hay un botón para
 silenciarlo todo y un menú **Ajustes** con el volumen de la música y el de los
-efectos por separado. Ahí mismo se pueden desactivar las animaciones: cada
-jugada se muestra entonces al instante (por defecto se sigue la preferencia de
-movimiento reducido del sistema). Todo se guarda en el navegador y vale para
-todos los juegos.
+efectos por separado. Ahí mismo se elige la vista de las mesas (2D o 3D) y se
+pueden desactivar las animaciones: cada jugada se muestra entonces al instante
+(por defecto se sigue la preferencia de movimiento reducido del sistema). Todo
+se guarda en el navegador y vale para todos los juegos.
 
 Los efectos y la música se generan por código, sin archivos. Si prefieres tu
 propia música, guarda una pista como `frontend/src/assets/audio/music.mp3`
@@ -279,14 +341,16 @@ nunca llegan al navegador. Usan bases de datos temporales: nunca tocan la de
 `backend/data`.
 
 Frontend (líneas de tiempo, cola de reproducción, menú, panel de opciones,
-textos, sonidos, cuentas y salas: lo que no necesita navegador), desde
-`frontend`:
+textos, sonidos, cuentas, salas, la cámara 3D, la física de las cartas y las
+fichas de la mesa: lo que no necesita navegador), desde `frontend`:
 
 ```powershell
 npm test
 ```
 
-Los tests de las líneas de tiempo usan partidas reales grabadas del servidor.
+Los tests de las líneas de tiempo y de las fichas usan partidas reales
+grabadas del servidor: las fichas que se ven en cada paso cuadran siempre con
+las apuestas, el bote y lo cobrado.
 Para volver a grabarlas, desde la raíz del proyecto:
 
 ```powershell
@@ -352,13 +416,16 @@ frontend/
                        baraja clásica, panel de opciones, cola de reproducción,
                        conexión con las partidas, cuenta atrás y tokens de diseño
                        (styles/tokens.css: colores, tipografías y espacios)
+  src/shared/stage/    la mesa en 2D o 3D: la cámara, el escenario y la física
+                       de las cartas
+  src/shared/chips/    las fichas de la mesa: desglose, pilas y vuelos
   src/games/index.ts   el mapa de juegos: id → página, mesa de sala e ícono
   src/games/poker/     la mesa de poker (contra bots y en sala)
   src/games/blackjack/ la mesa de blackjack (contra bots y en sala)
   src/games/prisma/    la mesa de Prisma y sus cartas en SVG
   src/assets/          la baraja clásica (CC0) y la carpeta de música opcional
   tools/               graba partidas reales para los tests y prepara la baraja
-docs/                  la imagen del principio de este README (capturas del juego)
+docs/                  las imágenes de este README (capturas del juego)
 ```
 
 Cada juego describe sus mensajes en su `protocol.py`; las rutas de partidas
@@ -450,11 +517,25 @@ estado del servidor, y solo entonces se activan los botones de acción.
 
 ### Animaciones
 
-Las cartas se mueven al estilo de Balatro, con nuestro propio dibujo: salen
-volando del mazo (o del zapato), las tuyas se voltean en 3D al llegar y, en
-reposo, flotan apenas. Solo se animan `transform` y `opacity`, y cada movimiento
-dura menos de medio segundo. Con las animaciones desactivadas en **Ajustes**
-(o si el sistema pide movimiento reducido) no se mueve nada.
+En 2D, las cartas se mueven al estilo de Balatro, con nuestro propio dibujo:
+salen volando del mazo (o del zapato), las tuyas se voltean en 3D al llegar y,
+en reposo, flotan apenas. Solo se animan `transform` y `opacity`, y cada
+movimiento dura menos de medio segundo. Con las animaciones desactivadas en
+**Ajustes** (o si el sistema pide movimiento reducido) no se mueve nada.
+
+En 3D (`frontend/src/shared/stage/`), la mesa es el mismo lienzo inclinado con
+la propiedad `perspective` del navegador; una cámara repite sus cuentas para
+colocar encima, planos, los nombres y los avisos, y para saber de dónde sale
+cada carta. Los movimientos de las cartas salen de una pequeña simulación
+(lanzamiento, aire, rebote y rozamiento) convertida en fotogramas clave, así
+que el navegador solo tiene que interpolar. Para ir fluido, en 3D no hay nada
+que se mueva sin parar sobre el tapete (las cartas descansan quietas, como las
+de verdad) y las sombras son imágenes ya desenfocadas.
+
+Las fichas (`frontend/src/shared/chips/`) se dibujan con CSS como cilindros
+apilados. Lo que hay en la mesa se calcula a partir del registro de la mano,
+igual que los pasos de la reproducción; las que cruzan la mesa son copias que
+vuelan por encima, y las que llegan a una pila caen en ella al llegar.
 
 ### Sonido
 
