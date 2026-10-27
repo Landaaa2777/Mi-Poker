@@ -13,8 +13,9 @@ originales (no copiar marca, assets ni textos de ningún sitio existente).
   para jugar con amigos, cuentas obligatorias y fichas diarias) se aprobó el
   2026-10-17 y se cerró el 2026-10-18. Las dos se trabajaron de seguido, sin
   parar a pedir aprobación entre hitos, como pedí.
-- No hay ninguna etapa en curso: la siguiente empieza cuando yo la pida, con
-  su plan escrito antes en este archivo.
+- Etapa 6 en curso (mesas en 3D y fichas en la mesa): la pedí el 2026-10-27
+  y se trabaja de seguido, sin parar entre hitos, como pedí. Su plan está en
+  "Etapa 6: mesas en 3D y fichas en la mesa".
 - El juego de descarte se llama Prisma: lo decidí el 2026-10-17 (probé a
   llamarlo ONE y volví a Prisma).
 
@@ -420,6 +421,48 @@ Referencias que di (se toma la idea, nunca la marca ni los assets):
 - Si hay una decisión de diseño con varias opciones, preguntarme (salvo en la
   etapa 4, donde decidí dejar que se elija la opción recomendada y se anote
   aquí).
+
+## Etapa 6: mesas en 3D y fichas en la mesa
+Decisiones del 2026-10-27:
+- Dos vistas de mesa en los tres juegos: 2D (la de siempre) y 3D. Elige el
+  jugador: la primera vez lo pregunta el menú, y después se cambia en Ajustes
+  y con el botón 2D/3D de la cabecera de la mesa. Se guarda en el navegador
+  con las demás preferencias (`settings.ts`). Hasta que se elige, 2D.
+- El 3D se hace con CSS 3D (perspectiva y transformaciones del navegador),
+  sin librerías, como el resto de animaciones: el tapete se inclina hacia
+  atrás, y las cartas y las fichas tienen volumen y profundidad. Las placas,
+  los nombres y los avisos van en una capa plana por encima (HUD), en el
+  punto de la pantalla donde cae su sitio de la mesa, para que se lean
+  siempre bien.
+- Cartas en 3D, que parezcan de cartulina de verdad: grosor, brillo que se
+  mueve al inclinarlas, textura de papel y sombra sobre el tapete que cambia
+  con la altura. Física: salen del mazo con un arco, giran en el aire,
+  aterrizan con un pequeño rebote y frenan deslizando; al voltearse se
+  levantan (giran sobre su borde, sin atravesar el tapete); al retirarse se
+  deslizan por el tapete. Los movimientos salen de una pequeña simulación
+  pasada a fotogramas clave: solo `transform` y `opacity`, a 60 fps.
+- En la vista 2D las cartas no cambian (el reparto del poker sigue igual): la
+  física nueva es solo de la 3D.
+- Fichas en la mesa, en 2D y en 3D, en el poker y el blackjack (Prisma no usa
+  fichas). Pilas por valor, con un color por valor:
+  - Poker: cada apuesta vuela del jugador a su sitio delante de él y su pila
+    crece; al cerrar cada ronda de apuestas las pilas se deslizan al bote, que
+    crece en el centro; el bote va al ganador y, al empezar la mano
+    siguiente, a su placa.
+  - Blackjack: la apuesta va a su círculo; doblar añade otra pila igual; el
+    crupier paga desde su bandeja o se lleva lo perdido; el seguro va aparte.
+- Respaldo por si no me gusta: la rama `respaldo-antes-del-3d` guarda el
+  juego tal como estaba al cerrar la etapa 5 (ver el README).
+
+### Hitos de la etapa 6
+0. Plan y respaldo.
+1. Selector de vista y escenario 3D común (`frontend/src/shared/stage/`):
+   la cámara, con su proyección y su inversa (con tests), y la mesa plana o
+   inclinada con su capa HUD.
+2. Mesas 3D con cartas físicas en los tres juegos.
+3. Fichas en la mesa, en 2D y en 3D.
+4. Repaso: rendimiento, móvil, teclado y movimiento reducido; README y este
+   archivo al día.
 
 ## Etapa 5: online con amigos (salas privadas)
 Decisiones del 2026-10-17:
