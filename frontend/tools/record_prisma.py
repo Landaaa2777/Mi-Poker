@@ -26,20 +26,30 @@ from fastapi.testclient import TestClient  # noqa: E402
 from server.app import create_app  # noqa: E402
 
 OUTPUT = ROOT / "frontend" / "src" / "games" / "prisma" / "fixtures" / "sessions.json"
-COLORS = ["panal", "halo", "cumbre", "astro"]
 
 # (nombre, configuración, rondas)
 SESSIONS = [
     ("tres_rivales", {"bots": 3, "difficulty": "easy"}, 1),
     ("duelo_a_puntos", {"bots": 1, "scoring": True, "target": 100, "difficulty": "medium"}, 3),
+    ("doble_cara", {"bots": 3, "difficulty": "hard", "mode": "doble_cara"}, 1),
+    ("sin_tregua", {"bots": 4, "difficulty": "easy", "mode": "sin_tregua"}, 1),
 ]
-WANTED = {"deal", "play", "draw", "skip", "reverse", "round_over", "last"}
+WANTED = {
+    "deal", "play", "draw", "skip", "reverse", "round_over", "last",
+    # Doble cara
+    "eclipse",
+    # Sin tregua
+    "swap", "rotate", "sweep", "reveal", "stack", "skip_all", "eliminated",
+}
 
 
 def choose(state: dict, rng: random.Random) -> dict:
     legal = state["legal"]
+    colors = state["colors"]  # los colores en juego (los de luz o los de sombra)
     if legal["choose_color"]:
-        return {"type": "color", "color": rng.choice(COLORS)}
+        return {"type": "color", "color": rng.choice(colors)}
+    if legal["roulette"]:
+        return {"type": "roulette", "color": rng.choice(colors)}
     if legal["challenge"]:
         return {"type": rng.choice(["challenge", "accept"])}
     if legal["catch"] and rng.random() < 0.7:
@@ -48,8 +58,11 @@ def choose(state: dict, rng: random.Random) -> dict:
         card_id = rng.choice(legal["play"])
         card = next(card for card in state["hand"] if card["id"] == card_id)
         message = {"type": "play", "card": card_id, "declare": len(state["hand"]) == 2 and rng.random() < 0.6}
-        if card["color"] is None:
-            message["color"] = rng.choice(COLORS)
+        if card["color"] is None and card["kind"] != "ruleta":
+            message["color"] = rng.choice(colors)
+        if state["mode"] == "sin_tregua" and card["number"] == 7 and len(state["hand"]) > 1:
+            rivals = [p["seat"] for p in state["players"] if p["seat"] != state["human_seat"] and not p["out"]]
+            message["target"] = rng.choice(rivals)
         return message
     return {"type": "pass"} if legal["pass"] else {"type": "draw"}
 
@@ -78,7 +91,7 @@ def record(config: dict, rounds: int, rng: random.Random) -> tuple[list[dict], s
                     return states, seen
                 played += 1
                 socket.send_json({"type": "next_round"})
-            elif legal["play"] or legal["draw"] or legal["pass"] or legal["choose_color"] or legal["challenge"]:
+            elif any(legal[key] for key in ("play", "draw", "pass", "choose_color", "challenge", "roulette")):
                 socket.send_json(choose(state, rng))
     return states, seen
 

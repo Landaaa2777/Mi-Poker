@@ -73,13 +73,14 @@ interface Props {
   shape: string; // clases de la forma del tapete (esquinas redondeadas)
   shapeStyle?: CSSProperties; // forma que no cabe en una clase
   shade: string; // sombreado del tapete hacia los bordes
+  tint?: ReactNode; // una capa más sobre el paño, bajo las cartas (Prisma la oscurece en la sombra)
   table: ReactNode;
   hud?: ReactNode;
   sectionRef: Ref<HTMLElement>;
 }
 
 /** La mesa entera: tapete, lo que hay sobre él, la capa de encima y las capas de efectos. */
-export function Stage({ placement, layout, scale, height, label, shape, shapeStyle, shade, table, hud, sectionRef }: Props) {
+export function Stage({ placement, layout, scale, height, label, shape, shapeStyle, shade, tint, table, hud, sectionRef }: Props) {
   const canvas = useRef<HTMLDivElement>(null);
   const { stage } = placement;
   useLayoutEffect(() => {
@@ -97,6 +98,7 @@ export function Stage({ placement, layout, scale, height, label, shape, shapeSty
       >
         {/* Sombra hacia los bordes, para dar profundidad al tapete. */}
         <div className={`absolute inset-0 ${shade}`} />
+        {tint}
         <div
           ref={canvas}
           data-canvas
@@ -162,6 +164,7 @@ export function Stage({ placement, layout, scale, height, label, shape, shapeSty
         >
           <div className={`felt rim absolute inset-0 overflow-hidden ${shape}`} style={shapeStyle}>
             <div className={`absolute inset-0 ${shade}`} />
+            {tint}
           </div>
           <div className="stage-top absolute inset-0">{table}</div>
           {/* Capa de efectos tumbada en el tapete: cartas que se retiran deslizándose. */}

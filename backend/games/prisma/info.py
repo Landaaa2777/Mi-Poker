@@ -24,7 +24,7 @@ def create_room(context: RoomContext) -> PrismaRoom:
 GAME = GameInfo(
     id="prisma",
     name="Prisma",
-    description="Suelta todas tus cartas antes que nadie: color, número o comodín.",
+    description="Suelta todas tus cartas antes que nadie. Tres modos: Clásico, Doble cara y Sin tregua.",
     min_bots=1,
     max_bots=MAX_BOTS,
     options=PrismaConfig,

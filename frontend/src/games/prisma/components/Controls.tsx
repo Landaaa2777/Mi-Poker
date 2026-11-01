@@ -1,6 +1,19 @@
 import { SUITS } from "../shapes";
 import type { GameState } from "../types";
 
+// El desafío de cada comodín restringido: qué es, qué pasa si aciertas o fallas
+// y qué robas si lo aceptas.
+const CHALLENGES: Record<string, { name: string; win: string; lose: string; accept: string }> = {
+  camaleon4: { name: "Camaleón +4", win: "roban ellos 4", lose: "robas 6", accept: "Aceptar y robar 4" },
+  camaleon2: { name: "Camaleón +2", win: "roban ellos 2", lose: "robas 4", accept: "Aceptar y robar 2" },
+  sabueso: {
+    name: "Camaleón Sabueso",
+    win: "roban ellos hasta sacar el color",
+    lose: "robas hasta sacarlo y 2 más",
+    accept: "Aceptar y robar hasta el color",
+  },
+};
+
 interface Props {
   state: GameState;
   settled: boolean; // la mesa ya enseña el último estado
@@ -83,18 +96,19 @@ export function Controls({ state, settled, waiting, send, onConfigure, room = fa
   }
 
   if (legal.challenge && settled) {
+    const wild = CHALLENGES[state.top.kind] ?? CHALLENGES.camaleon4;
     return (
       <div className="flex flex-col gap-3">
         <p className="text-sm text-amber-100">
-          Te han echado un <strong>Camaleón +4</strong>. Si crees que era un farol (que tenían cartas del
-          color de antes), desafíalo: si aciertas, roban ellos 4; si fallas, robas 6.
+          Te han echado un <strong>{wild.name}</strong>. Si crees que era un farol (que tenían cartas del
+          color de antes), desafíalo: si aciertas, {wild.win}; si fallas, {wild.lose}.
         </p>
         <div className="flex gap-2">
           <button className="btn-red h-12 flex-1 px-4" disabled={waiting} onClick={() => send("challenge")}>
             Desafiar
           </button>
           <button className="btn-dark h-12 flex-1 px-4" disabled={waiting} onClick={() => send("accept")}>
-            Aceptar y robar 4
+            {wild.accept}
           </button>
         </div>
         {quick}
@@ -102,17 +116,43 @@ export function Controls({ state, settled, waiting, send, onConfigure, room = fa
     );
   }
 
+  if (me.out && state.phase !== "roulette") {
+    return (
+      <p className="text-center text-amber-100/80">
+        Te has desbordado: quedas fuera de esta ronda. Tus cartas esperan apartadas hasta que se rebaraje.
+      </p>
+    );
+  }
+
   const myTurn = settled && (legal.play.length > 0 || legal.draw || legal.pass);
+  const relentless = state.mode === "sin_tregua";
+  // Lo que me toca hacer, en una frase.
+  let prompt: string;
+  if (state.drawn !== null) prompt = "Has robado una carta que sirve: juégala o pásate.";
+  else if (state.pending_draw > 0 && relentless)
+    prompt =
+      legal.play.length > 0
+        ? `Te llegan ${state.pending_draw} cartas acumuladas: responde con una carga de +${state.pending_min} o más para pasarlas, o róbalas.`
+        : `Te llegan ${state.pending_draw} cartas acumuladas y no tienes con qué responder: te toca robarlas.`;
+  else if (state.pending_draw > 0)
+    prompt =
+      legal.play.length > 0
+        ? `Te llegan ${state.pending_draw} cartas acumuladas: suma otra igual o róbalas.`
+        : `Te llegan ${state.pending_draw} cartas acumuladas: te toca robarlas.`;
+  else if (legal.play.length > 0)
+    prompt = relentless
+      ? "Te toca: juega una carta resaltada o roba hasta sacar una que sirva."
+      : "Te toca: juega una carta resaltada o roba del mazo.";
+  else
+    prompt = relentless
+      ? "Te toca: no tienes ninguna carta que case. Roba hasta sacar una que sirva."
+      : "Te toca: no tienes ninguna carta que case. Roba del mazo.";
   return (
     <div className="flex flex-col items-center gap-3 text-center">
       {myTurn ? (
         <>
           <p className="text-sm text-amber-100">
-            {state.drawn !== null
-              ? "Has robado una carta que sirve: juégala o pásate."
-              : legal.play.length > 0
-                ? "Te toca: juega una carta resaltada o roba del mazo."
-                : "Te toca: no tienes ninguna carta que case. Roba del mazo."}
+            {prompt}
             {color && (
               <>
                 {" "}
@@ -123,7 +163,7 @@ export function Controls({ state, settled, waiting, send, onConfigure, room = fa
           <div className="flex flex-wrap justify-center gap-2">
             {legal.draw && (
               <button className="btn-green h-12 px-6 text-base" disabled={waiting} onClick={() => send("draw")}>
-                {state.pending_draw ? `Robar ${state.pending_draw}` : "Robar"}
+                {state.pending_draw ? `Robar ${state.pending_draw}` : relentless ? "Robar hasta poder" : "Robar"}
               </button>
             )}
             {legal.pass && (

@@ -24,12 +24,23 @@ export function soundFor(step: Step, me: number): EffectName | null {
           return "check";
         case "caught":
         case "skip":
+        case "skip_all":
           return "fold";
         case "reverse":
         case "reshuffle":
           return "select";
         case "challenge":
+        case "stack":
           return "raise";
+        case "eclipse":
+          return "flip"; // toda la mesa se da la vuelta
+        case "swap":
+        case "rotate":
+          return "deal"; // las manos cambian de sitio
+        case "sweep":
+          return "chips";
+        case "eliminated":
+          return "allIn";
         case "round_over":
           return step.event.seat === me ? "win" : null;
         default:
@@ -40,14 +51,25 @@ export function soundFor(step: Step, me: number): EffectName | null {
   }
 }
 
+/** Cómo entran en la mesa las cartas que aparecen en un paso. */
+function entering(step: Step): string | null {
+  if (step.kind === "deal" || step.kind === "draw") return "deal";
+  if (step.kind === "play") return "play";
+  // Con un 7 o un 0, mi mano nueva llega volando desde quien me la pasa.
+  if (step.kind === "event" && (step.event.kind === "swap" || step.event.kind === "rotate")) return "deal";
+  return null;
+}
+
 /** Animaciones y sonido de la mesa de Prisma, enganchados a la cola de reproducción. */
 export function tableEffects(me: () => number): PlaybackListener<Step> {
   return {
     onStep(step, speed) {
       // Las cartas leen esto al aparecer: las repartidas y robadas vuelan desde
-      // el mazo; la jugada, desde quien la suelta hasta el descarte.
-      motion.entering = step.kind === "deal" || step.kind === "draw" ? "deal" : step.kind === "play" ? "play" : null;
+      // el mazo; la jugada, desde quien la suelta hasta el descarte. Con el
+      // Eclipse, las que ya están a la vista se dan la vuelta en su sitio.
+      motion.entering = entering(step);
       motion.revealing = false;
+      motion.turning = step.kind === "event" && step.event.kind === "eclipse";
       motion.speed = speed;
       const sound = soundFor(step, me());
       if (sound) audio.play(sound);
@@ -55,6 +77,7 @@ export function tableEffects(me: () => number): PlaybackListener<Step> {
     onJump() {
       motion.entering = null;
       motion.revealing = false;
+      motion.turning = false;
       motion.speed = 1;
     },
   };

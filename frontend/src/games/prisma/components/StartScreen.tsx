@@ -4,14 +4,53 @@ import { Field, INPUT } from "../../../shared/components/form";
 import type { OptionValues } from "../../../shared/options";
 import { CardFaceArt } from "../cardArt";
 import { PrismaIcon } from "../icon";
-import type { Card, Options, PrismaConfig } from "../types";
+import type { Card, Mode, Options, PrismaConfig } from "../types";
 
-// Cartas de muestra para la cabecera.
-const SAMPLE: Card[] = [
-  { id: 0, kind: "number", color: "halo", number: 7 },
-  { id: 1, kind: "remolino", color: "cumbre", number: null },
-  { id: 2, kind: "camaleon4", color: null, number: null },
-];
+// Cartas de muestra para la cabecera, según el modo.
+const SAMPLES: Record<Mode, { card: Card; dark?: boolean }[]> = {
+  clasico: [
+    { card: { id: 0, kind: "number", color: "halo", number: 7 } },
+    { card: { id: 1, kind: "remolino", color: "cumbre", number: null } },
+    { card: { id: 2, kind: "camaleon4", color: null, number: null } },
+  ],
+  doble_cara: [
+    { card: { id: 0, kind: "number", color: "astro", number: 4 } },
+    { card: { id: 1, kind: "eclipse", color: "jade", number: null } },
+    { card: { id: 2, kind: "sabueso", color: null, number: null }, dark: true },
+  ],
+  sin_tregua: [
+    { card: { id: 0, kind: "barrido", color: "panal", number: null } },
+    { card: { id: 1, kind: "ruleta", color: null, number: null } },
+    { card: { id: 2, kind: "camaleon10", color: null, number: null } },
+  ],
+};
+
+// Cómo se juega cada modo, en pocas líneas.
+const HOW_TO: Record<Mode, string[]> = {
+  clasico: [
+    "Juega una carta del mismo color, número o símbolo que la de la mesa, o un Camaleón.",
+    "Si no puedes (o no quieres), roba una; si te sirve, puedes jugarla ya.",
+    "Pausa salta al siguiente; Remolino cambia el sentido; Carga +2 hace robar 2.",
+    "Camaleón cambia el color; Camaleón +4 además hace robar 4 al siguiente.",
+    "Al quedarte con una carta, pulsa «¡Última!» o te pueden pillar: robarías 2.",
+  ],
+  doble_cara: [
+    "Cada carta tiene dos caras: la de luz y la de sombra, con sus propios palos. Se empieza por la luz.",
+    "De tu mano ves la cara en juego; de las de los demás, la otra (y ellos la otra de las tuyas).",
+    "El Eclipse le da la vuelta a todo: el descarte, el mazo y todas las manos.",
+    "Luz: Carga +1, Pausa, Remolino, Camaleón y Camaleón +2. Sombra: Carga +5, Pausa total (todos pierden el turno), Remolino, Camaleón y Camaleón Sabueso (robar hasta sacar el color elegido).",
+    "Al quedarte con una carta, pulsa «¡Última!» o te pueden pillar.",
+  ],
+  sin_tregua: [
+    "168 cartas y ninguna piedad. Las cargas se acumulan: responde a un +2, +4, +6 o +10 con otra igual o mayor, o te lo comes todo.",
+    "Si robas en tu turno, robas hasta sacar una carta que puedas jugar.",
+    "El 7 cambia tu mano por la de quien elijas; el 0 hace que todos pasen su mano al siguiente.",
+    "Barrido suelta todas tus cartas de su color. Pausa total deja sin turno a todos. Camaleón Ruleta: el siguiente elige color y destapa hasta que sale.",
+    "Quien llega a 25 cartas queda fuera de la ronda. Gana quien se vacía la mano o el último que quede.",
+  ],
+};
+// Meta habitual de cada modo, si se juega a puntos.
+const USUAL_TARGET: Record<Mode, number> = { clasico: 500, doble_cara: 500, sin_tregua: 1000 };
 
 interface Props {
   options: Options;
@@ -24,8 +63,18 @@ interface Props {
 /** Pantalla de inicio de Prisma: presentación y opciones de la partida. */
 export function StartScreen({ options, initial, accountName, onStart, onCancel }: Props) {
   const [config, setConfig] = useState<PrismaConfig>(initial);
-  // La meta solo importa si se juega a puntos.
-  const fields = options.fields.filter((field) => field.key !== "target" || config.scoring);
+  const mode: Mode = config.mode ?? "clasico";
+
+  function change(changes: Partial<PrismaConfig>) {
+    setConfig((current) => {
+      const next = { ...current, ...changes };
+      // Al cambiar de modo, si la meta era la habitual, pasa a la habitual del nuevo.
+      if (changes.mode && changes.mode !== current.mode && current.target === USUAL_TARGET[current.mode ?? "clasico"]) {
+        next.target = USUAL_TARGET[changes.mode];
+      }
+      return next;
+    });
+  }
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -45,13 +94,13 @@ export function StartScreen({ options, initial, accountName, onStart, onCancel }
             </div>
           </div>
           <div className="relative mr-2 hidden h-36 w-52 shrink-0 sm:block" aria-hidden>
-            {SAMPLE.map((card, index) => (
+            {SAMPLES[mode].map(({ card, dark }, index) => (
               <span
-                key={card.id}
-                className="absolute top-2 block overflow-hidden rounded-lg shadow-lg"
+                key={`${mode}${card.id}`}
+                className="pop-in absolute top-2 block overflow-hidden rounded-lg shadow-lg"
                 style={{ left: index * 44, transform: `rotate(${(index - 1) * 11}deg)`, width: 84, height: 118 } as CSSProperties}
               >
-                <CardFaceArt card={card} />
+                <CardFaceArt card={card} dark={dark} />
               </span>
             ))}
           </div>
@@ -72,19 +121,17 @@ export function StartScreen({ options, initial, accountName, onStart, onCancel }
           </Field>
 
           <ConfigPanel
-            fields={fields}
+            fields={options.fields}
             values={config as unknown as OptionValues}
-            onChange={(changes) => setConfig((current) => ({ ...current, ...changes }))}
+            onChange={(changes) => change(changes as Partial<PrismaConfig>)}
           />
 
           <details className="rounded-xl border border-amber-400/20 bg-black/25 p-3 text-sm text-stone-300">
             <summary className="cursor-pointer font-bold text-amber-200">Cómo se juega</summary>
             <ul className="mt-2 list-disc space-y-1 pl-5">
-              <li>Juega una carta del mismo color, número o símbolo que la de la mesa, o un Camaleón.</li>
-              <li>Si no puedes (o no quieres), roba una; si te sirve, puedes jugarla ya.</li>
-              <li>Pausa salta al siguiente; Remolino cambia el sentido; Carga +2 hace robar 2.</li>
-              <li>Camaleón cambia el color; Camaleón +4 además hace robar 4 al siguiente.</li>
-              <li>Al quedarte con una carta, pulsa «¡Última!» o te pueden pillar: robarías 2.</li>
+              {HOW_TO[mode].map((line) => (
+                <li key={line}>{line}</li>
+              ))}
             </ul>
           </details>
 

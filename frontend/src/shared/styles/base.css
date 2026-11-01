@@ -318,6 +318,21 @@ input[type="range"] {
 
 /* --- Prisma --- */
 
+/* Doble cara: en la cara de sombra el tapete se oscurece (solo cambia la opacidad). */
+.felt-night {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, var(--color-felt-night), rgb(3 2 12 / 0.86));
+  opacity: 0;
+}
+.felt-night.on {
+  opacity: 1;
+}
+[data-motion="on"] .felt-night {
+  transition: opacity 500ms cubic-bezier(0.65, 0, 0.35, 1);
+}
+
 /* El reverso de sus cartas va en la cara de atrás del giro 3D. */
 .card-side.prisma-back {
   transform: rotateY(180deg);

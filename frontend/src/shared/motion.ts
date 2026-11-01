@@ -13,6 +13,9 @@ export const motion = {
   // si el paso no reparte nada o la mesa saltó sin reproducir.
   entering: null as string | null,
   revealing: false, // en este paso se voltean cartas que estaban boca abajo
+  // En este paso se dan la vuelta, en su sitio, cartas que ya estaban a la
+  // vista (el Eclipse de Prisma voltea la mesa entera).
+  turning: false,
   speed: 1, // mayor que 1 cuando la cola va atrasada
   // Milisegundos hasta que las fichas que cruzan la mesa en este paso llegan a
   // su pila: las fichas nuevas de las pilas caen entonces. null si la mesa

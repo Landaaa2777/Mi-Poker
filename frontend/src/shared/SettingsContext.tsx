@@ -30,6 +30,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       if (changes.view !== undefined) {
         motion.entering = null;
         motion.revealing = false;
+        motion.turning = false;
         motion.chipLanding = null;
       }
       save(changes);

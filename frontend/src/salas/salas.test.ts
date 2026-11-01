@@ -92,6 +92,30 @@ describe("describeOptions", () => {
   it("lo que falta, con su valor por defecto", () => {
     expect(describeOptions(fields, {})).toContain("Dificultad: Medio");
   });
+
+  it("no cuenta las opciones que no tienen sentido con las elegidas", () => {
+    const withModes: GameOption[] = [
+      {
+        key: "mode",
+        type: "choice",
+        label: "Modo",
+        default: "clasico",
+        choices: [
+          { value: "clasico", label: "Clásico" },
+          { value: "sin_tregua", label: "Sin tregua" },
+        ],
+      },
+      { key: "stack", type: "toggle", label: "Acumular", default: false, when: { mode: ["clasico"] } },
+      { key: "scoring", type: "toggle", label: "A puntos", default: false },
+      { key: "target", type: "number", label: "Meta", default: 500, min: 50, max: 2000, step: 50, when: { scoring: [true] } },
+    ];
+    expect(describeOptions(withModes, {})).toEqual(["Modo: Clásico", "Acumular: no", "A puntos: no"]);
+    expect(describeOptions(withModes, { mode: "sin_tregua", scoring: true, target: 1000 })).toEqual([
+      "Modo: Sin tregua",
+      "A puntos: sí",
+      "Meta: 1000", // en español, los números de 4 cifras van sin punto
+    ]);
+  });
 });
 
 describe("peticiones", () => {

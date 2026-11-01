@@ -9,7 +9,8 @@ En Doble cara, como al sostener cartas de dos caras, cada uno ve además la
 otra cara de las cartas de los demás (y la de la carta de arriba del mazo),
 pero nunca la otra cara de las suyas. Esas caras no van con el id de la carta,
 sino con un alias al azar de la ronda: así se puede seguir cada carta en la
-mano de un rival sin poder relacionarla con las que ya se han jugado.
+mano de un rival sin saber cuál es. Al jugarla, su alias se hace público (todo
+el que mira ve qué carta sale de la mano), como en la mesa de verdad.
 """
 
 from __future__ import annotations
@@ -132,24 +133,43 @@ class TableView:
 PUBLIC_CARDS = frozenset({"reveal", "sweep"})
 
 
+def _back(card: PrismaCard, aliases: dict[int, int]) -> dict[str, Any]:
+    """La otra cara de una carta en la mano de otro, con su alias (nunca su id)."""
+    assert card.back is not None
+    return {"key": aliases[card.id], **face_dict(card.back)}
+
+
 def event_view(event: Event, viewer: int | None, aliases: dict[int, int] | None = None) -> dict[str, Any]:
     """Un suceso tal como lo ve `viewer`: las cartas robadas, solo si son suyas.
 
-    Tras un Eclipse, un 7 o un 0, `cards` es cómo le queda la mano a quien mira,
-    y `backs` (en Doble cara) la otra cara que ve de las manos de los demás.
+    Tras un Eclipse, un 7 o un 0, `cards` es cómo le queda la mano a quien mira y
+    `counts`, cuántas cartas le quedan a cada uno. En Doble cara (con `aliases`),
+    además, lo que hace falta para seguir la otra cara de las manos ajenas paso a
+    paso: `backs` trae las caras que entran en la mano de otro (repartidas o
+    robadas) o, tras un Eclipse, un 7 o un 0, las de todas las manos de los
+    demás; `key` dice qué carta sale de la mano de otro al jugarla, y
+    `deck_back`, la cara que queda a la vista encima del mazo. Nunca nada de la mano de quien mira.
     """
-    view: dict[str, Any] = {"backs": {}}
+    view: dict[str, Any] = {"backs": {}, "key": None, "counts": [], "deck_back": None}
     if event.hands:
         cards = [card.to_dict() for card in event.hands[viewer]] if viewer is not None else []
+        view["counts"] = [len(hand) for hand in event.hands]
         if aliases:
             view["backs"] = {
-                str(seat): [{"key": aliases[card.id], **face_dict(card.back)} for card in hand if card.back]
+                str(seat): [_back(card, aliases) for card in hand if card.back]
                 for seat, hand in enumerate(event.hands)
                 if seat != viewer
             }
     else:
         shown = event.kind in PUBLIC_CARDS or (viewer is not None and event.seat == viewer)
         cards = [card.to_dict() for card in event.cards] if shown else []
+        if aliases and event.seat is not None and event.seat != viewer:
+            if event.cards and event.kind in ("deal", "draw", "reveal"):
+                view["backs"] = {str(event.seat): [_back(card, aliases) for card in event.cards if card.back]}
+            if event.kind == "play" and event.card is not None:
+                view["key"] = aliases[event.card.id]
+    if event.deck is not None:
+        view["deck_back"] = face_dict(event.deck)
     return {
         **view,
         "kind": event.kind,
@@ -183,11 +203,7 @@ def backs_of(game: PrismaGame, seat: int, viewer_seat: int | None) -> tuple[dict
     """La otra cara de las cartas de `seat`, tal como la ve `viewer_seat` (nunca la suya)."""
     if game.mode != Mode.DOBLE or seat == viewer_seat:
         return ()
-    return tuple(
-        {"key": game.aliases[card.id], **face_dict(card.back)}
-        for card in game.players[seat].hand
-        if card.back is not None
-    )
+    return tuple(_back(card, game.aliases) for card in game.players[seat].hand if card.back is not None)
 
 
 def table_view(game: PrismaGame, viewer_seat: int | None = None) -> TableView:

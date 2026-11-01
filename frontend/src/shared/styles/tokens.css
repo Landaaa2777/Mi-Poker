@@ -84,7 +84,14 @@
   --color-halo: #1fb3a6; /* turquesa, anillo */
   --color-cumbre: #8b5cf6; /* violeta, triángulo */
   --color-astro: #e0428f; /* fucsia, estrella de cuatro puntas */
+  /* Doble cara: los palos de la cara de sombra, en tonos profundos. */
+  --color-brasa: #c0293f; /* carmesí, rombo */
+  --color-ambar: #d19a2a; /* dorado, luna */
+  --color-jade: #2e9d62; /* verde, hoja */
+  --color-indigo: #4058c8; /* azul oscuro, gota */
   --color-prisma-back: #1b1530; /* reverso de las cartas de Prisma */
+  --color-prisma-night: #120d0f; /* marco de las cartas de la cara de sombra */
+  --color-felt-night: rgb(6 10 24 / 0.55); /* el tapete, oscurecido en la sombra */
 
   /* --- Tipografías --- */
   --font-display: ui-rounded, "Segoe UI", system-ui, sans-serif; /* títulos del menú */

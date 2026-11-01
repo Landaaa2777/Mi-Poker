@@ -74,6 +74,7 @@ def test_options_of_every_kind():
         count: int = Field(2, ge=0, le=10, multiple_of=2, title="Cuántos")
         mode: Literal["a", "b"] = Field("a", title="Modo")
         fast: bool = Field(False, title="Rápido", description="Sin esperas")
+        turbo: bool = Field(False, title="Turbo", json_schema_extra={"when": {"fast": [True]}})
         note: str = "texto libre: no va en el panel"
 
     described = describe_options(Example)
@@ -87,4 +88,6 @@ def test_options_of_every_kind():
             "choices": [{"value": "a", "label": "a"}, {"value": "b", "label": "b"}],
         },
         {"key": "fast", "label": "Rápido", "default": False, "help": "Sin esperas", "type": "toggle"},
+        # Solo se enseña con "Rápido" activado.
+        {"key": "turbo", "label": "Turbo", "default": False, "when": {"fast": [True]}, "type": "toggle"},
     ]

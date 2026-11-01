@@ -1,4 +1,4 @@
-import type { OptionValues, GameOption } from "../options";
+import { visibleFields, type GameOption, type OptionValues } from "../options";
 import { CARD_CHOSEN, CHOICE, CHOSEN, Field, INPUT, NOT_CHOSEN } from "./form";
 
 interface Props {
@@ -18,6 +18,7 @@ interface Props {
  * - número con valores típicos: botones rápidos y una casilla para escribir;
  * - elección con descripciones: tarjetas; sin descripciones, botones;
  * - sí/no: un interruptor.
+ * Las opciones que no tienen sentido con lo elegido (su `when`) no se enseñan.
  */
 export function ConfigPanel({ fields, values, onChange, maxFor = {}, labelFor = {} }: Props) {
   // Las elecciones con descripción ocupan todo el ancho; el resto va de dos en dos.
@@ -26,7 +27,7 @@ export function ConfigPanel({ fields, values, onChange, maxFor = {}, labelFor = 
 
   return (
     <div className="grid gap-5 sm:grid-cols-2">
-      {fields.map((field) => (
+      {visibleFields(fields, values).map((field) => (
         <div key={field.key} className={wide(field) ? "sm:col-span-2" : ""}>
           <Field label={labelFor[field.key] ?? field.label}>
             <OptionInput

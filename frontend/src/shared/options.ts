@@ -12,6 +12,7 @@ export type GameOption =
       step: number;
       presets?: number[];
       help?: string;
+      when?: Conditions;
     }
   | {
       key: string;
@@ -20,10 +21,22 @@ export type GameOption =
       default: string;
       choices: { value: string; label: string; description?: string }[];
       help?: string;
+      when?: Conditions;
     }
-  | { key: string; type: "toggle"; label: string; default: boolean; help?: string };
+  | { key: string; type: "toggle"; label: string; default: boolean; help?: string; when?: Conditions };
 
 export type OptionValues = Record<string, number | string | boolean>;
+
+/** Con qué valores de otras opciones tiene sentido una (por ejemplo, la meta solo jugando a puntos). */
+export type Conditions = Record<string, (number | string | boolean)[]>;
+
+/** Las opciones que tienen sentido con estos valores: las demás no se enseñan. */
+export function visibleFields(fields: GameOption[], values: OptionValues): GameOption[] {
+  const valueOf = (key: string) => values[key] ?? fields.find((field) => field.key === key)?.default;
+  return fields.filter((field) =>
+    Object.entries(field.when ?? {}).every(([key, accepted]) => accepted.includes(valueOf(key) as never)),
+  );
+}
 
 /** Los valores por defecto de todas las opciones. */
 export function defaultValues(fields: GameOption[]): OptionValues {

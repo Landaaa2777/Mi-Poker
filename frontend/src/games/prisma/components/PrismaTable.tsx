@@ -4,9 +4,10 @@ import { usePlatformSettings } from "../../../shared/SettingsContext";
 import type { Camera } from "../../../shared/stage/camera";
 import { Stage, stageHeight, usePlacement } from "../../../shared/stage/Stage";
 import { useFit } from "../../../shared/useFit";
+import { cardName } from "../cardArt";
 import { DECK_ZONE, HAND_ZONE, PrismaCard, seatZone } from "../PrismaCard";
 import { SUITS, SuitSymbol } from "../shapes";
-import type { Frame, PlayerFrame } from "../timeline";
+import type { Frame, PlayerFrame, Shown } from "../timeline";
 
 // La mesa se dibuja en un lienzo de tamaño fijo que se escala entero, como las
 // demás. En el centro, el mazo y el descarte; alrededor, los rivales en el
@@ -60,6 +61,9 @@ const BOTTOM_CENTERED = "absolute -translate-x-1/2 -translate-y-full"; // colgad
 const TOP_CENTERED = "absolute -translate-x-1/2"; // colgado de su borde de arriba
 const cardWidth = (width: number) => ({ "--card-w": `${width}px` }) as CSSProperties;
 const MAX_BACKS = 7; // dorsos dibujados por rival; si tiene más, se ve el número
+// Doble cara: de los rivales se ve la otra cara de cada carta, así que se
+// dibujan más (y algo más grandes), cada vez más juntas si no caben.
+const MAX_FACES = 14;
 const FIT = { maxHeightShare: 0.56 };
 
 // Cámara de la vista 3D: los rivales al fondo y el mazo y el descarte en medio.
@@ -74,16 +78,46 @@ interface SeatProps {
   thinking: boolean;
   compact: boolean;
   withBacks?: boolean; // en 2D, los dorsos van con la placa; en 3D, tumbados en el tapete
+  double?: boolean; // Doble cara: se ve la otra cara de sus cartas
+  night?: boolean; // Doble cara: la mesa está en la cara de sombra
 }
 
-/** Los dorsos de las cartas de un rival, solapados. */
-function Backs({ player, compact }: { player: PlayerFrame; compact: boolean }) {
-  const backs = Math.min(player.count, MAX_BACKS);
+/** Ancho de las cartas de un rival. */
+const backWidth = (compact: boolean, double: boolean) => (compact ? (double ? 24 : 22) : double ? 30 : 28);
+
+/** Las cartas de un rival, solapadas: los dorsos o, en Doble cara, su otra cara. */
+function Backs({ player, compact, double = false, night = false }: { player: PlayerFrame; compact: boolean; double?: boolean; night?: boolean }) {
+  const width = backWidth(compact, double);
+  const shown = Math.min(player.count, double ? MAX_FACES : MAX_BACKS);
+  // Lo que ocupa la fila como mucho; si no caben, se juntan más.
+  const room = compact ? 104 : 150;
+  const step = double ? Math.min(width * 0.55, shown > 1 ? (room - width) / (shown - 1) : width) : compact ? 7 : 9;
+  const faces = double ? player.backs : [];
   return (
-    <div className="keep-3d flex" style={{ ...cardWidth(compact ? 22 : 28), minHeight: (compact ? 22 : 28) * 1.4 }}>
-      {Array.from({ length: backs }, (_, index) => (
-        <span key={index} className="keep-3d" style={{ marginLeft: index === 0 ? 0 : (compact ? -15 : -19) }}>
-          <PrismaCard card={null} enter="deal" />
+    <div
+      className="keep-3d flex"
+      style={{ ...cardWidth(width), minHeight: width * 1.4 }}
+      title={double && faces.length ? `Ves de sus cartas: ${faces.map(cardName).join(", ")}` : undefined}
+    >
+      {Array.from({ length: shown }, (_, index) => (
+        <span key={index} className="keep-3d" style={{ marginLeft: index === 0 ? 0 : step - width }}>
+          <PrismaCard card={null} enter="deal" back={faces[index] ?? null} night={night} />
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/** Las cartas que se enseñan a todos un momento: las de la Ruleta o el Barrido. */
+function ShownCards({ shown, compact }: { shown: Shown; compact: boolean }) {
+  const width = compact ? 30 : 38;
+  const room = compact ? 260 : 420;
+  const step = shown.cards.length > 1 ? Math.min(width + 4, (room - width) / (shown.cards.length - 1)) : 0;
+  return (
+    <div className="pop-in flex rounded-xl bg-black/55 p-1.5 shadow-lg" style={cardWidth(width)} aria-label={shown.cards.map(cardName).join(", ")}>
+      {shown.cards.map((card, index) => (
+        <span key={card.id} className="block" style={{ marginLeft: index === 0 ? 0 : step - width, width, height: width * 1.4 }}>
+          <PrismaCard card={card} />
         </span>
       ))}
     </div>
@@ -91,11 +125,11 @@ function Backs({ player, compact }: { player: PlayerFrame; compact: boolean }) {
 }
 
 /** Un rival (o yo): placa con avatar, nombre y cuántas cartas tiene, y sus avisos. */
-function Seat({ player, turn, thinking, compact, withBacks = true }: SeatProps) {
+function Seat({ player, turn, thinking, compact, withBacks = true, double = false, night = false }: SeatProps) {
   const ring = player.vulnerable ? "ring-rose-400" : turn ? "ring-amber-300" : "ring-white/25";
   return (
-    <div className="flex flex-col items-center gap-1.5" data-prisma-seat={player.seat}>
-      {!player.isHuman && withBacks && <Backs player={player} compact={compact} />}
+    <div className={`flex flex-col items-center gap-1.5 ${player.out ? "opacity-55 grayscale" : ""}`} data-prisma-seat={player.seat}>
+      {!player.isHuman && withBacks && <Backs player={player} compact={compact} double={double} night={night} />}
       <div
         className={`relative flex items-center gap-2 rounded-full bg-[#0c0709]/90 p-1 pr-3 shadow-lg shadow-black/50 ring-1 ring-amber-400/35 ${player.vulnerable ? "vulnerable-pulse" : ""}`}
       >
@@ -103,9 +137,14 @@ function Seat({ player, turn, thinking, compact, withBacks = true }: SeatProps) 
         <div className="leading-tight">
           <div className="max-w-[7.5rem] truncate text-sm font-semibold">{player.name}</div>
           <div className="text-xs font-bold tabular-nums text-amber-300">
-            {player.count} {player.count === 1 ? "carta" : "cartas"}
+            {player.out ? "Fuera de la ronda" : `${player.count} ${player.count === 1 ? "carta" : "cartas"}`}
           </div>
         </div>
+        {player.out && (
+          <span className="pop-in absolute -right-2 -top-3 rounded-full bg-stone-700 px-2 py-0.5 text-[11px] font-black text-stone-100 shadow">
+            Desbordado
+          </span>
+        )}
         {player.saidLast && player.count === 1 && (
           <span className="pop-in absolute -right-2 -top-3 rounded-full bg-gradient-to-b from-amber-200 to-amber-500 px-2 py-0.5 text-[11px] font-black text-stone-900 shadow">
             ¡Última!
@@ -151,14 +190,13 @@ function DirectionRing({ direction, size }: { direction: 1 | -1; size: number })
 interface Props {
   frame: Frame;
   me: number;
-  pendingDraw: number;
   canDraw: boolean; // puedo robar ahora: el mazo se puede pulsar
   onDraw: () => void;
   settled: boolean;
 }
 
 /** La mesa de Prisma. */
-export function PrismaTable({ frame, me, pendingDraw, canDraw, onDraw, settled }: Props) {
+export function PrismaTable({ frame, me, canDraw, onDraw, settled }: Props) {
   const { view } = usePlatformSettings();
   const { ref, layout, scale, height } = useFit(LANDSCAPE, PORTRAIT, view === "3d" ? FIT_3D : FIT);
   const place = usePlacement(view, layout, cameraFor(layout));
@@ -173,7 +211,13 @@ export function PrismaTable({ frame, me, pendingDraw, canDraw, onDraw, settled }
   const suit = frame.color ? SUITS[frame.color] : null;
   const deck = { x: layout.center.x - layout.card * 0.95, y: layout.center.y };
   const discard = { x: layout.center.x + layout.card * 0.6, y: layout.center.y };
-  const backHeight = (compact ? 22 : 28) * 1.4;
+  const double = frame.mode === "doble_cara";
+  const night = double && frame.side === "sombra";
+  const backHeight = backWidth(compact, double) * 1.4;
+  const pendingDraw = frame.pending;
+  // En la sombra el paño se oscurece (con un fundido: solo cambia la opacidad).
+  const tint = double ? <div className={`felt-night ${night ? "on" : ""}`} aria-hidden /> : undefined;
+  const deckFace = double ? frame.deckBack : null; // en Doble cara, encima del mazo se ve una cara
 
   const ring = (
     <div className={CENTERED} style={place.onTable(layout.center)}>
@@ -189,16 +233,20 @@ export function PrismaTable({ frame, me, pendingDraw, canDraw, onDraw, settled }
       onClick={onDraw}
       className={`deck-stack keep-3d relative rounded-lg ${canDraw ? "deck-ready cursor-pointer" : "cursor-default"}`}
       style={cardWidth(layout.card * 0.86)}
-      aria-label={canDraw ? `Robar una carta (quedan ${frame.drawCount})` : `Mazo: ${frame.drawCount} cartas`}
+      aria-label={
+        (canDraw ? `Robar (quedan ${frame.drawCount} cartas)` : `Mazo: ${frame.drawCount} cartas`) +
+        (deckFace ? `. Encima se ve ${cardName(deckFace)}` : "")
+      }
     >
-      <span className="card absolute -left-1.5 -top-1.5 block"><PrismaCard card={null} /></span>
-      <span className="card absolute -left-0.5 -top-0.5 block"><PrismaCard card={null} /></span>
-      <span data-zone="prisma-deck" className="card keep-3d relative block"><PrismaCard card={null} /></span>
+      <span className="card absolute -left-1.5 -top-1.5 block"><PrismaCard card={null} back={deckFace} night={night} /></span>
+      <span className="card absolute -left-0.5 -top-0.5 block"><PrismaCard card={null} back={deckFace} night={night} /></span>
+      <span data-zone="prisma-deck" className="card keep-3d relative block"><PrismaCard card={null} back={deckFace} night={night} /></span>
     </button>
   );
   const deckLabel = (
     <span className="text-[11px] font-semibold tabular-nums text-amber-100/75">
-      {canDraw ? "Pulsa para robar" : `Mazo · ${frame.drawCount}`}
+      {canDraw ? (frame.mode === "sin_tregua" && !pendingDraw ? "Pulsa para robar hasta poder" : "Pulsa para robar") : `Mazo · ${frame.drawCount}`}
+      {frame.asideCount > 0 && ` · Apartadas · ${frame.asideCount}`}
     </span>
   );
 
@@ -209,7 +257,7 @@ export function PrismaTable({ frame, me, pendingDraw, canDraw, onDraw, settled }
       style={{ boxShadow: suit ? `0 0 0 4px ${suit.color}, 0 0 28px 4px ${suit.color}` : undefined }}
     >
       <div className="keep-3d" style={cardWidth(layout.card)}>
-        {frame.top && <PrismaCard key={frame.top.id} card={frame.top} enter="play" from={origin} />}
+        {frame.top && <PrismaCard key={frame.top.id} card={frame.top} enter="play" from={origin} night={night} />}
       </div>
     </div>
   );
@@ -225,6 +273,12 @@ export function PrismaTable({ frame, me, pendingDraw, canDraw, onDraw, settled }
       {pendingDraw > 0 && (
         <div className={`${CENTERED} pop-in rounded-full bg-rose-700 px-3 py-1 text-sm font-black text-white shadow`} style={place.overTable({ x: layout.center.x, y: layout.center.y + layout.card * 0.95 })}>
           +{pendingDraw} acumuladas
+        </div>
+      )}
+
+      {frame.shown && (
+        <div className={CENTERED} style={place.overTable({ x: layout.center.x, y: layout.center.y + layout.card * 0.95 + (compact ? 40 : 46) })}>
+          <ShownCards shown={frame.shown} compact={compact} />
         </div>
       )}
 
@@ -261,6 +315,7 @@ export function PrismaTable({ frame, me, pendingDraw, canDraw, onDraw, settled }
         label="Mesa de Prisma"
         shape="rounded-[1.75rem]"
         shade="bg-[radial-gradient(ellipse_at_center,transparent_50%,rgb(0_0_0/0.4))]"
+        tint={tint}
         table={
           <>
             {ring}
@@ -279,7 +334,14 @@ export function PrismaTable({ frame, me, pendingDraw, canDraw, onDraw, settled }
                   <div className={`${CENTERED} glow-turn left-1/2 top-1/2 h-[220px] w-[220px] rounded-full bg-[radial-gradient(closest-side,rgb(254_249_195/0.2),transparent)]`} />
                 )}
                 <div className="relative">
-                  <Seat player={player} turn={frame.turn === player.seat} thinking={settled && frame.turn === player.seat} compact={compact} />
+                  <Seat
+                    player={player}
+                    turn={frame.turn === player.seat}
+                    thinking={settled && frame.turn === player.seat}
+                    compact={compact}
+                    double={double}
+                    night={night}
+                  />
                 </div>
               </div>
             ))}
@@ -306,6 +368,7 @@ export function PrismaTable({ frame, me, pendingDraw, canDraw, onDraw, settled }
       label="Mesa de Prisma"
       shape="rounded-[1.75rem]"
       shade="bg-[radial-gradient(ellipse_at_center,transparent_50%,rgb(0_0_0/0.4))]"
+      tint={tint}
       table={
         <>
           {ring}
@@ -322,7 +385,7 @@ export function PrismaTable({ frame, me, pendingDraw, canDraw, onDraw, settled }
               className={`${BOTTOM_CENTERED} keep-3d`}
               style={place.onTable({ x: points[index].x, y: seatTop(points[index]) + backHeight })}
             >
-              <Backs player={player} compact={compact} />
+              <Backs player={player} compact={compact} double={double} night={night} />
             </div>
           ))}
         </>

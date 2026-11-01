@@ -105,6 +105,9 @@ class Event:
     # Tras un Eclipse, un 7 o un 0: cómo quedan las manos (cada uno verá la suya
     # y, en Doble cara, la otra cara de las de los demás; ver las vistas).
     hands: tuple[tuple[PrismaCard, ...], ...] = ()
+    # Doble cara: la cara que se ve encima del mazo después del suceso (la otra
+    # cara de la carta de arriba). Solo en los sucesos que cambian el mazo.
+    deck: PrismaCard | None = None
 
 
 @dataclass(frozen=True)
@@ -282,18 +285,18 @@ class PrismaGame:
                 self.players[seat].hand.append(self.draw_pile.pop())
         for seat in order:
             hand = tuple(self.players[seat].hand)
-            self.events.append(Event("deal", seat, cards=hand, count=len(hand)))
+            self.events.append(Event("deal", seat, cards=hand, count=len(hand), deck=self._deck_face()))
 
         # La primera carta del descarte. Las que no pueden empezar (el Camaleón +4;
         # en Doble cara, el +2 y el Eclipse) vuelven al mazo, en un sitio al azar.
         first = self.draw_pile.pop()
         while self._cannot_start(first):
             self.draw_pile.insert(self.rng.randrange(len(self.draw_pile) + 1), first)
-            self.events.append(Event("return", card=first))
+            self.events.append(Event("return", card=first, deck=self._deck_face()))
             first = self.draw_pile.pop()
         self.discard = [first]
         self.color = first.color
-        self.events.append(Event("start", card=first, color=first.color))
+        self.events.append(Event("start", card=first, color=first.color, deck=self._deck_face()))
         self.turn = self.next_seat(self.dealer)
         self.phase = Phase.PLAYING
 
@@ -569,7 +572,7 @@ class PrismaGame:
         self.set_aside = []
         self.rng.shuffle(rest)
         self.draw_pile = rest
-        self.events.append(Event("reshuffle", count=len(rest)))
+        self.events.append(Event("reshuffle", count=len(rest), deck=self._deck_face()))
 
     def _draw_cards(self, seat: int, count: int, reason: str) -> list[PrismaCard]:
         drawn: list[PrismaCard] = []
@@ -586,7 +589,7 @@ class PrismaGame:
             if self.vulnerable == seat:
                 self.vulnerable = None
         self.events.append(
-            Event("draw", seat, cards=tuple(drawn), count=len(drawn), color=self.color, reason=reason)
+            Event("draw", seat, cards=tuple(drawn), count=len(drawn), color=self.color, reason=reason, deck=self._deck_face())
         )
         return drawn
 
@@ -618,7 +621,9 @@ class PrismaGame:
             if self.vulnerable == seat:
                 self.vulnerable = None
         kind = "reveal" if public else "draw"
-        self.events.append(Event(kind, seat, cards=tuple(drawn), count=len(drawn), color=self.color, reason=reason))
+        self.events.append(
+            Event(kind, seat, cards=tuple(drawn), count=len(drawn), color=self.color, reason=reason, deck=self._deck_face())
+        )
         return drawn
 
     def _draw_until_playable(self, seat: int) -> list[PrismaCard]:
@@ -640,7 +645,9 @@ class PrismaGame:
             player.said_last = False
             if self.vulnerable == seat:
                 self.vulnerable = None
-        self.events.append(Event("draw", seat, cards=tuple(drawn), count=len(drawn), color=self.color, reason="turno"))
+        self.events.append(
+            Event("draw", seat, cards=tuple(drawn), count=len(drawn), color=self.color, reason="turno", deck=self._deck_face())
+        )
         return drawn
 
     def _check_mercy(self, seat: int) -> bool:
@@ -682,6 +689,10 @@ class PrismaGame:
         self.events.append(Event("rotate", seat, result="left" if self.direction < 0 else "right", hands=self._hands()))
         self._after_hands_move()
 
+    def _deck_face(self) -> PrismaCard | None:
+        """Doble cara: la cara que se ve encima del mazo (la otra cara de la de arriba)."""
+        return self.draw_pile[-1].back if self.draw_pile else None
+
     def _hands(self) -> tuple[tuple[PrismaCard, ...], ...]:
         """Una foto de las manos de todos (para los sucesos que las cambian)."""
         return tuple(tuple(player.hand) for player in self.players)
@@ -711,7 +722,9 @@ class PrismaGame:
             player.hand = [card.flipped() for card in player.hand]
         self.side = Side.SOMBRA if self.side == Side.LUZ else Side.LUZ
         top = self.top
-        self.events.append(Event("eclipse", seat, card=top, result=self.side.value, hands=self._hands()))
+        self.events.append(
+            Event("eclipse", seat, card=top, result=self.side.value, hands=self._hands(), deck=self._deck_face())
+        )
         if top.is_wild:
             self.phase = Phase.CHOOSE_COLOR
             self.turn = seat

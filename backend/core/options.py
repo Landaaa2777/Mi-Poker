@@ -8,6 +8,10 @@ el cliente, y este módulo lo traduce a una lista sencilla para el menú:
     {"key": "difficulty", "type": "choice", "label": "Dificultad", "default": "medium",
      "choices": [{"value": "easy", "label": "Fácil", "description": "..."}, ...]}
     {"key": "dealer_hits_soft_17", "type": "toggle", "label": "...", "default": false}
+
+Una opción que solo tiene sentido con otras puede llevar `when`: con qué valores
+de otras opciones se enseña (por ejemplo, la meta solo si se juega a puntos:
+`{"scoring": [true]}`). El panel esconde las demás; el servidor no las mira.
 """
 
 from __future__ import annotations
@@ -33,6 +37,8 @@ def describe_options(model: Any) -> list[dict[str, Any]]:
         }
         if field.get("description"):
             option["help"] = field["description"]
+        if field.get("when"):
+            option["when"] = field["when"]
         if field.get("type") == "boolean":
             option["type"] = "toggle"
         elif "enum" in field:

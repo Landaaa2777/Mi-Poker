@@ -76,6 +76,7 @@ class PrismaConfig(BaseModel):
         True,
         title="Desafío de los comodines",
         description="El Camaleón +4 (y en Doble cara, el +2 y el Sabueso) se puede jugar de farol y desafiar.",
+        json_schema_extra={"when": {"mode": ["clasico", "doble_cara"]}},
     )
     scoring: bool = Field(
         False,
@@ -88,17 +89,20 @@ class PrismaConfig(BaseModel):
         le=2000,
         multiple_of=50,
         title="Meta de puntos",
-        json_schema_extra={"presets": [200, 300, 500, 1000]},
+        description="Lo habitual: 500 (en Sin tregua, 1000).",
+        json_schema_extra={"presets": [200, 300, 500, 1000], "when": {"scoring": [True]}},
     )
     stack_draw2: bool = Field(
         False,
         title="Acumular Carga +2",
         description="Opción de la casa del Clásico: una Carga +2 sobre otra pasa la cuenta al siguiente.",
+        json_schema_extra={"when": {"mode": ["clasico"]}},
     )
     stack_draw4: bool = Field(
         False,
         title="Acumular Camaleón +4",
         description="Opción de la casa del Clásico: un +4 sobre otro. Con ella no hay desafío.",
+        json_schema_extra={"when": {"mode": ["clasico"]}},
     )
     player_name: str = Field(
         "Tú", min_length=1, max_length=16, title="Tu nombre", json_schema_extra={"hidden": True}

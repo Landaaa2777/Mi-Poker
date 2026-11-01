@@ -11,6 +11,16 @@ describe("cardName", () => {
     expect(cardName({ id: 3, kind: "carga", color: "astro", number: null })).toBe("Astro Carga +2");
     expect(cardName({ id: 4, kind: "camaleon4", color: null, number: null })).toBe("Camaleón +4");
   });
+
+  it("nombra las cartas de los modos nuevos, también los palos de sombra", () => {
+    expect(cardName({ id: 5, kind: "number", color: "ambar", number: 5 })).toBe("Ámbar 5");
+    expect(cardName({ id: 6, kind: "eclipse", color: "brasa", number: null })).toBe("Brasa Eclipse");
+    expect(cardName({ id: 7, kind: "pausa_total", color: "indigo", number: null })).toBe("Índigo Pausa total");
+    expect(cardName({ id: 8, kind: "sabueso", color: null, number: null })).toBe("Camaleón Sabueso");
+    expect(cardName({ id: 9, kind: "barrido", color: "halo", number: null })).toBe("Halo Barrido");
+    expect(cardName({ id: 10, kind: "ruleta", color: null, number: null })).toBe("Camaleón Ruleta");
+    expect(cardName({ kind: "camaleon_remolino4", color: null, number: null })).toBe("Camaleón Remolino +4");
+  });
 });
 
 describe("describeEvent", () => {

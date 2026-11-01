@@ -3,12 +3,14 @@ import { SUIT_ORDER, SUITS, SuitSymbol, type PrismaColor } from "../shapes";
 
 interface Props {
   title: string;
+  hint?: string; // una línea de ayuda bajo el título
+  colors?: PrismaColor[]; // los colores en juego (por defecto, los de luz)
   onPick: (color: PrismaColor) => void;
   onCancel?: () => void; // sin esto no se puede cerrar (hay que elegir)
 }
 
 /** Elegir un color: los cuatro palos, cada uno con su forma, su nombre y su color. */
-export function ColorPicker({ title, onPick, onCancel }: Props) {
+export function ColorPicker({ title, hint, colors = SUIT_ORDER, onPick, onCancel }: Props) {
   const titleId = useId();
   const first = useRef<HTMLButtonElement>(null);
 
@@ -24,7 +26,7 @@ export function ColorPicker({ title, onPick, onCancel }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4"
       onPointerDown={(event) => {
         if (onCancel && event.target === event.currentTarget) onCancel();
       }}
@@ -33,8 +35,9 @@ export function ColorPicker({ title, onPick, onCancel }: Props) {
         <h2 id={titleId} className="gold-text text-xl font-black">
           {title}
         </h2>
+        {hint && <p className="mt-1 text-sm text-stone-300">{hint}</p>}
         <div className="mt-4 grid grid-cols-2 gap-3">
-          {SUIT_ORDER.map((suit, index) => (
+          {colors.map((suit, index) => (
             <button
               key={suit}
               ref={index === 0 ? first : undefined}

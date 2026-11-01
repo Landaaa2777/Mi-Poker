@@ -129,6 +129,11 @@ def test_the_hello_explains_the_options(app):
     assert [choice["value"] for choice in fields["mode"]["choices"]] == ["clasico", "doble_cara", "sin_tregua"]
     assert fields["challenge"]["default"] is True
     assert fields["stack_draw2"]["default"] is False and fields["stack_draw4"]["default"] is False
+    # Cada opción dice con qué modo tiene sentido: el panel esconde las demás.
+    assert fields["stack_draw2"]["when"] == {"mode": ["clasico"]} == fields["stack_draw4"]["when"]
+    assert fields["challenge"]["when"] == {"mode": ["clasico", "doble_cara"]}
+    assert fields["target"]["when"] == {"scoring": [True]}
+    assert "when" not in fields["bots"]
 
 
 @pytest.mark.parametrize("difficulty", ["easy", "medium", "hard", "expert"])

@@ -2,7 +2,7 @@
 // (ver backend/server/salas_api.py). La sala en tiempo real va por WebSocket
 // (`useSala.ts`).
 
-import type { GameOption, OptionValues } from "../shared/options";
+import { visibleFields, type GameOption, type OptionValues } from "../shared/options";
 
 // Las mismas reglas que el servidor: 6 caracteres, sin 0, O, 1, I ni L.
 export const CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
@@ -72,7 +72,7 @@ export function salaSocketUrl(code: string, where: Pick<Location, "protocol" | "
 
 /** Las opciones de la sala en palabras, para quien no es el anfitrión. */
 export function describeOptions(fields: GameOption[], values: OptionValues): string[] {
-  return fields.map((field) => {
+  return visibleFields(fields, values).map((field) => {
     const value = values[field.key] ?? field.default;
     if (field.type === "toggle") return `${field.label}: ${value ? "sí" : "no"}`;
     if (field.type === "choice") {

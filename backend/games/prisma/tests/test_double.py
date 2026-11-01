@@ -333,3 +333,52 @@ def test_random_games_keep_all_112_cards(seed):
             assert all(card.back is not None for card in player.hand)
         assert all((card.color in game.colors) or card.is_wild for card in game.discard)
     assert game.game_over
+
+
+HAND_MOVES = ("eclipse", "swap", "rotate")
+
+
+def replay_backs(events: list[dict]) -> tuple[dict[int, list[dict]], dict | None]:
+    """Rehace, con el registro tal como lo ve un jugador, la otra cara que ve de
+    cada mano ajena y la cara de encima del mazo (como hace el navegador)."""
+    backs: dict[int, list[dict]] = {}
+    deck = None
+    for event in events:
+        seat = event["seat"]
+        if event["kind"] in HAND_MOVES:
+            backs = {int(other): list(faces) for other, faces in event["backs"].items()}
+        elif event["kind"] == "deal":
+            backs[seat] = list(event["backs"].get(str(seat), []))
+        elif event["kind"] in ("draw", "reveal"):
+            backs.setdefault(seat, []).extend(event["backs"].get(str(seat), []))
+        elif event["kind"] == "play" and event["key"] is not None:
+            backs[seat] = [face for face in backs[seat] if face["key"] != event["key"]]
+        if event["kind"] in ("deal", "return", "start", "draw", "reveal", "reshuffle", "eclipse"):
+            deck = event["deck_back"]
+    return backs, deck
+
+
+@pytest.mark.parametrize("seed", range(6))
+def test_the_log_is_enough_to_follow_the_other_faces_step_by_step(seed):
+    rng = random.Random(seed)
+    game = PrismaGame(["A", "B", "C"], rules=DOUBLE, rng=rng)
+    game.start_round()
+    for _ in range(400):
+        if game.phase == Phase.ROUND_OVER:
+            break
+        random_move(game, rng)
+        for viewer in range(3):
+            view = table_view(game, viewer).to_dict()
+            backs, deck = replay_backs(view["events"])
+            for player in view["players"]:
+                if player["seat"] == viewer:
+                    assert player["backs"] == [] and not backs.get(viewer)
+                else:
+                    assert backs.get(player["seat"], []) == player["backs"]
+            assert deck == view["deck_back"]
+            # De lo que entra o sale de la mano propia no viaja nada: ni sus caras ni sus alias.
+            for event in view["events"]:
+                assert str(viewer) not in event["backs"]
+                if event["seat"] == viewer:
+                    assert event["key"] is None
+

@@ -10,6 +10,8 @@ interface Props {
   drawn: number | null; // la que acabo de robar (se resalta)
   disabled: boolean;
   onPlay: (card: Card) => void;
+  night?: boolean; // Doble cara: se juega por la cara de sombra
+  from?: string; // de dónde llegan las cartas nuevas, si no es el mazo (un 7 o un 0)
 }
 
 const MAX_GAP = 8; // separación entre cartas cuando caben todas sin solaparse
@@ -19,7 +21,7 @@ const MAX_GAP = 8; // separación entre cartas cuando caben todas sin solaparse
  * Las que se pueden jugar se levantan un poco; las demás se apagan. Cada carta
  * es un botón: se juega con un clic, o con el teclado (Tab y Enter).
  */
-export function Hand({ cards, playable, drawn, disabled, onPlay }: Props) {
+export function Hand({ cards, playable, drawn, disabled, onPlay, night = false, from }: Props) {
   const { view } = usePlatformSettings();
   const box = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(800);
@@ -59,7 +61,7 @@ export function Hand({ cards, playable, drawn, disabled, onPlay }: Props) {
               style={{ marginLeft: index === 0 ? 0 : step - card, zIndex: index }}
               aria-label={canPlay ? `Jugar ${cardName(item)}` : `${cardName(item)} (ahora no se puede jugar)`}
             >
-              <PrismaCard card={item} enter="deal" />
+              <PrismaCard card={item} enter="deal" from={from} night={night} />
             </button>
           );
         })}
