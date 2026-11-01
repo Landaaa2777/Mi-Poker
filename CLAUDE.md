@@ -16,8 +16,9 @@ originales (no copiar marca, assets ni textos de ningún sitio existente).
 - La etapa 6 (mesas en 3D y fichas en la mesa) la pedí el 2026-10-27 y se
   cerró el mismo día, también de seguido, sin parar entre hitos, como pedí.
   Ver "Etapa 6: mesas en 3D y fichas en la mesa".
-- No hay ninguna etapa en curso: la siguiente empieza cuando yo la pida, con
-  su plan escrito antes en este archivo.
+- Etapa 7 en curso (modos de Prisma: Doble cara y Sin tregua): la pedí el
+  2026-11-01 y se trabaja de seguido, sin parar entre hitos, como pedí. Su
+  plan está en "Etapa 7: modos de Prisma".
 - El juego de descarte se llama Prisma: lo decidí el 2026-10-17 (probé a
   llamarlo ONE y volví a Prisma).
 
@@ -432,6 +433,89 @@ Referencias que di (se toma la idea, nunca la marca ni los assets):
 - Si hay una decisión de diseño con varias opciones, preguntarme (salvo en la
   etapa 4, donde decidí dejar que se elija la opción recomendada y se anote
   aquí).
+
+## Etapa 7: modos de Prisma (Doble cara y Sin tregua)
+Decisiones del 2026-11-01:
+- Prisma tiene tres modos, que elige quien empieza la partida (o el anfitrión
+  de la sala): Clásico (el de siempre), Doble cara y Sin tregua. Llevan las
+  reglas de dos variantes oficiales del juego clásico, pero con nombres,
+  palos, cartas y vocabulario propios, como todo Prisma: ni sus nombres ni sus
+  palabras. Contra bots y en las salas, en 2D y en 3D.
+- Las opciones de la casa (acumular +2 y +4) son solo del Clásico; el desafío,
+  del Clásico y de Doble cara.
+
+### Doble cara (112 cartas de dos caras)
+- Cara de luz: los cuatro palos de siempre. Por palo, dos de cada número del
+  1 al 9 (no hay 0) y dos de cada acción: Carga +1, Remolino, Pausa y Eclipse.
+  Además, 4 Camaleón y 4 Camaleón +2.
+- Cara de sombra: cartas negras con cuatro palos propios, cada uno con su
+  forma: Brasa (rombo, carmesí), Ámbar (luna, dorado), Jade (hoja, verde) e
+  Índigo (gota, azul oscuro). Por palo, dos de cada número del 1 al 9 y dos de
+  cada acción: Carga +5, Remolino, Pausa total y Eclipse. Además, 4 Camaleón y
+  4 Camaleón Sabueso.
+- Se empieza por la luz. El Eclipse le da la vuelta a todo: al descarte (la
+  carta de abajo queda arriba), al mazo y a las manos. Una carta que sale así
+  arriba no hace nada; si es un comodín, quien jugó el Eclipse elige el color.
+- De su propia mano, cada uno ve la cara en juego; de las manos de los demás
+  ve la otra cara, y también la otra cara de la carta de arriba del mazo, como
+  al sostener cartas de dos caras. En este modo esas caras no son secretas: el
+  servidor las envía a los demás, pero nunca a su dueño.
+- Carga +1: el siguiente roba 1 y pierde el turno. Carga +5: roba 5. Pausa
+  total: todos pierden el turno y vuelve a jugar quien la puso. Camaleón +2:
+  el siguiente roba 2. Camaleón Sabueso: el siguiente roba hasta sacar una
+  carta del color elegido (un comodín no cuenta) y pierde el turno.
+- El Camaleón +2 y el Sabueso solo se juegan sin cartas del color de la mesa.
+  Con el desafío activado se pueden jugar de farol y desafiar: con el +2, como
+  el +4 del clásico (farol: quien lo jugó roba 2; si no, el desafiante roba
+  4); con el Sabueso, si era farol, quien lo jugó roba hasta sacar el color, y
+  si no, el desafiante roba hasta sacarlo y 2 más.
+- Puntos, de la cara en juego al acabar la ronda: números, su valor; Carga
+  +1, 10; Carga +5, Remolino, Pausa y Eclipse, 20; Pausa total, 30; Camaleón,
+  40; Camaleón +2, 50; Camaleón Sabueso, 60. Meta habitual: 500.
+
+### Sin tregua (168 cartas, los cuatro palos de siempre)
+- Por palo, dos de cada número del 0 al 9, tres Pausa, tres Remolino, tres
+  Carga +2, dos Carga +4, tres Barrido y dos Pausa total. Además, 8 Camaleón
+  Remolino +4, 4 Camaleón +6, 4 Camaleón +10 y 8 Camaleón Ruleta. No hay
+  Camaleón normal.
+- Acumular: a una carga (+2, +4, +6, +10) se responde con otra de igual o más
+  valor, de cualquier color, y la cuenta pasa al siguiente. Quien no puede o
+  no quiere, lo roba todo y pierde el turno.
+- Quien roba en su turno roba hasta sacar una carta que pueda jugar, y puede
+  jugarla.
+- Barrido: además de él, sueltas todas tus cartas de su color. Pausa total:
+  todos pierden el turno. Camaleón Remolino +4: cambia el sentido y el
+  siguiente en el nuevo sentido roba 4 (con dos jugadores lo roba quien lo
+  jugó, que puede acumular para devolverlo). Camaleón Ruleta: el siguiente
+  elige un color y destapa cartas del mazo hasta que sale (los comodines no
+  cuentan); se las queda todas y pierde el turno.
+- El 7: cambias tu mano por la de quien elijas. El 0: todos pasan su mano al
+  siguiente, en el sentido del juego.
+- Desborde: quien llega a 25 cartas queda eliminado de la ronda; sus cartas se
+  apartan hasta el próximo rebarajado. Gana quien se queda sin cartas o el
+  último que queda en la mesa.
+- Los comodines se juegan siempre (sin desafío). La carta inicial siempre es
+  un número: las acciones que salgan vuelven al mazo.
+- Puntos: números, su valor; acciones de color, 20; comodines, 50; y 250 por
+  cada eliminado en la ronda. Meta habitual: 1000.
+
+### Hitos de la etapa 7
+0. Plan (este apartado).
+1. Motor: los modos y Doble cara, con tests (composición del mazo, la vuelta
+   completa, las caras que ve cada uno, Sabueso, desafíos y puntos).
+2. Motor: Sin tregua, con tests (composición, acumular, robar hasta poder,
+   Barrido, el 7 y el 0, la ruleta, el desborde y los puntos).
+3. Bots de los dos modos, con los cuatro niveles y simulaciones: el orden de
+   los niveles se cumple y siempre hay 112 o 168 cartas en juego.
+4. Servidor: opciones, mensajes, partida contra bots y salas (qué se hace por
+   quien agota su tiempo en las decisiones nuevas y qué ven los eliminados),
+   con tests.
+5. Interfaz, en 2D y en 3D: palos y cartas nuevos en SVG; el modo en la
+   pantalla de inicio; Doble cara (las caras que se ven, el Eclipse que voltea
+   toda la mesa y el tapete que se oscurece en la sombra); Sin tregua (a quién
+   cambiar la mano con el 7, la ruleta, el Barrido y los eliminados);
+   registro y sonidos.
+6. Repaso: probado en el navegador, README y este archivo al día.
 
 ## Etapa 6: mesas en 3D y fichas en la mesa
 Decisiones del 2026-10-27:
