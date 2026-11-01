@@ -138,3 +138,106 @@ def test_each_level_wins_more_than_the_one_below():
 
 def test_a_duel_also_finishes():
     assert play_game(["expert", "easy"], seed=3) in (0, 1)
+
+
+# --- Los modos nuevos ---
+
+from games.prisma.engine import DARK_COLORS, Mode, PrismaRules  # noqa: E402
+from games.prisma.tests.helpers import card_id, rigged_double  # noqa: E402
+
+
+def relentless(hands, first, rest=""):
+    return rigged(hands, first, rest, mode=Mode.SIN_TREGUA)
+
+
+def test_bots_answer_the_roulette_with_a_colour_in_play():
+    game = relentless(["ruleta panal-1", "halo-1 halo-2", "cumbre-1 cumbre-2"], "panal-5")
+    game.play(0, card_id(game, 0, "ruleta"))
+    view = table_view(game, 1)
+    for level in LEVELS:
+        move = create_bot(level, "X", random.Random(2)).decide(view)
+        assert move.kind == "roulette" and move.color.value in view.colors
+
+
+def test_the_roulette_is_played_without_a_colour_and_the_seven_with_a_target():
+    game = relentless(["ruleta panal-7 halo-3", "halo-1 halo-2 halo-4", "cumbre-1 cumbre-2 cumbre-3"], "panal-5")
+    rival = game.players[2]
+    game.draw_pile += rival.hand[1:]  # el 2 se queda con una sola carta; las demás, al mazo
+    rival.hand = rival.hand[:1]
+    assert game.total_cards() == 168
+    view = table_view(game, 0)
+    for level in LEVELS:
+        for seed in range(10):
+            move = create_bot(level, "X", random.Random(seed)).decide(view)
+            card = view.card(move.card)
+            if card.kind == Kind.RULETA:
+                assert move.color is None
+            if card.number == 7:
+                assert move.target in (1, 2)
+    hard = create_bot("hard", "X", random.Random(1))
+    assert hard.pick_target(view) == 2  # con quien menos cartas tiene
+
+
+def test_hard_stacks_with_the_smallest_card_and_expert_finishes_off_the_leader():
+    game = relentless(["panal-carga halo-1 halo-2", "camaleon10 panal-carga4 halo-3", "cumbre-1 cumbre-2 cumbre-3"], "panal-5")
+    game.play(0, card_id(game, 0, "panal-carga"))
+    view = table_view(game, 1)
+    assert view.card(create_bot("hard", "X").decide(view).card).kind == Kind.CARGA4
+    # El siguiente (el 2) está a punto de ganar: el Experto pone el +10 para que no pueda devolverlo.
+    rival = game.players[2]
+    game.draw_pile += rival.hand[1:]
+    rival.hand = rival.hand[:1]
+    assert game.total_cards() == 168
+    view = table_view(game, 1)
+    assert view.card(create_bot("expert", "X").decide(view).card).kind == Kind.CAMALEON10
+
+
+def test_hard_likes_a_big_sweep():
+    game = relentless(["panal-barrido panal-2 panal-3 panal-8 halo-5", "cumbre-1 cumbre-2 cumbre-3 cumbre-4 cumbre-6"], "panal-5")
+    view = table_view(game, 0)
+    assert view.card(create_bot("hard", "X").decide(view).card).kind == Kind.BARRIDO
+
+
+def test_on_the_dark_side_bots_pick_dark_colours():
+    game = rigged_double(["panal-eclipse panal-2 panal-3", "halo-3 halo-4 halo-5"], "panal-5/camaleon")
+    game.play(0, card_id(game, 0, "panal-eclipse"))
+    view = table_view(game, 0)  # el Eclipse dejó un comodín arriba: elige quien lo jugó
+    for level in LEVELS:
+        move = create_bot(level, "X", random.Random(4)).decide(view)
+        assert move.kind == "choose_color" and move.color in DARK_COLORS
+
+
+def test_hard_never_bluffs_a_hound():
+    game = rigged_double(["panal-eclipse panal-2/sabueso panal-3/brasa-1", "halo-3 halo-4 halo-5"], "panal-5/brasa-9")
+    game.play(0, card_id(game, 0, "panal-eclipse"))
+    game.turn = 0
+    view = table_view(game, 0)
+    for seed in range(10):
+        move = create_bot("hard", "X", random.Random(seed)).decide(view)
+        assert view.card(move.card).kind != Kind.SABUESO
+
+
+@pytest.mark.parametrize("mode", [Mode.DOBLE, Mode.SIN_TREGUA])
+def test_whole_games_between_bots_keep_every_card(mode):
+    rules = PrismaRules(mode=mode)
+    for seed in range(15):
+        game = PrismaGame(["a", "b", "c", "d"], rules, rng=random.Random(seed))
+        table = [create_bot(level, name, random.Random(seed + i)) for i, (level, name) in enumerate(zip(LEVELS, "abcd"))]
+        game.start_round()
+        for _ in range(6000):
+            if game.phase == Phase.ROUND_OVER:
+                break
+            apply(game, game.turn, table[game.turn])
+            assert game.total_cards() == rules.deck_size
+        assert game.phase == Phase.ROUND_OVER
+
+
+@pytest.mark.parametrize("mode", [Mode.DOBLE, Mode.SIN_TREGUA])
+def test_each_level_wins_more_than_the_one_below_in_every_mode(mode):
+    results = run_tournament(list(LEVELS), 2000, seed=2026, rules=PrismaRules(mode=mode))
+    rates = [results[level].win_rate for level in LEVELS]
+    assert sum(result.wins for result in results.values()) == 2000
+    for weaker, stronger in zip(LEVELS, list(LEVELS)[1:]):
+        gap = results[stronger].win_rate - results[weaker].win_rate
+        margin = results[stronger].margin + results[weaker].margin
+        assert gap > margin / 2 > 0, (mode, weaker, stronger, rates)

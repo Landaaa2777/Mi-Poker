@@ -41,7 +41,9 @@ def apply(game: PrismaGame, seat: int, bot: PrismaBot) -> None:
     """Hace la jugada que decide `bot` en su turno."""
     move = bot.decide(table_view(game, seat))
     if move.kind == "play":
-        game.play(seat, move.card, move.color, declare=move.declare)
+        game.play(seat, move.card, move.color, declare=move.declare, target=move.target)
+    elif move.kind == "roulette":
+        game.roulette(seat, move.color)
     elif move.kind == "draw":
         game.draw(seat)
     elif move.kind == "pass":
@@ -70,7 +72,7 @@ def resolve_last_call(game: PrismaGame, bots: Sequence[PrismaBot], rng: random.R
             return
 
 
-def play_game(levels: Sequence[str], seed: int, rules: PrismaRules | None = None, max_moves: int = 3000) -> int | None:
+def play_game(levels: Sequence[str], seed: int, rules: PrismaRules | None = None, max_moves: int = 6000) -> int | None:
     """Una ronda entre bots de los niveles dados (uno por asiento). Devuelve el asiento ganador."""
     rng = random.Random(seed)
     game = PrismaGame([f"{level}-{seat}" for seat, level in enumerate(levels)], rules, rng=rng)
