@@ -7,6 +7,7 @@ import pytest
 
 from games.prisma.engine import (
     DECK_SIZE,
+    LIGHT_COLORS,
     Color,
     IllegalMove,
     Kind,
@@ -28,7 +29,7 @@ def test_the_deck_has_exactly_108_cards():
     deck = full_deck()
     assert len(deck) == DECK_SIZE == 108
     assert sorted(card.id for card in deck) == list(range(108))  # ids únicos
-    for color in Color:
+    for color in LIGHT_COLORS:
         mine = [card for card in deck if card.color == color]
         assert len(mine) == 25
         numbers = Counter(card.number for card in mine if card.kind == Kind.NUMBER)

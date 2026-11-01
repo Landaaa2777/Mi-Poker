@@ -96,6 +96,11 @@ class PrismaBot:
 # --- Ayudas para leer la vista ---
 
 
+def in_play(view: TableView) -> list[Color]:
+    """Los colores que se pueden elegir ahora (en Doble cara, los de la cara en juego)."""
+    return [Color(color) for color in view.colors]
+
+
 def color_counts(view: TableView, without: PrismaCard | None = None) -> Counter:
     return Counter(
         card.color for card in view.hand if card.color is not None and (without is None or card.id != without.id)
@@ -105,7 +110,7 @@ def color_counts(view: TableView, without: PrismaCard | None = None) -> Counter:
 def most_common_color(view: TableView, wild: PrismaCard | None, rng: random.Random) -> Color:
     counts = color_counts(view, wild)
     if not counts:
-        return rng.choice(list(Color))
+        return rng.choice(in_play(view))
     best = max(counts.values())
     return rng.choice([color for color, count in counts.items() if count == best])
 
@@ -145,7 +150,7 @@ class EasyBot(PrismaBot):
         return self.rng.choice(playable)
 
     def pick_color(self, view: TableView, wild: PrismaCard | None) -> Color:
-        return self.rng.choice(list(Color))
+        return self.rng.choice(in_play(view))
 
     def wants_challenge(self, view: TableView) -> bool:
         return self.rng.random() < 0.15
@@ -216,7 +221,7 @@ class HardBot(PrismaBot):
         counts = color_counts(view, wild)
         missing = missing_colors(view)[next_seat(view)]
         return max(
-            Color,
+            in_play(view),
             key=lambda color: (counts[color] * 2 + (1.5 if color in missing else 0), self.rng.random()),
         )
 

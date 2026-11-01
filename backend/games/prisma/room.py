@@ -171,7 +171,7 @@ class PrismaRoom(RoomTable):
         """El color del que más cartas tiene (sin contar comodines)."""
         counts = Counter(card.color for card in self.game.players[seat].hand if not card.is_wild)
         if not counts:
-            return random.choice(list(Color))
+            return random.choice(self.game.colors)
         return counts.most_common(1)[0][0]
 
     def _before_move(self, seat: int) -> None:
