@@ -169,6 +169,28 @@ def test_zero_passes_every_hand_along():
     assert game.vulnerable is None and game.players[1].said_last  # a salvo: no la jugó él
 
 
+def test_after_a_swap_or_a_rotation_each_one_sees_only_their_own_new_hand():
+    game = relentless(["panal-7 panal-0 panal-1", "halo-1 halo-2 halo-3", "cumbre-1 cumbre-2 cumbre-3"], "panal-5")
+    game.play(0, card_id(game, 0, "panal-7"), target=2)
+    swap = game.events[-1]
+    # El evento guarda la foto de las manos justo después del cambio: cada uno
+    # recibe la suya (para animar a qué cartas pasa), nunca la de los demás.
+    for seat in range(3):
+        view = event_view(swap, seat)
+        assert [card["id"] for card in view["cards"]] == [card.id for card in game.players[seat].hand]
+        assert view["backs"] == {}  # en Sin tregua no hay otra cara
+    assert event_view(swap, None)["cards"] == []  # un mirón no ve ninguna mano
+    # El 0 lo pasa todo al siguiente; la foto también es por persona.
+    game.turn = 2
+    game.players[2].hand.append(game.draw_pile.pop())
+    game.players[2].hand[-1] = type(game.players[2].hand[-1])(game.players[2].hand[-1].id, Kind.NUMBER, Color.PANAL, 0)
+    game.play(2, game.players[2].hand[-1].id)
+    rotate = game.events[-1]
+    assert rotate.kind == "rotate"
+    for seat in range(3):
+        assert [card["id"] for card in event_view(rotate, seat)["cards"]] == [card.id for card in game.players[seat].hand]
+
+
 def test_only_the_seven_takes_a_target():
     game = relentless(["panal-6 panal-1", "halo-1 halo-2"], "panal-5")
     with pytest.raises(IllegalMove):

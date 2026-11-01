@@ -19,6 +19,7 @@ from games.prisma.engine import (
     full_deck,
     table_view,
 )
+from games.prisma.engine.views import event_view
 from games.prisma.tests.helpers import card_id, codes, random_move, rigged_double
 
 DOUBLE = PrismaRules(mode=Mode.DOBLE)
@@ -120,6 +121,26 @@ def test_the_eclipse_flips_the_discard_the_deck_and_every_hand():
     assert game.turn == 1 and game.phase == Phase.PLAYING
     assert game.total_cards() == 112
     assert game.events[-1].kind == "eclipse" and game.events[-1].result == "sombra"
+
+
+def test_the_eclipse_event_carries_each_ones_new_hand_and_the_others_other_faces():
+    game = rigged_double(
+        ["panal-eclipse panal-2/brasa-4 panal-3/jade-5", "halo-3/jade-6 halo-4/indigo-1 halo-5/brasa-8"],
+        "panal-5/ambar-9",
+    )
+    game.play(0, card_id(game, 0, "panal-eclipse"))
+    eclipse = game.events[-1]
+    for seat, rival in ((0, 1), (1, 0)):
+        view = event_view(eclipse, seat, game.aliases)
+        # Mi mano tal como queda tras la vuelta: solo la cara que ahora está en juego.
+        assert [card["id"] for card in view["cards"]] == [card.id for card in game.players[seat].hand]
+        assert all("back" not in card for card in view["cards"])
+        # De los demás, la otra cara (la de luz) con su alias; de la mía, nada.
+        assert str(seat) not in view["backs"]
+        backs = view["backs"][str(rival)]
+        assert [face["key"] for face in backs] == [game.aliases[card.id] for card in game.players[rival].hand]
+        assert all(face["color"] in {color.value for color in LIGHT_COLORS} for face in backs)
+        assert all("id" not in face for face in backs)
 
 
 def test_a_revealed_card_does_nothing():

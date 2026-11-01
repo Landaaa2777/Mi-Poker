@@ -77,6 +77,7 @@ class TableView:
     deck_back: dict[str, Any] | None  # Doble cara: la otra cara de la carta de arriba del mazo
     pending_draw: int
     pending_min: int  # Sin tregua: la carga mínima con la que se puede acumular
+    aside_count: int  # Sin tregua: cartas apartadas de los eliminados (vuelven al rebarajar)
     players: tuple[PlayerView, ...]
     viewer_seat: int | None
     hand: tuple[PrismaCard, ...]  # las cartas de quien mira (vacío para un espectador)
@@ -113,6 +114,7 @@ class TableView:
             "deck_back": self.deck_back,
             "pending_draw": self.pending_draw,
             "pending_min": self.pending_min,
+            "aside_count": self.aside_count,
             "players": [{**player.__dict__, "backs": list(player.backs)} for player in self.players],
             "viewer_seat": self.viewer_seat,
             "hand": [card.to_dict() for card in self.hand],
@@ -130,14 +132,30 @@ class TableView:
 PUBLIC_CARDS = frozenset({"reveal", "sweep"})
 
 
-def event_view(event: Event, viewer: int | None) -> dict[str, Any]:
-    """Un suceso tal como lo ve `viewer`: las cartas robadas, solo si son suyas."""
-    shown = event.kind in PUBLIC_CARDS or (viewer is not None and event.seat == viewer)
+def event_view(event: Event, viewer: int | None, aliases: dict[int, int] | None = None) -> dict[str, Any]:
+    """Un suceso tal como lo ve `viewer`: las cartas robadas, solo si son suyas.
+
+    Tras un Eclipse, un 7 o un 0, `cards` es cómo le queda la mano a quien mira,
+    y `backs` (en Doble cara) la otra cara que ve de las manos de los demás.
+    """
+    view: dict[str, Any] = {"backs": {}}
+    if event.hands:
+        cards = [card.to_dict() for card in event.hands[viewer]] if viewer is not None else []
+        if aliases:
+            view["backs"] = {
+                str(seat): [{"key": aliases[card.id], **face_dict(card.back)} for card in hand if card.back]
+                for seat, hand in enumerate(event.hands)
+                if seat != viewer
+            }
+    else:
+        shown = event.kind in PUBLIC_CARDS or (viewer is not None and event.seat == viewer)
+        cards = [card.to_dict() for card in event.cards] if shown else []
     return {
+        **view,
         "kind": event.kind,
         "seat": event.seat,
         "card": event.card.to_dict() if event.card else None,
-        "cards": [card.to_dict() for card in event.cards] if shown else [],
+        "cards": cards,
         "count": event.count,
         "color": event.color,
         "target": event.target,
@@ -192,6 +210,7 @@ def table_view(game: PrismaGame, viewer_seat: int | None = None) -> TableView:
         deck_back=face_dict(deck_top.back) if deck_top is not None and deck_top.back is not None else None,
         pending_draw=game.pending_draw,
         pending_min=game.pending_min,
+        aside_count=len(game.set_aside),
         players=tuple(
             PlayerView(
                 seat=player.seat,
@@ -221,5 +240,5 @@ def table_view(game: PrismaGame, viewer_seat: int | None = None) -> TableView:
             "target": rules.target,
             "hand_size": rules.hand_size,
         },
-        events=tuple(event_view(event, viewer_seat) for event in game.events),
+        events=tuple(event_view(event, viewer_seat, game.aliases) for event in game.events),
     )

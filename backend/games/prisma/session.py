@@ -17,9 +17,9 @@ from core.bots import BOT_DELAY, pick_names
 from core.session import Listener, SessionError
 from games.prisma.bots import PrismaBot, create_bot
 from games.prisma.bots.simulation import apply
-from games.prisma.engine import IllegalMove, Phase, PrismaGame, PrismaRules, table_view
+from games.prisma.engine import IllegalMove, Phase, PrismaGame, table_view
 
-from .protocol import CLIENT_MESSAGE, ChooseColor, NewGame, Play, PrismaConfig, options
+from .protocol import CLIENT_MESSAGE, ChooseColor, NewGame, Play, PrismaConfig, Roulette, options, rules_for
 
 HUMAN_SEAT = 0
 
@@ -57,9 +57,11 @@ class PrismaSession:
         try:
             if isinstance(message, Play):
                 self._before_my_move()
-                game.play(HUMAN_SEAT, message.card, message.color, declare=message.declare)
+                game.play(HUMAN_SEAT, message.card, message.color, declare=message.declare, target=message.target)
             elif isinstance(message, ChooseColor):
                 game.choose_color(HUMAN_SEAT, message.color)
+            elif isinstance(message, Roulette):
+                game.roulette(HUMAN_SEAT, message.color)
             elif message.type == "draw":
                 self._before_my_move()
                 game.draw(HUMAN_SEAT)
@@ -82,15 +84,8 @@ class PrismaSession:
     def new_game(self, config: PrismaConfig) -> None:
         self._stop_runner()
         names = [config.player_name, *pick_names(config.bots, taken=[config.player_name])]
-        rules = PrismaRules(
-            challenge=config.challenge,
-            stack_draw2=config.stack_draw2,
-            stack_draw4=config.stack_draw4,
-            scoring=config.scoring,
-            target=config.target,
-        )
         self.config = config
-        self.game = PrismaGame(names, rules)
+        self.game = PrismaGame(names, rules_for(config))
         self.bots = {seat: create_bot(config.difficulty, name) for seat, name in enumerate(names) if seat != HUMAN_SEAT}
         self.game.start_round()
         self._start_runner()

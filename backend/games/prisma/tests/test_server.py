@@ -40,7 +40,9 @@ class Table:
             assert message["type"] == "state", message
             state = message["state"]
             legal = state["legal"]
-            mine = legal["play"] or legal["draw"] or legal["pass"] or legal["choose_color"] or legal["challenge"]
+            mine = (
+                legal["play"] or legal["draw"] or legal["pass"] or legal["choose_color"] or legal["challenge"] or legal["roulette"]
+            )
             if state["phase"] == "round_over" or mine:
                 return state
 
@@ -79,28 +81,41 @@ def cards_in(value):
 
 
 def visible_to_me(state):
-    """Las cartas que tengo derecho a ver: las mías y las que se han jugado o volteado."""
+    """Las cartas que tengo derecho a ver: las mías, las que se han jugado o volteado,
+    en Sin tregua las que destapa la Ruleta y las que barre el Barrido, y mi mano
+    tal como quedó tras un cambio de manos (el 7 y el 0) o un Eclipse."""
     ids = {card["id"] for card in state["hand"]} | {state["top"]["id"]}
     for event in state["events"]:
         if event["card"]:
             ids.add(event["card"]["id"])
-        if event["seat"] == state["human_seat"]:
+        if event["seat"] == state["human_seat"] or event["kind"] in ("reveal", "sweep", *HAND_MOVES):
             ids |= {card["id"] for card in event["cards"]}
     return ids
+
+
+HAND_MOVES = ("swap", "rotate", "eclipse")  # eventos que llevan la foto de las manos
 
 
 def play_any(state, rng):
     """Una intención legal cualquiera para el estado recibido."""
     legal = state["legal"]
+    colors = state["colors"]  # los que están en juego (los de sombra, en la sombra)
     if legal["choose_color"]:
-        return {"type": "color", "color": rng.choice(["panal", "halo", "cumbre", "astro"])}
+        return {"type": "color", "color": rng.choice(colors)}
+    if legal["roulette"]:
+        return {"type": "roulette", "color": rng.choice(colors)}
     if legal["challenge"]:
         return {"type": rng.choice(["challenge", "accept"])}
     if legal["play"]:
         chosen = rng.choice(legal["play"])
         card = next(card for card in state["hand"] if card["id"] == chosen)
-        color = rng.choice(["panal", "halo", "cumbre", "astro"]) if card["color"] is None else None
-        return {"type": "play", "card": card["id"], "color": color, "declare": len(state["hand"]) == 2}
+        color = rng.choice(colors) if card["color"] is None and card["kind"] != "ruleta" else None
+        message = {"type": "play", "card": card["id"], "color": color}
+        message["declare"] = len(state["hand"]) == 2 and card["kind"] != "barrido"
+        if state["mode"] == "sin_tregua" and card["number"] == 7 and len(state["hand"]) > 1:
+            rivals = [p["seat"] for p in state["players"] if p["seat"] != state["human_seat"] and not p["out"]]
+            message["target"] = rng.choice(rivals)
+        return message
     return {"type": "pass"} if legal["pass"] else {"type": "draw"}
 
 
@@ -109,7 +124,9 @@ def test_the_hello_explains_the_options(app):
     with client.websocket_connect(prisma_url(client)) as socket:
         options = socket.receive_json()["options"]
     fields = {field["key"]: field for field in options["fields"]}
-    assert set(fields) == {"bots", "difficulty", "challenge", "scoring", "target", "stack_draw2", "stack_draw4"}
+    assert set(fields) == {"mode", "bots", "difficulty", "challenge", "scoring", "target", "stack_draw2", "stack_draw4"}
+    assert fields["mode"]["default"] == "clasico" and fields["mode"]["type"] == "choice"
+    assert [choice["value"] for choice in fields["mode"]["choices"]] == ["clasico", "doble_cara", "sin_tregua"]
     assert fields["challenge"]["default"] is True
     assert fields["stack_draw2"]["default"] is False and fields["stack_draw4"]["default"] is False
 
@@ -210,3 +227,83 @@ def test_playing_to_points_goes_round_after_round(table):
     assert state["game_over"]
     assert max(player["score"] for player in state["players"]) >= 50
     assert state["round_number"] == rounds
+
+
+# --- Los modos nuevos ---
+
+from games.prisma.engine import Color, Mode, Phase  # noqa: E402
+
+DECK = {"clasico": 108, "doble_cara": 112, "sin_tregua": 168}
+
+
+@pytest.mark.parametrize("mode", ["doble_cara", "sin_tregua"])
+@pytest.mark.parametrize("difficulty", ["easy", "expert"])
+def test_whole_games_in_each_mode_never_show_what_is_hidden(table, mode, difficulty):
+    rng = random.Random(f"{mode}{difficulty}")
+    table.socket.send_json({"type": "new_game", "config": {"bots": 3, "difficulty": difficulty, "mode": mode}})
+    state = table.settle()
+    for _ in range(600):
+        if state["phase"] == "round_over":
+            break
+        state = table.request(**play_any(state, rng))
+    assert state["phase"] == "round_over" and state["winner"] is not None
+    for seen in table.states:
+        assert seen["mode"] == mode
+        assert set(cards_in(seen)) <= visible_to_me(seen)
+        total = seen["draw_count"] + seen["discard_count"] + seen["aside_count"] + sum(p["count"] for p in seen["players"])
+        assert total == DECK[mode]
+        me = seen["players"][seen["human_seat"]]
+        assert me["backs"] == []  # la otra cara de mis cartas no la veo
+        for player in seen["players"]:
+            assert all("id" not in face for face in player["backs"])
+            if mode == "doble_cara" and player["seat"] != seen["human_seat"]:
+                assert len(player["backs"]) == player["count"]
+            if mode == "sin_tregua":
+                assert player["backs"] == []
+        assert all("back" not in card for card in seen["hand"])
+
+
+def test_the_house_options_only_count_in_the_classic_mode(table):
+    table.socket.send_json({"type": "new_game", "config": {"bots": 1, "mode": "sin_tregua", "stack_draw2": True}})
+    table.settle()
+    rules = table.session().game.rules
+    assert rules.mode == Mode.SIN_TREGUA and not rules.stack_draw2
+
+
+def test_the_roulette_and_the_seven_over_the_wire(table):
+    table.socket.send_json({"type": "new_game", "config": {"bots": 2, "mode": "sin_tregua"}})
+    table.settle()
+    session = table.session()
+    game = rigged(["panal-7 panal-1 halo-2", "halo-1 halo-3 halo-4", "cumbre-1 cumbre-2 cumbre-3"], "panal-5", mode=Mode.SIN_TREGUA)
+    session.game = game
+    assert "con quién" in table.error(type="play", card=card_id(game, 0, "panal-7"))
+    assert "Mensaje inválido" in table.error(type="play", card=card_id(game, 0, "panal-7"), target=9)
+    theirs = {card.id for card in game.players[2].hand}
+    table.socket.send_json({"type": "play", "card": card_id(game, 0, "panal-7"), "target": 2})
+    state = table.receive()["state"]  # justo tras mi jugada, antes de que jueguen los bots
+    assert any(event["kind"] == "swap" and event["target"] == 2 for event in state["events"])
+    assert {card["id"] for card in state["hand"]} == theirs  # ahora tengo sus cartas
+    assert state["players"][2]["count"] == 2  # y él, las dos que me quedaban
+
+
+def test_choosing_the_colour_of_a_roulette(table):
+    table.socket.send_json({"type": "new_game", "config": {"bots": 2, "mode": "sin_tregua"}})
+    table.settle()
+    session = table.session()
+    game = rigged(["panal-1 halo-2", "halo-1 halo-3", "cumbre-1 cumbre-2"], "panal-5", mode=Mode.SIN_TREGUA)
+    session.game = game
+    # Me toca la Ruleta: elijo el color, y las cartas destapadas las ve todo el mundo.
+    game.phase, game.turn = Phase.ROULETTE, 0
+    assert "no está en juego" in table.error(type="roulette", color="brasa")
+    table.socket.send_json({"type": "roulette", "color": "halo"})
+    state = table.receive()["state"]
+    reveal = next(event for event in state["events"] if event["kind"] == "reveal")
+    assert reveal["cards"] and reveal["cards"][-1]["color"] in ("halo", Color.HALO)
+
+
+def test_dark_colours_are_accepted_only_on_the_dark_side(table):
+    table.socket.send_json({"type": "new_game", "config": {"bots": 1, "mode": "doble_cara"}})
+    table.settle()
+    session = table.session()
+    session.game.phase, session.game.turn = Phase.CHOOSE_COLOR, 0
+    assert "no está en juego" in table.error(type="color", color="jade")

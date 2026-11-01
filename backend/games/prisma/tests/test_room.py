@@ -116,3 +116,56 @@ def test_playing_for_points_the_next_round_starts_by_itself():
         assert not room.finished
 
     play(scenario())
+
+
+# --- Los modos nuevos ---
+
+from games.prisma.engine import Mode  # noqa: E402
+
+
+def test_in_double_face_each_person_sees_the_others_backs_but_not_their_own():
+    async def scenario():
+        room = PrismaRoom(room_context(RoomConfig(bots=1, mode="doble_cara"), ("Ana", "Luis")))
+        assert room.game.mode == Mode.DOBLE
+        for user_id, seat in room.seat_of.items():
+            state = room.state(user_id)
+            for player in state["players"]:
+                if player["seat"] == seat:
+                    assert player["backs"] == []
+                else:
+                    assert len(player["backs"]) == player["count"]
+                    assert all("id" not in face for face in player["backs"])
+        room.close()
+
+    play(scenario())
+
+
+def test_when_time_runs_out_on_a_roulette_a_colour_is_chosen():
+    async def scenario():
+        room = PrismaRoom(room_context(RoomConfig(mode="sin_tregua")))
+        game = room.game
+        game.phase = Phase.ROULETTE
+        seat = game.turn
+        before = len(game.players[seat].hand)
+        room._play_for(seat)
+        assert game.phase == Phase.PLAYING and game.turn != seat
+        assert len(game.players[seat].hand) > before or game.events[-2].kind == "reveal"
+        assert game.color in game.colors
+        room.close()
+
+    play(scenario())
+
+
+def test_when_time_runs_out_under_a_stack_the_stack_is_drawn():
+    async def scenario():
+        room = PrismaRoom(room_context(RoomConfig(mode="sin_tregua")))
+        game = room.game
+        game.pending_draw, game.pending_min = 6, 4
+        seat = game.turn
+        before = len(game.players[seat].hand)
+        room._play_for(seat)
+        assert len(game.players[seat].hand) in (before + 6, 0)  # 0 si con eso llegó a 25
+        assert game.pending_draw == 0 and game.turn != seat
+        room.close()
+
+    play(scenario())

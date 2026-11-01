@@ -102,6 +102,9 @@ class Event:
     target: int | None = None  # el otro jugador implicado (quien pilla, a quién se desafía)
     result: str = ""
     reason: str = ""
+    # Tras un Eclipse, un 7 o un 0: cómo quedan las manos (cada uno verá la suya
+    # y, en Doble cara, la otra cara de las de los demás; ver las vistas).
+    hands: tuple[tuple[PrismaCard, ...], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -494,11 +497,10 @@ class PrismaGame:
         self._close_window(seat)
         self.color = self._color(color)
         self.phase = Phase.PLAYING
-        revealed = self._draw_until(seat, self.color, "ruleta", public=True)
+        self._draw_until(seat, self.color, "ruleta", public=True)
         self.events.append(Event("skip", seat))
         self.turn = self.next_seat(seat)
-        if not self._check_mercy(seat) and not revealed:
-            pass  # no quedaba nada que destapar: se queda como está
+        self._check_mercy(seat)
 
     def next_round(self) -> None:
         """Otra ronda (solo si se juega a puntos y nadie ha llegado a la meta)."""
@@ -668,7 +670,7 @@ class PrismaGame:
         """El 7 de Sin tregua: cambia su mano por la de `target`."""
         mine, theirs = self.players[seat], self.players[target]
         mine.hand, theirs.hand = theirs.hand, mine.hand
-        self.events.append(Event("swap", seat, target=target))
+        self.events.append(Event("swap", seat, target=target, hands=self._hands()))
         self._after_hands_move()
 
     def _rotate(self, seat: int) -> None:
@@ -677,8 +679,12 @@ class PrismaGame:
         hands = {s: self.players[s].hand for s in seats}
         for s in seats:
             self.players[self.next_seat(s)].hand = hands[s]
-        self.events.append(Event("rotate", seat, result="left" if self.direction < 0 else "right"))
+        self.events.append(Event("rotate", seat, result="left" if self.direction < 0 else "right", hands=self._hands()))
         self._after_hands_move()
+
+    def _hands(self) -> tuple[tuple[PrismaCard, ...], ...]:
+        """Una foto de las manos de todos (para los sucesos que las cambian)."""
+        return tuple(tuple(player.hand) for player in self.players)
 
     def _after_hands_move(self) -> None:
         """Tras cambiar manos: nadie puede ser pillado por una carta que no ha jugado él.
@@ -705,7 +711,7 @@ class PrismaGame:
             player.hand = [card.flipped() for card in player.hand]
         self.side = Side.SOMBRA if self.side == Side.LUZ else Side.LUZ
         top = self.top
-        self.events.append(Event("eclipse", seat, card=top, result=self.side.value))
+        self.events.append(Event("eclipse", seat, card=top, result=self.side.value, hands=self._hands()))
         if top.is_wild:
             self.phase = Phase.CHOOSE_COLOR
             self.turn = seat

@@ -7,7 +7,10 @@ Usa el mismo motor que la partida contra bots. Lo que cambia:
   hasta que actúe el siguiente: las personas con su botón y los bots al ir a
   jugar, cada uno con la probabilidad de su nivel.
 - 30 segundos por decisión: si se acaban, roba y pasa (y si tenía que elegir,
-  acepta el +4 o elige el color del que más cartas tiene).
+  acepta el comodín, elige el color del que más cartas tiene o, con la Ruleta
+  de Sin tregua, el color del que quedan más cartas por salir). Con una carga
+  acumulada encima, roba la carga.
+- En Sin tregua, quien queda eliminado con 25 cartas mira cómo acaba la ronda.
 - Jugando a puntos, la ronda siguiente empieza sola tras una pausa.
 - Quien se va de la sala deja su sitio a un bot, que sigue con sus cartas.
 """
@@ -25,11 +28,12 @@ from core.bots import pick_names
 from core.room import RoomContext, RoomTable
 from core.session import SessionError
 from games.prisma.bots import PrismaBot, create_bot
+from games.prisma.bots.levels import likeliest_color
 from games.prisma.bots.simulation import apply
-from games.prisma.engine import IllegalMove, Phase, PrismaGame, PrismaRules, table_view
+from games.prisma.engine import IllegalMove, Phase, PrismaGame, table_view
 from games.prisma.engine.cards import Color
 
-from .protocol import ChooseColor, Play
+from .protocol import ChooseColor, Play, Roulette, rules_for
 
 
 class RoomSimple(BaseModel):
@@ -39,7 +43,7 @@ class RoomSimple(BaseModel):
     type: Literal["draw", "pass", "challenge", "accept", "last", "catch"]
 
 
-ROOM_MESSAGE = TypeAdapter(Annotated[Play | ChooseColor | RoomSimple, Field(discriminator="type")])
+ROOM_MESSAGE = TypeAdapter(Annotated[Play | ChooseColor | Roulette | RoomSimple, Field(discriminator="type")])
 
 
 class PrismaRoom(RoomTable):
@@ -48,14 +52,7 @@ class PrismaRoom(RoomTable):
         options = self.options
         people = [person.name for person in context.people]
         names = [*people, *pick_names(options.bots, taken=people)]
-        rules = PrismaRules(
-            challenge=options.challenge,
-            stack_draw2=options.stack_draw2,
-            stack_draw4=options.stack_draw4,
-            scoring=options.scoring,
-            target=options.target,
-        )
-        self.game = PrismaGame(names, rules)
+        self.game = PrismaGame(names, rules_for(options))
         self.bots: dict[int, PrismaBot] = {
             seat: create_bot(options.difficulty, name)
             for seat, name in enumerate(names)
@@ -73,9 +70,11 @@ class PrismaRoom(RoomTable):
         try:
             if isinstance(message, Play):
                 self._before_move(seat)
-                game.play(seat, message.card, message.color, declare=message.declare)
+                game.play(seat, message.card, message.color, declare=message.declare, target=message.target)
             elif isinstance(message, ChooseColor):
                 game.choose_color(seat, message.color)
+            elif isinstance(message, Roulette):
+                game.roulette(seat, message.color)
             elif message.type == "draw":
                 self._before_move(seat)
                 game.draw(seat)
@@ -158,6 +157,8 @@ class PrismaRoom(RoomTable):
         game = self.game
         if game.phase == Phase.CHOOSE_COLOR:
             game.choose_color(seat, self._favorite_color(seat))
+        elif game.phase == Phase.ROULETTE:
+            game.roulette(seat, likeliest_color(table_view(game, seat), self._rng))
         elif game.phase == Phase.CHALLENGE:
             game.accept(seat)
         elif game.drawn is not None:
@@ -169,7 +170,7 @@ class PrismaRoom(RoomTable):
 
     def _favorite_color(self, seat: int) -> Color:
         """El color del que más cartas tiene (sin contar comodines)."""
-        counts = Counter(card.color for card in self.game.players[seat].hand if not card.is_wild)
+        counts = Counter(card.color for card in self.game.players[seat].hand if card.color in self.game.colors)
         if not counts:
             return random.choice(self.game.colors)
         return counts.most_common(1)[0][0]

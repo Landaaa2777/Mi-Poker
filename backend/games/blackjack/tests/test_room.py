@@ -97,8 +97,11 @@ def test_only_whoever_has_the_turn_can_play():
             other = 2 if turn == 0 else 1
             with pytest.raises(SessionError, match="No es tu turno"):
                 act(room, other, "stand")
-        with pytest.raises(SessionError):
-            bet(room, 1)  # con la ronda en juego no se apuesta
+        # Con la ronda en juego no se apuesta. (Si el crupier tenía blackjack, la
+        # ronda ya ha terminado y se puede apostar la siguiente: no se mira.)
+        if room.game.phase != Phase.COMPLETE:
+            with pytest.raises(SessionError):
+                bet(room, 1)
         room.close()
 
     play(scenario())
