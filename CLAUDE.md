@@ -7,7 +7,7 @@ de juego social con fichas virtuales, pero con nombre, diseño y textos 100%
 originales (no copiar marca, assets ni textos de ningún sitio existente).
 
 ## ESTADO ACTUAL
-- Etapas 1, 2, 3, 4, 5 y 6 completas. La etapa 4 (plataforma de juegos: menú
+- Etapas 1, 2, 3, 4, 5, 6 y 7 completas. La etapa 4 (plataforma de juegos: menú
   principal, el poker de siempre, blackjack y el juego de descarte "Prisma")
   se aprobó el 2026-10-17 y se cerró el mismo día. La etapa 5 (salas privadas
   para jugar con amigos, cuentas obligatorias y fichas diarias) se aprobó el
@@ -16,9 +16,9 @@ originales (no copiar marca, assets ni textos de ningún sitio existente).
 - La etapa 6 (mesas en 3D y fichas en la mesa) la pedí el 2026-10-27 y se
   cerró el mismo día, también de seguido, sin parar entre hitos, como pedí.
   Ver "Etapa 6: mesas en 3D y fichas en la mesa".
-- Etapa 7 en curso (modos de Prisma: Doble cara y Sin tregua): la pedí el
-  2026-11-01 y se trabaja de seguido, sin parar entre hitos, como pedí. Su
-  plan está en "Etapa 7: modos de Prisma".
+- La etapa 7 (modos de Prisma: Doble cara y Sin tregua) la pedí el
+  2026-11-01 y se cerró el mismo día, de seguido, sin parar entre hitos, como
+  pedí. Ver "Etapa 7: modos de Prisma".
 - El juego de descarte se llama Prisma: lo decidí el 2026-10-17 (probé a
   llamarlo ONE y volví a Prisma).
 
@@ -174,7 +174,9 @@ originales (no copiar marca, assets ni textos de ningún sitio existente).
 ## Juego de descarte "Prisma" (etapa 4)
 Es el UNO clásico original, con sus mismas reglas, pero sin su nombre, su
 logo ni su vocabulario: ninguna palabra, logo, eslogan ni asset del juego
-clásico. Su nombre es Prisma (decidido el 2026-10-17).
+clásico. Su nombre es Prisma (decidido el 2026-10-17). Desde la etapa 7 tiene
+tres modos: Clásico (lo de este apartado), Doble cara y Sin tregua (ver
+"Etapa 7: modos de Prisma").
 
 ### Identidad propia
 - Cuatro palos con nombre, forma y color propios. Cada forma es distinta, lo
@@ -500,22 +502,56 @@ Decisiones del 2026-11-01:
   cada eliminado en la ronda. Meta habitual: 1000.
 
 ### Hitos de la etapa 7
-0. Plan (este apartado).
-1. Motor: los modos y Doble cara, con tests (composición del mazo, la vuelta
-   completa, las caras que ve cada uno, Sabueso, desafíos y puntos).
-2. Motor: Sin tregua, con tests (composición, acumular, robar hasta poder,
-   Barrido, el 7 y el 0, la ruleta, el desborde y los puntos).
-3. Bots de los dos modos, con los cuatro niveles y simulaciones: el orden de
-   los niveles se cumple y siempre hay 112 o 168 cartas en juego.
-4. Servidor: opciones, mensajes, partida contra bots y salas (qué se hace por
-   quien agota su tiempo en las decisiones nuevas y qué ven los eliminados),
-   con tests.
-5. Interfaz, en 2D y en 3D: palos y cartas nuevos en SVG; el modo en la
-   pantalla de inicio; Doble cara (las caras que se ven, el Eclipse que voltea
-   toda la mesa y el tapete que se oscurece en la sombra); Sin tregua (a quién
-   cambiar la mano con el 7, la ruleta, el Barrido y los eliminados);
-   registro y sonidos.
-6. Repaso: probado en el navegador, README y este archivo al día.
+0. Plan (completado: este apartado).
+1. Motor: los modos y Doble cara, con tests (completado: composición del
+   mazo, la vuelta completa, las caras que ve cada uno, Sabueso, desafíos y
+   puntos).
+2. Motor: Sin tregua, con tests (completado: composición, acumular, robar
+   hasta poder, Barrido, el 7 y el 0, la ruleta, el desborde y los puntos).
+3. Bots de los dos modos (completado): los cuatro niveles y simulaciones
+   (`scripts/simulate_prisma.py --modo`); el orden de los niveles se cumple y
+   siempre hay 112 o 168 cartas en juego.
+4. Servidor (completado): opciones, mensajes (`target` del 7 y `roulette`),
+   partida contra bots y salas, con tests.
+5. Interfaz, en 2D y en 3D (completado): palos y cartas nuevos en SVG; el
+   modo en la pantalla de inicio; Doble cara (las caras que se ven, el
+   Eclipse que voltea toda la mesa y el tapete que se oscurece en la sombra);
+   Sin tregua (a quién cambiar la mano con el 7, la ruleta, el Barrido y los
+   eliminados); registro y sonidos (`usePlayFlow.tsx`, `TargetPicker.tsx`).
+6. Repaso (completado): probado en el navegador (2D, 3D, móvil y una sala con
+   dos personas), README y este archivo al día.
+
+### Decisiones tomadas durante la etapa 7
+- Reglas sacadas de los reglamentos oficiales de las dos variantes; donde no
+  dicen nada, se eligió:
+  - Doble cara: el Camaleón +2 y el Eclipse tampoco pueden abrir la ronda
+    (vuelven al mazo, como el +4). Un Eclipse como última carta gana sin dar la
+    vuelta. Si el Eclipse deja arriba un comodín, el color lo elige quien lo
+    jugó.
+  - Las caras se emparejan al azar en cada ronda (cada carta física tiene su
+    luz y su sombra). La otra cara de las cartas ajenas va con un alias de la
+    ronda, nunca con el id de la carta; al jugarla, su alias se hace público
+    (todo el que mira ve qué carta sale de la mano).
+  - Sin tregua: también se puede robar con jugada (se roba hasta sacar una que
+    sirva). La Ruleta como última carta no castiga a nadie. Tras un 7 o un 0,
+    quien se queda con una carta está a salvo de "¡Pillado!" (no la jugó él).
+    El desborde se mira después de robar todo lo que tocaba.
+- Por tiempo agotado en las salas: la Ruleta elige el color del que más cartas
+  tienes y las cargas acumuladas se roban. Un eliminado sigue viendo la mesa,
+  sin mano.
+- El registro (`events`) trae en los sucesos del Eclipse, el 7 y el 0 cómo le
+  queda la mano a cada uno (solo la suya) y cuántas cartas tiene cada uno; en
+  Doble cara, además, las caras que entran en las manos ajenas, qué carta sale
+  y la cara de encima del mazo. Así la mesa se rehace paso a paso.
+- Opciones con `when` en el esquema: el panel (contra bots y en las salas)
+  solo enseña lo que aplica al modo elegido (el desafío, en Clásico y Doble
+  cara; acumular, en Clásico; la meta, jugando a puntos).
+- Interfaz: los palos de sombra en `tokens.css`; las cartas de sombra, con
+  marco negro; en Doble cara se ve la otra cara de las cartas de los rivales y
+  la de encima del mazo; con el Eclipse cada carta se da la vuelta en su sitio
+  y el tapete se oscurece con un fundido; en Sin tregua, las acumuladas, el
+  selector del 7, la Ruleta y el Barrido (sus cartas se enseñan un momento) y
+  los desbordados ("Fuera de la ronda", y "Apartadas" junto al mazo).
 
 ## Etapa 6: mesas en 3D y fichas en la mesa
 Decisiones del 2026-10-27:
@@ -758,6 +794,10 @@ la red de casa o con un túnel (ver "Etapa 5: online con amigos").
 ### Etapa 6: mesas en 3D y fichas en la mesa (completa el 2026-10-27)
 Vista 3D a elegir con la 2D, cartas con física y fichas en la mesa (ver
 "Etapa 6: mesas en 3D y fichas en la mesa").
+
+### Etapa 7: modos de Prisma (completa el 2026-11-01)
+Doble cara y Sin tregua, contra bots y en las salas, en 2D y en 3D (ver
+"Etapa 7: modos de Prisma").
 
 ## Visión futura (solo referencia, NO implementar todavía)
 - Publicar la plataforma en un servidor (HTTPS, límites de cuentas) para

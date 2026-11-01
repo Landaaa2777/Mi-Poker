@@ -27,6 +27,9 @@ canjean por nada.
 - Etapa 6 (completa): mesas en 3D, a elegir con las de siempre en 2D, con
   cartas que se mueven con física, y fichas de verdad en la mesa (apuestas que
   crecen, el bote y lo que se cobra), en las dos vistas.
+- Etapa 7 (completa): dos modos nuevos de Prisma, **Doble cara** (cartas de
+  luz y de sombra que el Eclipse voltea) y **Sin tregua** (168 cartas, cargas
+  que se acumulan, la Ruleta y el desborde), contra bots y en las salas.
 
 Las partidas y las salas viven en la memoria del servidor y se pierden al
 cerrarlo; las cuentas sí se guardan.
@@ -190,7 +193,7 @@ Tú contra el crupier, con 0 a 4 bots en los otros asientos.
 ### Prisma
 
 Las reglas del juego de descarte clásico, con nombre, cartas y vocabulario
-propios.
+propios, en tres modos (ver más abajo): Clásico, Doble cara y Sin tregua.
 
 - 108 cartas en cuatro palos, cada uno con su forma y su color (así también se
   distinguen sin ver los colores): **Panal** (hexágono, naranja cobre),
@@ -212,6 +215,44 @@ propios.
   se cierra y gana quien tiene menos cartas.
 - Opciones: jugar a puntos hasta una meta, sin desafío del +4, y las opciones
   de la casa de acumular +2 y +4 (desactivadas por defecto).
+
+#### Modos de Prisma
+
+![Prisma: la pantalla de inicio con los tres modos, Doble cara en la luz y en la sombra (tras un Eclipse) y Sin tregua en 3D con una Ruleta y un jugador desbordado](docs/prisma-modos.jpg)
+
+Quien empieza la partida (o el anfitrión de la sala) elige el modo. Los tres
+se juegan contra bots y en las salas, en 2D y en 3D.
+
+- **Clásico**: las reglas de arriba, con 108 cartas.
+- **Doble cara** (112 cartas de dos caras): cada carta tiene una cara de luz,
+  con los palos de siempre, y una de sombra, negra, con cuatro palos propios:
+  **Brasa** (rombo, carmesí), **Ámbar** (luna, dorado), **Jade** (hoja, verde)
+  e **Índigo** (gota, azul oscuro). Se empieza por la luz.
+  - De tu mano ves la cara en juego; de las manos de los demás ves la otra
+    cara, y también la de encima del mazo. Los demás ven la otra cara de las
+    tuyas, pero tú no.
+  - **Eclipse** le da la vuelta a todo: al descarte (la carta de abajo queda
+    arriba), al mazo y a las manos, y el tapete se oscurece en la sombra.
+  - Luz: **Carga +1**, Pausa, Remolino, Camaleón y **Camaleón +2**. Sombra:
+    **Carga +5**, **Pausa total** (todos pierden el turno y vuelve a jugar
+    quien la puso), Remolino, Camaleón y **Camaleón Sabueso** (el siguiente
+    roba hasta sacar una carta del color elegido).
+  - El Camaleón +2 y el Sabueso solo se juegan sin el color de la mesa, y se
+    pueden desafiar como el +4 del Clásico.
+- **Sin tregua** (168 cartas): las cargas se acumulan (a un +2, +4, +6 o +10
+  se responde con otra igual o mayor, de cualquier color; quien no puede, se
+  lo come todo); quien roba en su turno roba hasta sacar una que pueda jugar;
+  **Barrido** suelta también todas tus cartas de su color; **Pausa total**;
+  **Camaleón Remolino +4**; **Camaleón Ruleta** (el siguiente elige un color y
+  destapa cartas hasta que sale, y se las queda); el **7** cambia tu mano por
+  la de quien elijas y el **0** hace que todos pasen su mano al siguiente.
+  Quien llega a 25 cartas queda fuera de la ronda (**desborde**). Los
+  comodines se juegan siempre, sin desafío.
+
+Jugando a puntos, la meta habitual es 500 (en Sin tregua, 1000, y cada
+eliminado de la ronda vale 250 puntos para el ganador). Las opciones de la
+casa (acumular +2 y +4) son solo del Clásico; el desafío, del Clásico y de
+Doble cara.
 
 ## Cuentas
 
@@ -337,8 +378,11 @@ registro de juegos, las salas (crear, unirse, la sala de espera, varias
 personas en cada juego, tiempo por decisión y abandonos, con varios
 navegadores de prueba a la vez) y una pasada de seguridad: entrar en partidas
 o salas ajenas, mensajes rotos, inventados o enormes y cartas ocultas que
-nunca llegan al navegador. Usan bases de datos temporales: nunca tocan la de
-`backend/data`.
+nunca llegan al navegador. En Prisma, además, los tres modos: el mazo de
+cada uno, el Eclipse, el Sabueso y los desafíos de Doble cara (y que la otra
+cara de tus cartas nunca te llega), y las cargas acumuladas, el robo hasta
+poder, el Barrido, el 7 y el 0, la Ruleta y el desborde de Sin tregua. Usan
+bases de datos temporales: nunca tocan la de `backend/data`.
 
 Frontend (líneas de tiempo, cola de reproducción, menú, panel de opciones,
 textos, sonidos, cuentas, salas, la cámara 3D, la física de las cartas y las
@@ -368,6 +412,7 @@ python scripts\demo_hand.py            # una mano de poker al azar, con todo su 
 python scripts\simulate.py             # poker: bb/100 de cada nivel (medio minuto)
 python scripts\simulate_blackjack.py   # blackjack: lo que gana o pierde cada nivel
 python scripts\simulate_prisma.py      # Prisma: partidas ganadas por cada nivel
+python scripts\simulate_prisma.py --modo doble_cara   # lo mismo en otro modo (o sin_tregua)
 python scripts\red_local.py            # el servidor para jugar en la red de casa
 ```
 
@@ -387,6 +432,12 @@ cambia la estrategia, nunca la información.
 | Medio | Manos por su fuerza inicial y pot odds básicos. | Media estrategia básica. | Suelta primero lo que más vale; color: el que más tiene. |
 | Difícil | Equity por Monte Carlo, posición y faroles ocasionales. | Estrategia básica completa. | Recuerda qué colores te faltan; guarda comodines y ataques. |
 | Experto | Como Difícil, y se adapta a lo que haces. | Estrategia básica con ajustes por su mano. | Como Difícil, cierra mejor la mano y nunca se despista. |
+
+En los modos de Prisma, Difícil y Experto usan lo que ven del modo: en Doble
+cara, el Eclipse cuando a quien va mejor le queda floja la otra cara (la que
+ven de su mano); en Sin tregua, pasan las cargas con la más pequeña que vale
+y el Experto, además, remata a quien se acerca a las 25 cartas o tira la
+carga más grande si el siguiente está a punto de ganar.
 
 ## Estructura
 
